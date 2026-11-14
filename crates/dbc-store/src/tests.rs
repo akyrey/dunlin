@@ -195,3 +195,16 @@ fn names_are_trimmed() {
 
     assert_eq!(profile.name, "local");
 }
+
+#[test]
+fn a_profile_converts_back_into_an_equivalent_draft() {
+    let (_dir, path) = temp_path();
+    let store = Store::open(&path).unwrap();
+    let profile = store.save_connection(sqlite_draft("local")).unwrap();
+
+    let resaved = store
+        .save_connection(ConnectionDraft::from(profile.clone()))
+        .unwrap();
+
+    assert_eq!(resaved, profile);
+}

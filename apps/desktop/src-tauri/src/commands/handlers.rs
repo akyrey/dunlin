@@ -1,0 +1,87 @@
+//! Tauri command wrappers. Each one only forwards to the implementation in `commands`.
+
+use dbc_core::driver::DriverInfo;
+use dbc_store::ConnectionProfile;
+use tauri::State;
+
+use crate::commands;
+use crate::error::AppError;
+use crate::ipc::{
+    ConnectionIdArgs, ConnectionSaveArgs, ConnectionTestArgs, ConnectionTestResult,
+    QueryExecuteArgs, QueryResult, SessionIdArgs, SessionInfo, SqlSplitArgs, StatementRange,
+    TabArgs,
+};
+use crate::state::AppState;
+
+#[tauri::command]
+pub fn driver_list(state: State<'_, AppState>) -> Vec<DriverInfo> {
+    commands::driver_list(&state)
+}
+
+#[tauri::command]
+pub async fn connection_list(
+    state: State<'_, AppState>,
+) -> Result<Vec<ConnectionProfile>, AppError> {
+    commands::connection_list(&state).await
+}
+
+#[tauri::command]
+pub async fn connection_save(
+    state: State<'_, AppState>,
+    args: ConnectionSaveArgs,
+) -> Result<ConnectionProfile, AppError> {
+    commands::connection_save(&state, args).await
+}
+
+#[tauri::command]
+pub async fn connection_delete(
+    state: State<'_, AppState>,
+    args: ConnectionIdArgs,
+) -> Result<(), AppError> {
+    commands::connection_delete(&state, args).await
+}
+
+#[tauri::command]
+pub async fn connection_test(
+    state: State<'_, AppState>,
+    args: ConnectionTestArgs,
+) -> Result<ConnectionTestResult, AppError> {
+    commands::connection_test(&state, args).await
+}
+
+#[tauri::command]
+pub async fn session_open(
+    state: State<'_, AppState>,
+    args: ConnectionIdArgs,
+) -> Result<SessionInfo, AppError> {
+    commands::session_open(&state, args).await
+}
+
+#[tauri::command]
+pub async fn session_close(
+    state: State<'_, AppState>,
+    args: SessionIdArgs,
+) -> Result<(), AppError> {
+    commands::session_close(&state, args).await
+}
+
+#[tauri::command]
+pub async fn sql_split(
+    state: State<'_, AppState>,
+    args: SqlSplitArgs,
+) -> Result<Vec<StatementRange>, AppError> {
+    commands::sql_split(&state, args).await
+}
+
+#[tauri::command]
+pub async fn query_execute(
+    state: State<'_, AppState>,
+    args: QueryExecuteArgs,
+) -> Result<QueryResult, AppError> {
+    commands::query_execute(&state, args).await
+}
+
+#[tauri::command]
+pub async fn tab_close(state: State<'_, AppState>, args: TabArgs) -> Result<(), AppError> {
+    commands::tab_close(&state, args).await
+}

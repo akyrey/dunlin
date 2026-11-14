@@ -32,8 +32,8 @@ Highlighting configuration and autocomplete (Phase 5), schema tree (Phase 4), an
 - [x] 1.7 Driver conformance suite skeleton in `dbc-core` (`test-support` feature) with the connect, type round-trip and row-limit groups; fixture `sqlite.sql`.
 - [x] 1.8 `dbc-driver-sqlite`: worker-thread connection, `connect` (file path, read-only flag, `PRAGMA foreign_keys = ON`), `ping`, `execute`, `close`, interrupt-based `CancelHandle`. Passes the conformance groups from 1.7.
 - [x] 1.9 `dbc-store`: open or create the store file, migration runner, `connections` CRUD. Tests against a temp file, including upgrade from an empty file and reopening an existing one.
-- [ ] 1.10 `src-tauri`: driver registry, `SessionManager`, `AppError` mapping, commands `driver_list`, `connection_*`, `session_open`, `session_close`, `sql_split`, `query_execute`, `tab_close`. Command tests with a temp store and temp SQLite file.
-- [ ] 1.11 Type generation with `ts-rs` into `src/ipc/generated/`, plus a check that fails when output is stale. Confirm the `Value` type generates correctly (DECISIONS D-010).
+- [x] 1.10 `src-tauri`: driver registry, `SessionManager`, `AppError` mapping, commands `driver_list`, `connection_*`, `session_open`, `session_close`, `sql_split`, `query_execute`, `tab_close`. Command tests with a temp store and temp SQLite file.
+- [x] 1.11 Type generation with `ts-rs` into `src/ipc/generated/`, plus a check that fails when output is stale. Confirm the `Value` type generates correctly (DECISIONS D-010).
 - [ ] 1.12 Frontend `src/ipc/` wrappers and value formatting helpers (`formatValue`, null rendering). Unit tests.
 - [ ] 1.13 Frontend: layout shell, connection list, SQLite connection form with file picker and "Test connection".
 - [ ] 1.14 Frontend: editor tab (CodeMirror, basic setup), run with a button and `Cmd/Ctrl+Enter`, result grid (TanStack Table + Virtual, read-only), affected-rows message, error panel with position, truncated indicator.

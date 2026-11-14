@@ -1,0 +1,37 @@
+[package]
+name = "dunlin"
+description = "Dunlin desktop app: Tauri commands and session manager"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+# Distinct from the binary name (cargo#8519).
+name = "dunlin_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+dbc-core = { workspace = true, features = ["ts"] }
+dbc-driver-sqlite.workspace = true
+dbc-store = { workspace = true, features = ["ts"] }
+serde.workspace = true
+serde_json.workspace = true
+tauri = { version = "2.12", features = [] }
+tauri-plugin-dialog = "2.8"
+thiserror.workspace = true
+tokio.workspace = true
+ts-rs.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+dbc-core = { workspace = true, features = ["ts", "test-support"] }
+rusqlite.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true

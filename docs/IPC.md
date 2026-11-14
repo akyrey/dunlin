@@ -5,11 +5,13 @@ The frontend talks to the backend only through Tauri commands. This document is 
 ## Conventions
 
 - Command names are `snake_case`, prefixed by area: `connection_*`, `session_*`, `query_*`, `schema_*`, `table_*`, `changes_*`, `history_*`, `saved_query_*`, `export_*`, `ssh_*`, `settings_*`.
-- Every command takes one argument object and returns `Result<T, AppError>`. On the frontend that is a promise that resolves with `T` or rejects with `AppError`.
+- Every command takes one argument object and returns `Result<T, AppError>`. On the frontend that is a promise that resolves with `T` or rejects with `AppError`. On the Rust side the object is a single `args` parameter (`invoke("sql_split", { args: { sessionId, text } })`); the wrappers in `src/ipc/` hide the envelope.
 - Argument and return types are Rust structs deriving `serde` and `ts-rs`'s `TS`. TypeScript types are generated into `apps/desktop/src/ipc/generated/` and committed; a test fails if they are stale.
 - `apps/desktop/src/ipc/` holds one thin typed wrapper per command. Components and stores import from there and never call `invoke` directly.
 - IDs (`ConnectionId`, `SessionId`, `TabId`) are UUID strings.
 - Database values use the wire format in [DRIVER_API.md](DRIVER_API.md#wire-format).
+- Text offsets (`StatementRange`, error `position`) are UTF-16 code units, as JavaScript and CodeMirror count. An error position is relative to the statement that was sent.
+- Regenerate types with `pnpm --dir apps/desktop gen:types`; `cargo test -p dunlin bindings` fails if they are stale.
 
 ## Error shape
 
@@ -17,7 +19,8 @@ The frontend talks to the backend only through Tauri commands. This document is 
 type AppError = {
   code: string;        // stable, snake_case: "auth", "syntax", "cancelled", "connection_lost",
                        // "tunnel_lost", "ssh_host_key_unknown", "ssh_host_key_changed",
-                       // "read_only", "confirmation_required", "row_count_mismatch", "not_found", "internal", ...
+                       // "read_only", "confirmation_required", "row_count_mismatch", "not_found",
+                       // "invalid_argument", "unsupported", "store_too_new", "internal", ...
   message: string;     // safe to show to the user
   detail?: unknown;    // code-specific, e.g. { position: 42 } or { host, port, fingerprint }
 };
@@ -34,13 +37,13 @@ Two codes drive UI flows rather than error toasts:
 |---|---|---|---|
 | `driver_list` | none | `DriverInfo[]` (kind, label, capabilities, option fields) | 1 |
 | `connection_list` | none | `ConnectionProfile[]` (no secrets) | 1 |
-| `connection_save` | `{ profile, secrets? }` | `ConnectionProfile` | 1 |
+| `connection_save` | `{ profile, secrets? }` | `ConnectionProfile` | 1 (`secrets` from 2) |
 | `connection_delete` | `{ connectionId }` | none | 1 |
-| `connection_test` | `{ profile, secrets? }` | `{ serverVersion, latencyMs }` | 1 |
-| `session_open` | `{ connectionId }` | `SessionInfo` (sessionId, driver, capabilities, readOnly) | 1 |
+| `connection_test` | `{ profile, secrets? }` | `{ serverVersion, latencyMs }` | 1 (`secrets` from 2) |
+| `session_open` | `{ connectionId }` | `SessionInfo` (sessionId, connectionId, driver, capabilities, readOnly) | 1 |
 | `session_close` | `{ sessionId }` | none | 1 |
 | `sql_split` | `{ sessionId, text }` | `StatementRange[]` | 1 |
-| `query_execute` | `{ sessionId, tabId, sql, rowLimit, confirmed? }` | `QueryResult` | 1 |
+| `query_execute` | `{ sessionId, tabId, sql, rowLimit (1..=100000), confirmed? }` | `QueryResult` | 1 |
 | `query_cancel` | `{ sessionId, tabId }` | none | 2 |
 | `tab_close` | `{ sessionId, tabId }` | none | 1 |
 | `ssh_trust_host` | `{ host, port, fingerprint }` | none | 3 |
@@ -69,6 +72,8 @@ type QueryResult = {
   statementClass: "read" | "write" | "ddl" | "transaction" | "session" | "unknown";
 };
 ```
+
+`profile` in `connection_save`/`connection_test` is a `ConnectionDraft`: a profile whose `id` is absent for a new connection. Options are validated against the driver's declared `options`.
 
 ## Secrets over IPC
 

@@ -89,3 +89,9 @@ Format: context, decision, consequences. Keep entries short.
 **Context.** D-012 left the product name open. It must be fixed before the Tauri bundle identifier (which decides the app data directory) and the keychain service name are set, because renaming either later orphans stored data.
 **Decision.** The product is **Dunlin**. Bundle identifier `dev.dunlin.desktop`, keychain service `dunlin`, app data directory as derived by Tauri from the identifier. Crate prefix stays `dbc-`.
 **Consequences.** Supersedes the open question in D-012. Checked free on crates.io only; trademark and domain are unchecked.
+
+## D-015 `Value` wire type is a separate, generated enum (2026-11-14)
+
+**Context.** D-010 asked to verify that `ts-rs` handles the tagged `Value` type with custom serialisation. Display truncation also needs fields (`len`, `truncated`) that the domain `Value` does not have.
+**Decision.** `dbc_core::WireValue` is an internally tagged serde enum (`#[serde(tag = "t")]`) deriving `TS` and exported as `Value`. The domain `Value` converts into it with `into_wire(limit)`; `Value`'s own `Serialize`/`Deserialize` go through `WireValue`. Verified in Phase 1: the generated TypeScript is a discriminated union matching DRIVER_API.md, so nothing is hand-written. Generated files are checked by `cargo test -p dunlin bindings` and rewritten with `DUNLIN_UPDATE_BINDINGS=1`. 64-bit integers outside database values are generated as `number`, which is what `serde_json` actually sends.
+**Consequences.** Supersedes the verification note in D-010. Converting rows to the wire form allocates one string per number, which is the cost D-003 already accepted.

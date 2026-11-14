@@ -4,6 +4,7 @@ members = [
     "crates/dbc-core",
     "crates/dbc-driver-sqlite",
     "crates/dbc-store",
+    "apps/desktop/src-tauri",
 ]
 
 [workspace.package]
@@ -38,3 +39,11 @@ unsafe_code = "forbid"
 unwrap_used = "deny"
 expect_used = "deny"
 panic = "deny"
+
+# Tauri recommends these for small release binaries.
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

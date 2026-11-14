@@ -46,6 +46,24 @@ pub struct ConnectionDraft {
     pub options: BTreeMap<String, String>,
 }
 
+impl From<ConnectionProfile> for ConnectionDraft {
+    fn from(profile: ConnectionProfile) -> Self {
+        Self {
+            id: Some(profile.id),
+            name: profile.name,
+            driver: profile.driver,
+            color: profile.color,
+            read_only: profile.read_only,
+            host: profile.host,
+            port: profile.port,
+            database: profile.database,
+            user: profile.user,
+            file_path: profile.file_path,
+            options: profile.options,
+        }
+    }
+}
+
 const MAX_NAME_LENGTH: usize = 200;
 const COLUMNS: &str =
     "id, name, driver, color, read_only, host, port, database, username, file_path, options";
