@@ -153,6 +153,19 @@ proptest! {
         prop_assert_eq!(actual, expected);
     }
 
+    /// SQL text comes straight from the editor (task 8.16): no text may panic the lexer, the
+    /// splitter or the classifier. The alphabet is weighted toward quotes, comments and
+    /// dollar tags, where the lexer looks ahead.
+    #[test]
+    fn no_text_panics_the_splitter_or_the_classifier(
+        text in prop_oneof!["\\PC{0,80}", "[$'\"`;\\-/*#\\[\\]\\\\ a-zEW\n]{0,60}"],
+    ) {
+        for rules in [ansi(), postgres(), mysql(), sqlite()] {
+            let _ = split(&text, rules);
+            let _ = crate::sql::classify::classify(&text, rules);
+        }
+    }
+
     #[test]
     fn ranges_are_ordered_disjoint_and_on_char_boundaries(text in "\\PC{0,80}") {
         for rules in [ansi(), postgres(), mysql(), sqlite()] {

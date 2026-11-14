@@ -48,6 +48,36 @@ pub enum ExportFormat {
     },
 }
 
+/// Delimiters a CSV export may use: those the import tools of every database accept.
+pub const CSV_DELIMITERS: [char; 4] = [',', ';', '\t', '|'];
+/// Longest `NULL` text, in characters.
+pub const MAX_NULL_TEXT: usize = 20;
+
+impl ExportFormat {
+    /// Why the format would produce a file its readers cannot parse, if it would: a delimiter
+    /// outside `CSV_DELIMITERS`, or a `NULL` text holding the delimiter, a quote or a line
+    /// break (it is written unquoted).
+    pub fn problem(&self) -> Option<String> {
+        let Self::Csv(options) = self else {
+            return None;
+        };
+        if !CSV_DELIMITERS.contains(&options.delimiter) {
+            return Some("The CSV delimiter must be a comma, semicolon, tab or bar".into());
+        }
+        if options.null.chars().count() > MAX_NULL_TEXT {
+            return Some(format!(
+                "The NULL text can have at most {MAX_NULL_TEXT} characters"
+            ));
+        }
+        if options.null.contains([options.delimiter, '"', '\r', '\n']) {
+            return Some(
+                "The NULL text cannot contain the delimiter, a quote or a line break".into(),
+            );
+        }
+        None
+    }
+}
+
 /// Rows per `INSERT` unless the format says otherwise.
 pub const DEFAULT_INSERT_BATCH: usize = 100;
 

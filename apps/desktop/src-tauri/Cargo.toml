@@ -45,6 +45,7 @@ secrecy = "0.10"
 dbc-core = { workspace = true, features = ["ts", "test-support"] }
 rusqlite.workspace = true
 tempfile.workspace = true
+proptest.workspace = true
 
 [lints]
 workspace = true

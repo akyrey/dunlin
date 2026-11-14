@@ -44,6 +44,10 @@ pub async fn table_page(state: &AppState, args: TablePageArgs) -> Result<TablePa
             data::MAX_PAGE_SIZE
         )));
     }
+    // SQL takes a signed 64-bit offset; beyond it every database refuses the statement.
+    if i64::try_from(args.offset).is_err() {
+        return Err(AppError::invalid("The page offset is too large"));
+    }
     let session = state.sessions.get(&args.session_id).await?;
     let info = session.schema_table(&args.table).await;
     let info = finish(state, &session, info).await?;

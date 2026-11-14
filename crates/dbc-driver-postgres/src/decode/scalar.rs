@@ -78,6 +78,10 @@ fn money(cents: i64) -> String {
 
 fn uuid(b: &[u8]) -> String {
     let h = hex(b);
+    // A UUID is 16 bytes; anything else is shown as plain hex rather than cut apart.
+    if h.len() != 32 {
+        return h;
+    }
     format!(
         "{}-{}-{}-{}-{}",
         &h[0..8],

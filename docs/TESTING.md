@@ -68,3 +68,9 @@ Adding a driver means implementing the traits and passing this suite.
 ## Manual smoke checklist (per phase)
 
 Each phase brief ends with a short list of things to click through in the real app against real databases. It is done once before the phase is ticked off in the roadmap.
+
+## Input fuzzing (task 8.16)
+
+- `apps/desktop/src-tauri/tests/ipc_fuzz.rs` feeds random JSON (objects keyed with the argument field names, huge numbers, long and hostile strings) to every command argument type, and runs mutated versions of valid calls against a real SQLite session. Each must deserialise or be refused, and each command must answer `Ok` or an `AppError` with a code and a message. The unmutated samples must succeed, so the fuzzer keeps reaching the commands.
+- Property tests run arbitrary text through the SQL lexer, splitter and classifier (`dbc-core`) and the SQLite DDL parser (`dbc-driver-sqlite`), which reads text any program can write to `sqlite_master`.
+- Release builds abort on panic, so these tests guard the whole app, not one command.

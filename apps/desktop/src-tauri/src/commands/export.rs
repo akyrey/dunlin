@@ -25,6 +25,12 @@ const IN_FLIGHT: usize = 4;
 
 type FileWriter = ExportWriter<BufWriter<File>>;
 
+fn check_format(format: &ExportFormat) -> Result<(), AppError> {
+    format
+        .problem()
+        .map_or(Ok(()), |problem| Err(AppError::invalid(problem)))
+}
+
 fn destination(path: &str) -> Result<(PathBuf, PathBuf), AppError> {
     let path = PathBuf::from(path);
     if !path.is_absolute() || path.file_name().is_none() {
@@ -62,6 +68,7 @@ fn values(rows: Vec<Vec<dbc_core::WireValue>>) -> Result<Vec<Vec<Value>>, AppErr
 
 /// Renders rows in a format, for "copy as" (task 8.5).
 pub async fn export_text(state: &AppState, args: ExportTextArgs) -> Result<String, AppError> {
+    check_format(&args.format)?;
     let session = state.sessions.get(&args.session_id).await?;
     let rows = values(args.rows)?;
     let mut writer = ExportWriter::new(Vec::new(), args.format);
@@ -78,6 +85,7 @@ pub async fn export_result(
     state: &AppState,
     args: ExportResultArgs,
 ) -> Result<ExportDone, AppError> {
+    check_format(&args.format)?;
     let session = state.sessions.get(&args.session_id).await?;
     let (path, partial) = destination(&args.path)?;
     let rows = values(args.rows)?;
@@ -202,6 +210,7 @@ pub async fn export_table(
     args: ExportTableArgs,
     progress: impl Fn(u64) + Send + Sync,
 ) -> Result<ExportDone, AppError> {
+    check_format(&args.format)?;
     let session = state.sessions.get(&args.session_id).await?;
     let (path, partial) = destination(&args.path)?;
     let info = session

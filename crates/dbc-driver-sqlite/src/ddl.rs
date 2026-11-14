@@ -282,6 +282,26 @@ pub(crate) fn parse_index(sql: &str) -> IndexDdl {
 }
 
 #[cfg(test)]
+mod fuzz {
+    use proptest::prelude::*;
+
+    use super::*;
+
+    proptest! {
+        /// DDL is read from `sqlite_master`, which any program can write (task 8.16).
+        #[test]
+        fn no_ddl_text_panics_the_parser(
+            sql in prop_oneof!["\\PC{0,80}", "[(),'\"`\\[\\] a-zA-Z;\n]{0,80}"],
+        ) {
+            let _ = parse_table(&sql);
+            let _ = parse_index(&sql);
+            let _ = parse_table(&format!("CREATE TABLE t ({sql}"));
+            let _ = parse_index(&format!("CREATE INDEX i ON t ({sql}) WHERE {sql}"));
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
