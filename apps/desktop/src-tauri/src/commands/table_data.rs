@@ -23,7 +23,7 @@ fn keys(key: Vec<KeyArg>) -> Result<Vec<KeyValue>, AppError> {
         .collect()
 }
 
-async fn finish<T>(
+pub(super) async fn finish<T>(
     state: &AppState,
     session: &Session,
     result: Result<T, DbError>,

@@ -9,7 +9,9 @@ use tauri::State;
 
 use crate::commands;
 use crate::error::AppError;
-use crate::ipc::{CellFullValueArgs, TableCountArgs, TablePage, TablePageArgs};
+use crate::ipc::{
+    ApplyResult, CellFullValueArgs, ChangesArgs, TableCountArgs, TablePage, TablePageArgs,
+};
 use crate::ipc::{
     ConnectionIdArgs, ConnectionSaveArgs, ConnectionTestArgs, ConnectionTestResult,
     HistoryListArgs, QueryExecuteArgs, QueryResult, SchemaObjectsArgs, SchemaTableArgs,
@@ -174,6 +176,22 @@ pub async fn cell_full_value(
     args: CellFullValueArgs,
 ) -> Result<WireValue, AppError> {
     commands::cell_full_value(&state, args).await
+}
+
+#[tauri::command]
+pub async fn changes_preview(
+    state: State<'_, AppState>,
+    args: ChangesArgs,
+) -> Result<Vec<String>, AppError> {
+    commands::changes_preview(&state, args).await
+}
+
+#[tauri::command]
+pub async fn changes_apply(
+    state: State<'_, AppState>,
+    args: ChangesArgs,
+) -> Result<ApplyResult, AppError> {
+    commands::changes_apply(&state, args).await
 }
 
 #[tauri::command]

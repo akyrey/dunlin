@@ -1,6 +1,7 @@
 //! Command implementations as plain async functions over [`AppState`], so they can be tested
 //! without a running app. `handlers` wraps them as Tauri commands.
 
+mod changes;
 pub(crate) mod connections;
 pub(crate) mod handlers;
 mod history;
@@ -10,6 +11,7 @@ mod sessions;
 mod ssh;
 mod table_data;
 
+pub use changes::{changes_apply, changes_preview};
 pub use connections::{
     connection_delete, connection_list, connection_save, connection_test, driver_list,
 };

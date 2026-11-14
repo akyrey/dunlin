@@ -205,6 +205,33 @@ pub struct TableCountArgs {
     pub exact: bool,
 }
 
+/// One staged edit; `key` holds the row key's original values.
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum OperationArg {
+    Insert { values: Vec<KeyArg> },
+    Update { key: Vec<KeyArg>, set: Vec<KeyArg> },
+    Delete { key: Vec<KeyArg> },
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangesArgs {
+    pub session_id: String,
+    /// The table view's connection: edits apply where the rows were read.
+    pub view_id: String,
+    pub table: TableRef,
+    pub operations: Vec<OperationArg>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplyResult {
+    #[ts(type = "number")]
+    pub statements: usize,
+    pub rows_affected: String,
+}
+
 #[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CellFullValueArgs {

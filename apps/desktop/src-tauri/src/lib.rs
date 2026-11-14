@@ -54,6 +54,8 @@ pub fn run() -> Result<(), tauri::Error> {
             handlers::table_page,
             handlers::table_count,
             handlers::cell_full_value,
+            handlers::changes_preview,
+            handlers::changes_apply,
             handlers::history_list,
             handlers::history_clear,
             handlers::ssh_trust_host,

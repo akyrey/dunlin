@@ -67,8 +67,8 @@ Errors from `session_open` and `connection_test` carry `detail.stage`: `ssh_conn
 | `table_page` | `{ sessionId, viewId, table, filter?, key?, sort, limit (1..=10000), offset }` | `TablePage` (columns, rows, hasMore, elapsedMs) | 6 |
 | `table_count` | `{ sessionId, viewId, table, filter?, key?, exact }` | `RowCount` (`exact`, `estimate` or `unknown`; rows as a string) | 6 |
 | `cell_full_value` | `{ sessionId, viewId, table, key, column }` | `Value`, untruncated; `unsupported` without a row key | 6 |
-| `changes_preview` | `{ sessionId, changeSet }` | `string[]` (SQL) | 7 |
-| `changes_apply` | `{ sessionId, changeSet }` | `ApplyReport` | 7 |
+| `changes_preview` | `{ sessionId, viewId, table, operations }` | `string[]`: the statements Apply runs, with literals, in order | 7 |
+| `changes_apply` | `{ sessionId, viewId, table, operations }` | `ApplyResult` (statements, rowsAffected); on failure `detail.operation` is the index of the failing operation | 7 |
 | `export_result` | `{ format, columns, rows, path, table? }` | `{ rowsWritten }` | 8 |
 | `export_table` | `{ sessionId, table, filter?, sort?, format, path }` | `{ rowsWritten }` | 8 |
 | `saved_query_list` / `_save` / `_delete` | | | 8 |
@@ -104,3 +104,7 @@ A command call is one request and one response. Progress for long operations (ex
 ## Table data
 
 `table_page`, `table_count` and `cell_full_value` run on the view's own connection, named by `viewId` exactly like an editor tab's `tabId`: a long page can be cancelled with `query_cancel { sessionId, tabId: viewId }`, and closing the view calls `tab_close` with it. They never wait for the schema tree or an editor tab. `key` is a list of `{ column, value }` equalities bound as parameters; `filter` is the user's `WHERE` expression and must be a single expression. Page cells are truncated like query results; `cell_full_value` fetches one whole value by the row's key.
+
+## Edits
+
+`operations` is a list of `{ kind: "insert", values }`, `{ kind: "update", key, set }` and `{ kind: "delete", key }`, each a list of `{ column, value }`. `key` holds the row key's original values and must name exactly the row key's columns. The backend refuses read-only sessions (`read_only`), views, tables without a row key, generated and identity-always columns, and truncated values (`invalid_argument`), whatever the UI allowed. Apply runs deletes, updates, then inserts in one transaction on the view's connection; an `UPDATE` or `DELETE` that does not affect exactly one row fails with `row_count_mismatch`, and everything is rolled back.
