@@ -1,12 +1,13 @@
 import { type Page, expect } from "@playwright/test";
 
-export async function addAndOpenConnection(page: Page, name: string) {
+export async function addAndOpenConnection(page: Page, name: string, readOnly = false) {
   await page.goto("/");
   await page.getByRole("button", { name: "New connection" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Database type").selectOption("sqlite");
   await dialog.getByLabel("Name").fill(name);
   await dialog.getByRole("button", { name: "Browse…" }).click();
+  if (readOnly) await dialog.getByLabel("Read-only").check();
   await expect(dialog.getByLabel("Database file")).toHaveValue("/mock/people.db");
   await dialog.getByRole("button", { name: "Test connection" }).click();
   await expect(dialog.getByText("Connected: SQLite 3 (mock)")).toBeVisible();

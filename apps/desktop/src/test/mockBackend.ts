@@ -13,6 +13,7 @@ import type {
   HistoryEntry,
   HistoryListArgs,
   KeyArg,
+  OperationArg,
   SortKey,
   TablePage,
   KnownHost,
@@ -275,10 +276,12 @@ function filterRows(
   );
 }
 
-function tableRows(args: Record<string, unknown>): Value[][] | AppError {
+type Tables = Record<string, Value[][]>;
+
+function tableRows(args: Record<string, unknown>, tables: Tables): Value[][] | AppError {
   const table = args.table as TableRef;
   const columns = mockTable(table).columns.map((c) => c.name);
-  const all = TABLE_ROWS[table.name] ?? [];
+  const all = tables[table.name] ?? [];
   const keyed = ((args.key as KeyArg[] | undefined) ?? []).reduce(
     (rows, k) =>
       rows.filter((row) => wireText(row[columns.indexOf(k.column)]) === wireText(k.value)),
@@ -287,10 +290,10 @@ function tableRows(args: Record<string, unknown>): Value[][] | AppError {
   return filterRows(columns, keyed, args.filter as string | undefined);
 }
 
-function page(args: Record<string, unknown>): Promise<TablePage> {
+function page(args: Record<string, unknown>, tables: Tables): Promise<TablePage> {
   const table = args.table as TableRef;
   const info = mockTable(table);
-  const found = tableRows(args);
+  const found = tableRows(args, tables);
   if (!Array.isArray(found)) return Promise.reject(found);
   const names = info.columns.map((c) => c.name);
   const sorted = [...found];
@@ -338,6 +341,76 @@ export function createMockBackend() {
   /** Pending sleeps by tab, resolved by `query_cancel`. */
   const sleeping = new Map<string, () => void>();
   const knownHosts: KnownHost[] = [];
+  /** This backend's own copy of the tables, so edits stay in one test. */
+  let tables: Tables = structuredClone(TABLE_ROWS);
+
+  /** Edits as the backend applies them: deletes, updates, inserts, all or nothing. */
+  const applyChanges = (
+    args: Args,
+    preview: boolean,
+  ): string[] | { statements: number } | AppError => {
+    const table = args.table as TableRef;
+    const info = mockTable(table);
+    const session = sessions.get(args.sessionId as string);
+    if (session?.readOnly) return { code: "read_only", message: "This connection is read-only" };
+    if (info.kind !== "table" || !info.rowKey) {
+      return {
+        code: "invalid_argument",
+        message: "The table has no primary key or unique not-null key, so it is read-only",
+      };
+    }
+    const names = info.columns.map((c) => c.name);
+    const operations = args.operations as OperationArg[];
+    const order = (o: OperationArg) => ({ delete: 0, update: 1, insert: 2 })[o.kind];
+    const planned = operations
+      .map((operation, index) => ({ operation, index }))
+      .sort((a, b) => order(a.operation) - order(b.operation));
+    const literal = (v: Value) =>
+      v.t === "null" ? "NULL" : `'${rawText(v).replaceAll("'", "''")}'`;
+    const where = (key: KeyArg[]) =>
+      key.map((k) => `${k.column} = ${literal(k.value)}`).join(" AND ");
+    const sql = planned.map(({ operation: o }) =>
+      o.kind === "delete"
+        ? `DELETE FROM ${table.name} WHERE ${where(o.key)}`
+        : o.kind === "update"
+          ? `UPDATE ${table.name} SET ${o.set.map((s) => `${s.column} = ${literal(s.value)}`).join(", ")} WHERE ${where(o.key)}`
+          : `INSERT INTO ${table.name} (${o.values.map((v) => v.column).join(", ")}) VALUES (${o.values.map((v) => literal(v.value)).join(", ")})`,
+    );
+    if (preview) return sql;
+    const rows = structuredClone(tables[table.name] ?? []);
+    const find = (key: KeyArg[]) =>
+      rows.findIndex((row) =>
+        key.every((k) => wireText(row[names.indexOf(k.column)]) === wireText(k.value)),
+      );
+    for (const { operation: o, index } of planned) {
+      const fail = (code: string, message: string): AppError => ({
+        code,
+        message,
+        detail: { operation: index },
+      });
+      if (o.kind === "insert") {
+        const row: Value[] = names.map(
+          (name) => o.values.find((v) => v.column === name)?.value ?? { t: "null" },
+        );
+        if (rows.some((r) => wireText(r[0]) === wireText(row[0])))
+          return fail("constraint", "duplicate key value violates unique constraint");
+        rows.push(row);
+        continue;
+      }
+      const at = find(o.key);
+      if (at < 0)
+        return fail("row_count_mismatch", "Expected to change exactly one row, but 0 matched");
+      if (o.kind === "delete") rows.splice(at, 1);
+      else {
+        const current = rows[at] ?? [];
+        rows[at] = names.map(
+          (name, i) => o.set.find((s) => s.column === name)?.value ?? current[i] ?? { t: "null" },
+        );
+      }
+    }
+    tables = { ...tables, [table.name]: rows };
+    return { statements: planned.length };
+  };
   const history: HistoryEntry[] = [];
 
   /** Records a statement the way the backend does after running it. */
@@ -531,6 +604,15 @@ export function createMockBackend() {
       history.splice(0, history.length, ...keep);
       return null;
     },
+    changes_preview: (a) => {
+      const result = applyChanges(a, true);
+      return Array.isArray(result) ? result : Promise.reject(result);
+    },
+    changes_apply: (a) => {
+      const result = applyChanges(a, false);
+      if (Array.isArray(result) || !("statements" in result)) return Promise.reject(result);
+      return { statements: result.statements, rowsAffected: String(result.statements) };
+    },
     table_page: (a) => {
       if (typeof a.filter === "string" && SLEEP.test(a.filter)) {
         return new Promise((_resolve, rejectSleep) => {
@@ -539,10 +621,10 @@ export function createMockBackend() {
           });
         });
       }
-      return page(a);
+      return page(a, tables);
     },
     table_count: (a) => {
-      const found = tableRows(a);
+      const found = tableRows(a, tables);
       if (!Array.isArray(found)) return Promise.reject(found);
       const count = String(found.length);
       if (a.exact === true) return { kind: "exact", rows: count };
@@ -555,7 +637,7 @@ export function createMockBackend() {
       const id = wireText((a.key as KeyArg[])[0]?.value);
       if (table.name === "documents" && id === "1") return { t: "json", v: MOCK_LONG_JSON };
       const names = mockTable(table).columns.map((c) => c.name);
-      const row = (TABLE_ROWS[table.name] ?? []).find((r) => wireText(r[0]) === id);
+      const row = (tables[table.name] ?? []).find((r) => wireText(r[0]) === id);
       return (
         row?.[names.indexOf(a.column as string)] ?? reject("not_found", "The row no longer exists")
       );

@@ -114,6 +114,23 @@ describe("workspace tabs", () => {
     expect(screen.getByLabelText("Row limit")).toHaveValue("100");
   });
 
+  it("asks before closing a data tab with unapplied edits", async () => {
+    render(<App />);
+    const strip = await open();
+    await userEvent.click(screen.getByRole("button", { name: "people" }));
+    await userEvent.dblClick(await screen.findByRole("gridcell", { name: "Grace" }));
+    await userEvent.type(screen.getByLabelText("Edit name"), "!{Enter}");
+
+    await userEvent.click(within(strip).getByRole("button", { name: "Close people" }));
+    const dialog = screen.getByRole("dialog", { name: "Discard unapplied changes?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(titles(strip)).toContain("▦people");
+    await userEvent.click(within(strip).getByRole("button", { name: "Close people" }));
+    await userEvent.click(screen.getByRole("button", { name: "Discard and close" }));
+
+    expect(titles(strip)).not.toContain("▦people");
+  });
+
   it("focuses the results with the shortcut", async () => {
     render(<App />);
     await open();

@@ -20,6 +20,8 @@ import {
 import { serialQueue } from "../../lib/serial";
 import { NO_TEXT_SUBSTITUTION, hasTypographicQuotes, straightenQuotes } from "../../lib/quotes";
 import { ResultView } from "../grid/ResultView";
+import { ChangesBar, EditToolbar } from "../edit/EditBars";
+import { type EditingProfile, useTableEditing } from "../edit/useTableEditing";
 import { tableKey } from "../workspace/workspaceStore";
 import { loadFilters, rememberFilter } from "./filterHistory";
 import {
@@ -39,6 +41,11 @@ type Props = {
   match: KeyArg[];
   /** A foreign key cell was followed. */
   onFollow: (table: TableRef, match: KeyArg[]) => void;
+  /** The workspace view this is, for the close and quit guards. */
+  viewKey: string;
+  /** The session is read-only: nothing can be edited. */
+  readOnly: boolean;
+  profile: EditingProfile;
 };
 
 type Query = { filter: string; sort: SortKey[]; offset: number; pageSize: number; match: KeyArg[] };
@@ -56,6 +63,9 @@ export function TableData({
   table,
   match: initialMatch,
   onFollow,
+  viewKey,
+  readOnly,
+  profile,
 }: Props) {
   const viewId = useMemo(() => crypto.randomUUID(), []);
   // Counts and whole cells use a second connection, so they never wait for (or block) a page.
@@ -173,13 +183,9 @@ export function TableData({
     };
   }, [sessionId, auxId, table, query.filter, query.match, aux]);
 
-  const change = (patch: Partial<Query>) => {
+  const changeNow = (patch: Partial<Query>) => {
     setLoading(true);
     setQuery((current) => ({ ...current, offset: 0, ...patch }));
-  };
-  const applyFilter = (filter: string) => {
-    setRecent(rememberFilter(historyKey, filter));
-    change({ filter: filter.trim() });
   };
   const countExactly = async () => {
     setCounting(true);
@@ -205,9 +211,36 @@ export function TableData({
 
   const columns = useMemo(() => gridColumns(page?.columns ?? [], info), [page, info]);
   const names = columns.map((c) => c.name);
-  const rows = page?.rows ?? [];
+  const rows = useMemo(() => page?.rows ?? [], [page]);
   const first = query.offset + 1;
   const last = query.offset + rows.length;
+  const editing = useTableEditing({
+    sessionId,
+    viewId,
+    viewKey,
+    table,
+    info,
+    columns,
+    page: rows,
+    readOnly,
+    profile,
+    onApplied: () => {
+      setLoading(true);
+      setReload((n) => n + 1);
+    },
+  });
+  const shownRows = useMemo(() => editing.rows.map((r) => r.values), [editing.rows]);
+
+  /** Anything that loads another page first asks what to do with pending edits (task 7.13). */
+  const change = (patch: Partial<Query>, action = "change what is shown") => {
+    editing.guarded(action, () => {
+      changeNow(patch);
+    });
+  };
+  const applyFilter = (filter: string) => {
+    setRecent(rememberFilter(historyKey, filter));
+    change({ filter: filter.trim() }, "filter");
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -274,8 +307,10 @@ export function TableData({
           variant="ghost"
           className="py-0.5 text-xs"
           onClick={() => {
-            setLoading(true);
-            setReload((n) => n + 1);
+            editing.guarded("refresh", () => {
+              setLoading(true);
+              setReload((n) => n + 1);
+            });
           }}
         >
           Refresh
@@ -305,6 +340,16 @@ export function TableData({
           </Button>
         </p>
       )}
+      {editing.editable ? (
+        <EditToolbar editing={editing} />
+      ) : (
+        page && (
+          <p className="border-b border-zinc-800 px-3 py-1 text-xs text-zinc-500" role="note">
+            {editing.reason}
+          </p>
+        )
+      )}
+      <ChangesBar editing={editing} />
       {error && (
         <p
           role="alert"
@@ -317,11 +362,14 @@ export function TableData({
         {page ? (
           <ResultView
             columns={columns}
-            rows={rows}
+            rows={shownRows}
+            resetKey={page}
+            onSelectionChange={editing.setSelection}
+            edit={editing.edit}
             rowOffset={query.offset}
             sort={query.sort}
             onSort={(column, additive) => {
-              change({ sort: nextSort(query.sort, column, additive) });
+              change({ sort: nextSort(query.sort, column, additive) }, "change the sort");
             }}
             onFollow={(cell) => {
               const row = rows[cell.row];
@@ -362,8 +410,10 @@ export function TableData({
                   aria-label="Previous page"
                   disabled={query.offset === 0}
                   onClick={() => {
-                    setLoading(true);
-                    setQuery((q) => ({ ...q, offset: Math.max(0, q.offset - q.pageSize) }));
+                    editing.guarded("change the page", () => {
+                      setLoading(true);
+                      setQuery((q) => ({ ...q, offset: Math.max(0, q.offset - q.pageSize) }));
+                    });
                   }}
                 >
                   ‹
@@ -374,8 +424,10 @@ export function TableData({
                   aria-label="Next page"
                   disabled={!page.hasMore}
                   onClick={() => {
-                    setLoading(true);
-                    setQuery((q) => ({ ...q, offset: q.offset + q.pageSize }));
+                    editing.guarded("change the page", () => {
+                      setLoading(true);
+                      setQuery((q) => ({ ...q, offset: q.offset + q.pageSize }));
+                    });
                   }}
                 >
                   ›
@@ -385,7 +437,7 @@ export function TableData({
                   className="rounded bg-zinc-800 px-1 py-0.5 text-zinc-200"
                   value={query.pageSize}
                   onChange={(e) => {
-                    change({ pageSize: Number(e.target.value) });
+                    change({ pageSize: Number(e.target.value) }, "change the page size");
                   }}
                 >
                   {PAGE_SIZES.map((size) => (
@@ -401,6 +453,7 @@ export function TableData({
           <p className="p-4 text-sm text-zinc-500">{loading ? "Loading…" : ""}</p>
         )}
       </div>
+      {editing.dialogs}
     </div>
   );
 }

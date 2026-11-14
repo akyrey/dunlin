@@ -60,7 +60,8 @@ The classifier is a heuristic. It is a seatbelt against accidents, not an access
 
 - Database values are rendered as text nodes only. No `dangerouslySetInnerHTML`, no HTML rendering of cell content, including in the JSON and XML viewers.
 - Strict Content Security Policy: no remote scripts, no inline scripts, no `eval`.
-- Minimal Tauri capabilities (see IPC.md). No shell plugin.
+- Minimal Tauri capabilities (see IPC.md): `core:default`, opening and saving files through the dialog plugin, and `core:window:allow-destroy` so the window can close after the unapplied-edits check. No shell plugin.
+- Image previews in the cell viewer use `blob:` URLs of raster formats recognised by their signature (PNG, JPEG, GIF, WebP); SVG is never previewed, as it is a document that can hold script.
 - No network requests from the frontend.
 
 ## Logging

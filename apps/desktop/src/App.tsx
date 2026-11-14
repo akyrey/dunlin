@@ -6,6 +6,8 @@ import { StatusBar } from "./components/StatusBar";
 import { ConnectionForm } from "./features/connections/ConnectionForm";
 import { ConnectionList } from "./features/connections/ConnectionList";
 import { useConnections } from "./features/connections/connectionsStore";
+import { pendingViews, useEdits } from "./features/edit/editStore";
+import { QuitGuard } from "./features/edit/quitGuard";
 import { draftFromProfile, emptyDraft } from "./features/connections/draft";
 import { shownResult, useEditor } from "./features/editor/editorStore";
 import { persistTabs } from "./features/editor/persistence";
@@ -28,6 +30,16 @@ import {
 } from "./ipc";
 
 type HostKeyPrompt = { profile: ConnectionProfile; hostKey: SshTrustHostArgs; changed: boolean };
+
+/** Deleting a connection closes its session, which loses any unapplied edits. */
+function unappliedNote(profile: ConnectionProfile): string {
+  const session = useSessions.getState().sessions[profile.id];
+  if (!session) return "";
+  const count = pendingViews(useEdits.getState(), session.sessionId).length;
+  return count > 0
+    ? ` ${count} ${count === 1 ? "table has" : "tables have"} unapplied changes, which will be lost.`
+    : "";
+}
 
 export function App() {
   const { drivers, profiles, error: loadError } = useConnections();
@@ -212,10 +224,11 @@ export function App() {
           }}
         />
       )}
+      <QuitGuard />
       {deleting && (
         <ConfirmDialog
           title="Delete connection?"
-          message={`"${deleting.name}" will be removed. The database itself is not touched.`}
+          message={`"${deleting.name}" will be removed. The database itself is not touched.${unappliedNote(deleting)}`}
           confirmLabel="Delete"
           onConfirm={() => void deleteConnection(deleting)}
           onCancel={() => {

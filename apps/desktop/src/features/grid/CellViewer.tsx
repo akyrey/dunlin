@@ -42,7 +42,10 @@ function isTruncated(value: Value): boolean {
 /** The selected cell in full: JSON and XML pretty-printed, text with wrapping, binary as a hex
  * dump or an image (task 6.10). Nothing is ever rendered as HTML. */
 export function CellViewer({ column, value, loadFull, noFullReason, onClose, edit }: Props) {
-  const [draft, setDraft] = useState<string | null>(edit?.start ? edit.initialText : null);
+  // A value cut short is never edited: saving it would cut the stored value too.
+  const [draft, setDraft] = useState<string | null>(
+    edit?.start && !isTruncated(value) ? edit.initialText : null,
+  );
   const [invalid, setInvalid] = useState<string | null>(null);
   const [full, setFull] = useState<{ value: Value; for: Value } | null>(null);
   const [error, setError] = useState<AppError | null>(null);
@@ -98,7 +101,7 @@ export function CellViewer({ column, value, loadFull, noFullReason, onClose, edi
             disabled={truncated}
             title={truncated ? "Load the whole value before editing it" : undefined}
             onClick={() => {
-              setDraft(edit.initialText);
+              setDraft(full?.for === value ? rawText(full.value) : edit.initialText);
             }}
           >
             Edit

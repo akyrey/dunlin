@@ -36,7 +36,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function show(name: string, match: Parameters<typeof TableData>[0]["match"] = []) {
+function show(
+  name: string,
+  match: Parameters<typeof TableData>[0]["match"] = [],
+  readOnly = false,
+) {
   const onFollow = vi.fn();
   const view = render(
     <TableData
@@ -45,6 +49,9 @@ function show(name: string, match: Parameters<typeof TableData>[0]["match"] = []
       table={{ namespace: main, name }}
       match={match}
       onFollow={onFollow}
+      viewKey={`view:${name}`}
+      readOnly={readOnly}
+      profile={{ name: "People", color: "#22aa88", alwaysPreview: false }}
     />,
   );
   return { onFollow, ...view };

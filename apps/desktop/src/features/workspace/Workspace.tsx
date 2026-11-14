@@ -7,6 +7,7 @@ import { useCompletion } from "../editor/completionStore";
 import { useEditor } from "../editor/editorStore";
 import { loadTabs } from "../editor/persistence";
 import { TableData } from "../data/TableData";
+import { useEdits } from "../edit/editStore";
 import { TableDetails } from "../schema/TableDetails";
 import { matchShortcut } from "./shortcuts";
 import { TabStrip } from "./TabStrip";
@@ -35,11 +36,17 @@ export function Workspace({ session, profile }: Props) {
   const workspace = useWorkspace((state) => workspaceOf(state, sessionId));
   const tabs = useEditor((state) => state.tabs);
   const [closing, setClosing] = useState<string | null>(null);
+  /** A data view with unapplied edits waiting for "discard and close". */
+  const [discarding, setDiscarding] = useState<string | null>(null);
   useInitialTabs(session);
 
   const active = workspace.views.find((v) => v.key === workspace.active) ?? null;
 
   const requestClose = (view: View) => {
+    if (view.kind === "data" && useEdits.getState().pending[view.key]) {
+      setDiscarding(view.key);
+      return;
+    }
     if (view.kind !== "editor") {
       useWorkspace.getState().close(sessionId, view.key);
       return;
@@ -116,12 +123,33 @@ export function Workspace({ session, profile }: Props) {
                 onFollow={(table, match) => {
                   useWorkspace.getState().openData(sessionId, table, match);
                 }}
+                viewKey={view.key}
+                readOnly={session.readOnly}
+                profile={{
+                  name: profile?.name ?? "this connection",
+                  color: profile?.color ?? null,
+                  alwaysPreview: profile?.alwaysPreview ?? false,
+                }}
               />
             </div>
           ) : null,
         )}
         {!active && <p className="p-6 text-sm text-zinc-500">Open a new tab with ⌘T.</p>}
       </div>
+      {discarding && (
+        <ConfirmDialog
+          title="Discard unapplied changes?"
+          message="This table has edits that were not applied. Closing the tab discards them; nothing was written to the database."
+          confirmLabel="Discard and close"
+          onConfirm={() => {
+            useWorkspace.getState().close(sessionId, discarding);
+            setDiscarding(null);
+          }}
+          onCancel={() => {
+            setDiscarding(null);
+          }}
+        />
+      )}
       {closing && (
         <ConfirmDialog
           title="Close a running tab?"

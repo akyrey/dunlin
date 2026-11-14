@@ -1,5 +1,7 @@
 /** One thin typed wrapper per backend command (docs/IPC.md). */
 import type {
+  ApplyResult,
+  ChangesArgs,
   ConnectionDraft,
   ConnectionProfile,
   ConnectionSecrets,
@@ -110,3 +112,9 @@ export const tableCount = (args: TableCountArgs): Promise<RowCount> => call("tab
 
 export const cellFullValue = (args: CellFullValueArgs): Promise<Value> =>
   call("cell_full_value", args);
+
+export const changesPreview = (args: ChangesArgs): Promise<string[]> =>
+  call("changes_preview", args);
+
+export const changesApply = (args: ChangesArgs): Promise<ApplyResult> =>
+  call("changes_apply", args);
