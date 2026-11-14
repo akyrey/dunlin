@@ -35,6 +35,7 @@ ts-rs.workspace = true
 uuid.workspace = true
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "json", "std", "registry"] }
+tauri-plugin-window-state = "2"
 
 [dev-dependencies]
 dbc-tunnel = { workspace = true, features = ["test-support"] }

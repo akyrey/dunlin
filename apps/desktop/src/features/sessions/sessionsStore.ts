@@ -8,6 +8,9 @@ type SessionsState = {
   activeConnectionId: string | null;
   /** Why a session ended without the user closing it (e.g. its SSH tunnel dropped). */
   notice: string | null;
+  /** Connections open when the app last ran, not reopened yet (task 8.12). */
+  remembered: string[];
+  remember: (connectionIds: string[]) => void;
   open: (connectionId: string) => Promise<SessionInfo>;
   close: (connectionId: string) => Promise<void>;
   activate: (connectionId: string | null) => void;
@@ -26,6 +29,11 @@ export const useSessions = create<SessionsState>()((set, get) => ({
   sessions: {},
   activeConnectionId: null,
   notice: null,
+  remembered: [],
+
+  remember: (connectionIds) => {
+    set({ remembered: connectionIds });
+  },
 
   open: async (connectionId) => {
     const existing = get().sessions[connectionId];
@@ -38,6 +46,7 @@ export const useSessions = create<SessionsState>()((set, get) => ({
       sessions: { ...get().sessions, [connectionId]: session },
       activeConnectionId: connectionId,
       notice: null,
+      remembered: get().remembered.filter((id) => id !== connectionId),
     });
     return session;
   },

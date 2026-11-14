@@ -24,7 +24,9 @@ import { useSettings } from "./features/settings/settingsStore";
 import { useApplyTheme } from "./features/settings/theme";
 import { TrustedHosts } from "./features/ssh/TrustedHosts";
 import { describeConnectError, hostKeyFrom } from "./features/ssh/hostKey";
+import { SidebarResizer } from "./features/workspace/SidebarResizer";
 import { Workspace } from "./features/workspace/Workspace";
+import { useLayoutRestore } from "./features/workspace/useLayoutRestore";
 import { forgetEndedSessions } from "./features/workspace/lifecycle";
 import { useWorkspace, workspaceOf } from "./features/workspace/workspaceStore";
 import {
@@ -50,8 +52,8 @@ function unappliedNote(profile: ConnectionProfile): string {
 }
 
 export function App() {
-  const { drivers, profiles, error: loadError } = useConnections();
-  const { sessions, activeConnectionId, notice } = useSessions();
+  const { drivers, profiles, loaded, error: loadError } = useConnections();
+  const { sessions, activeConnectionId, notice, remembered } = useSessions();
   const [hostKeyPrompt, setHostKeyPrompt] = useState<HostKeyPrompt | null>(null);
   const [showTrustedHosts, setShowTrustedHosts] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -136,6 +138,8 @@ export function App() {
     }
   };
 
+  const layout = useLayoutRestore(profiles, loaded, openConnection);
+
   const trustAndOpen = async (prompt: HostKeyPrompt) => {
     setHostKeyPrompt(null);
     try {
@@ -165,7 +169,10 @@ export function App() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex min-h-0 flex-1">
-        <aside className="flex w-64 shrink-0 flex-col border-r border-zinc-800 bg-zinc-900">
+        <aside
+          className="flex shrink-0 flex-col bg-zinc-900"
+          style={{ width: layout.sidebarWidth }}
+        >
           <div className="flex items-center justify-between px-3 py-2">
             <h1 className="text-sm font-semibold tracking-wide">Dunlin</h1>
             <Button
@@ -181,6 +188,7 @@ export function App() {
           <ConnectionList
             profiles={profiles}
             openIds={new Set(Object.keys(sessions))}
+            rememberedIds={new Set(remembered)}
             activeId={activeConnectionId}
             onOpen={(profile) => void openConnection(profile)}
             onEdit={(profile) => {
@@ -217,6 +225,7 @@ export function App() {
             </Button>
           </div>
         </aside>
+        <SidebarResizer width={layout.sidebarWidth} onResize={layout.setSidebarWidth} />
         <main className="min-w-0 flex-1">
           {activeSession ? (
             <Workspace session={activeSession} profile={activeProfile} />

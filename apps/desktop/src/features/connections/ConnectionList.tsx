@@ -3,13 +3,24 @@ import type { ConnectionProfile } from "../../ipc";
 type Props = {
   profiles: ConnectionProfile[];
   openIds: Set<string>;
+  /** Open when the app last ran; they reconnect when opened. */
+  rememberedIds?: ReadonlySet<string>;
   activeId: string | null;
   onOpen: (profile: ConnectionProfile) => void;
   onEdit: (profile: ConnectionProfile) => void;
   onDelete: (profile: ConnectionProfile) => void;
 };
 
-export function ConnectionList({ profiles, openIds, activeId, onOpen, onEdit, onDelete }: Props) {
+export function ConnectionList(props: Props) {
+  const {
+    profiles,
+    openIds,
+    rememberedIds = new Set(),
+    activeId,
+    onOpen,
+    onEdit,
+    onDelete,
+  } = props;
   if (profiles.length === 0) {
     return <p className="px-3 py-2 text-xs text-zinc-500">No connections yet.</p>;
   }
@@ -37,7 +48,15 @@ export function ConnectionList({ profiles, openIds, activeId, onOpen, onEdit, on
           >
             {profile.name}
             {openIds.has(profile.id) && <span className="sr-only"> (open)</span>}
+            {rememberedIds.has(profile.id) && <span className="sr-only"> (open last time)</span>}
           </button>
+          {rememberedIds.has(profile.id) && (
+            <span
+              aria-hidden="true"
+              title="Open last time: reconnects when you open it"
+              className="h-1.5 w-1.5 rounded-full border border-emerald-400"
+            />
+          )}
           {openIds.has(profile.id) && (
             <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
           )}
