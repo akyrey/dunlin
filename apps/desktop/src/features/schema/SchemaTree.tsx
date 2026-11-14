@@ -225,7 +225,12 @@ function Row({ row, onToggle, onAction, onMenu }: RowProps) {
         </div>
       );
     case "loading":
-      return <p className="h-6 text-xs leading-6 text-zinc-500">Loading…</p>;
+      return (
+        <p className="flex h-6 items-center">
+          <span aria-hidden="true" className="h-2.5 w-28 animate-pulse rounded bg-zinc-800" />
+          <span className="sr-only">Loading…</span>
+        </p>
+      );
     case "error":
       return (
         <p

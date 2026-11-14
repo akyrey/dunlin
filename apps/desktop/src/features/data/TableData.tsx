@@ -1,3 +1,4 @@
+import { Skeleton } from "../../components/Skeleton";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { Button } from "../../components/Button";
@@ -455,7 +456,7 @@ export function TableData({
             }
           />
         ) : (
-          <p className="p-4 text-sm text-zinc-500">{loading ? "Loading…" : ""}</p>
+          loading && <Skeleton rows={8} label="Loading rows" />
         )}
       </div>
       {editing.dialogs}

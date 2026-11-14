@@ -2,6 +2,7 @@ import { type ReactNode, useState } from "react";
 
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
+import { toast } from "../../components/toastStore";
 import { type AppError, type Settings, logsDir, revealFile, toAppError } from "../../ipc";
 import { BOUNDS } from "./defaults";
 import { NUMBER_LABELS, type NumberField, settingsProblem } from "./validate";
@@ -51,7 +52,10 @@ export function SettingsView({ onClose, onShowTrustedHosts }: Props) {
     const failure = await useSettings.getState().save(draft);
     setSaving(false);
     if (failure) setError(failure);
-    else onClose();
+    else {
+      toast.success("Settings saved");
+      onClose();
+    }
   };
 
   const openLogs = async () => {

@@ -134,7 +134,11 @@ function Row(props: Props & { profile: ConnectionProfile }) {
 export function ConnectionList(props: Props) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   if (props.profiles.length === 0) {
-    return <p className="px-3 py-2 text-xs text-zinc-500">No connections yet.</p>;
+    return (
+      <p className="px-3 py-2 text-xs text-zinc-500">
+        No connections yet. Add one with New connection.
+      </p>
+    );
   }
   const toggle = (folder: string) => {
     setCollapsed((current) => {

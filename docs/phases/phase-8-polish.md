@@ -45,7 +45,7 @@ Everything in the roadmap's deferred list, auto-update, Linux and Windows builds
 
 - [x] 8.9 Command palette (`Cmd/Ctrl+K`) listing actions, open sessions, tables of the active session and saved queries.
 - [x] 8.10 Shortcut reference view; all shortcuts defined in one registry.
-- [ ] 8.11 Empty states, loading skeletons and error states for every panel; consistent toasts.
+- [x] 8.11 Empty states, loading skeletons and error states for every panel; consistent toasts.
 - [x] 8.12 Window state (size, sidebar width, open sessions and tabs) restored on start; sessions reconnect lazily.
 - [x] 8.13 Connection actions: duplicate, reorder, group by folder.
 

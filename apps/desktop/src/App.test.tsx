@@ -106,7 +106,7 @@ describe("App", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("No connections yet.")).toBeInTheDocument();
+      expect(screen.getByText(/^No connections yet\./)).toBeInTheDocument();
     });
   });
 
@@ -253,6 +253,6 @@ describe("App", () => {
       await screen.findByText(/The SSH connection was lost\. Open the connection again/),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Run" })).toBeNull();
-    expect(screen.getByText("Open a connection to start writing SQL.")).toBeInTheDocument();
+    expect(screen.getByText(/^Open a connection to start writing SQL/)).toBeInTheDocument();
   });
 });

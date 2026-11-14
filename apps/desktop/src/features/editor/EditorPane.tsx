@@ -1,3 +1,4 @@
+import { toast } from "../../components/toastStore";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "../../components/Button";
@@ -77,6 +78,7 @@ export function EditorPane({ tabId, session, profile }: Props) {
     }
     try {
       await useSavedQueries.getState().save({ ...linked, sql: tab.text });
+      toast.success(`Saved ${linked.name}`);
     } catch (caught) {
       setSaveError(toAppError(caught).message);
     }
@@ -211,6 +213,7 @@ export function EditorPane({ tabId, session, profile }: Props) {
             });
             actions.linkSaved(tabId, saved.id, saved.name);
             setSaving(false);
+            toast.success(`Saved ${saved.name}`);
           }}
           onCancel={() => {
             setSaving(false);

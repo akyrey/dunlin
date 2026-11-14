@@ -1,3 +1,4 @@
+import { shortcutLabel } from "../shortcuts/registry";
 import type { ReactNode } from "react";
 
 import type { AppError, QueryResult } from "../../ipc";
@@ -27,7 +28,12 @@ export function ResultPanel({ tab, onShow, onJumpTo }: Props) {
     return <ErrorView error={tab.notice} offset={null} text={tab.text} onJumpTo={onJumpTo} />;
   const run = tab.run;
   if (!run)
-    return <Message>Run a statement with ⌘↵ (Ctrl+Enter), or the whole script with ⇧⌘↵.</Message>;
+    return (
+      <Message>
+        Run the statement at the cursor with {shortcutLabel("run-statement")}, or the whole script
+        with {shortcutLabel("run-script")}.
+      </Message>
+    );
   const shown =
     tab.shown === "messages" ? "messages" : Math.min(tab.shown, run.statements.length - 1);
   const statement = shown === "messages" ? null : run.statements[shown];

@@ -17,7 +17,7 @@ describe("ConnectionList", () => {
       />,
     );
 
-    expect(screen.getByText("No connections yet.")).toBeInTheDocument();
+    expect(screen.getByText(/^No connections yet\./)).toBeInTheDocument();
   });
 
   it("opens, edits and deletes", async () => {

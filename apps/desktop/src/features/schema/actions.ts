@@ -1,6 +1,6 @@
 /** What the tree's context menu does with a table or view (task 4.10). */
 import { type TableRef, schemaSnippets } from "../../ipc";
-import { copyText } from "../../lib/clipboard";
+import { copyWithToast } from "../../lib/copy";
 import { useEditor } from "../editor/editorStore";
 import { useSessions } from "../sessions/sessionsStore";
 import { useWorkspace } from "../workspace/workspaceStore";
@@ -34,10 +34,10 @@ export async function runObjectAction(action: ObjectAction, target: ActionTarget
       useWorkspace.getState().openTable(sessionId, table);
       return;
     case "copy-name":
-      await copyText(table.name);
+      await copyWithToast(table.name, "the name");
       return;
     case "copy-qualified":
-      await copyText((await schemaSnippets(sessionId, table)).qualifiedName);
+      await copyWithToast((await schemaSnippets(sessionId, table)).qualifiedName, "the name");
       return;
     case "select": {
       const { select } = await schemaSnippets(sessionId, table);

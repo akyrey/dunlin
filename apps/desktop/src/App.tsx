@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "./components/Button";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { PanelBoundary } from "./components/PanelBoundary";
 import { StatusBar } from "./components/StatusBar";
+import { Toaster } from "./components/Toaster";
+import { toast } from "./components/toastStore";
 import { ConnectionForm } from "./features/connections/ConnectionForm";
 import { ConnectionList } from "./features/connections/ConnectionList";
 import { useConnections } from "./features/connections/connectionsStore";
@@ -19,7 +22,7 @@ import { HostKeyDialog } from "./features/ssh/HostKeyDialog";
 import { AppCommands } from "./features/palette/AppCommands";
 import { SettingsView } from "./features/settings/SettingsView";
 import { ShortcutsView } from "./features/shortcuts/ShortcutsView";
-import { matchShortcut } from "./features/shortcuts/registry";
+import { matchShortcut, shortcutLabel } from "./features/shortcuts/registry";
 import { useSettings } from "./features/settings/settingsStore";
 import { useApplyTheme } from "./features/settings/theme";
 import { TrustedHosts } from "./features/ssh/TrustedHosts";
@@ -199,8 +202,9 @@ export function App() {
               useConnections
                 .getState()
                 .duplicate(profile.id)
+                .then((copy) => toast.success(`Created ${copy.name}`))
                 .catch((caught: unknown) => {
-                  setActionError(toAppError(caught));
+                  toast.error(toAppError(caught).message);
                 });
             }}
             onMove={(profile, step) => {
@@ -208,7 +212,7 @@ export function App() {
                 .getState()
                 .move(profile.id, step)
                 .catch((caught: unknown) => {
-                  setActionError(toAppError(caught));
+                  toast.error(toAppError(caught).message);
                 });
             }}
           />
@@ -220,8 +224,12 @@ export function App() {
               {loadError ? loadError.message : actionError && describeConnectError(actionError)}
             </p>
           )}
-          <SchemaTree sessions={treeSessions} />
-          <SavedQueries activeConnectionId={activeConnectionId} />
+          <PanelBoundary name="schema tree">
+            <SchemaTree sessions={treeSessions} />
+          </PanelBoundary>
+          <PanelBoundary name="saved queries list">
+            <SavedQueries activeConnectionId={activeConnectionId} />
+          </PanelBoundary>
           {notice && (
             <p
               role="alert"
@@ -244,9 +252,14 @@ export function App() {
         <SidebarResizer width={layout.sidebarWidth} onResize={layout.setSidebarWidth} />
         <main className="min-w-0 flex-1">
           {activeSession ? (
-            <Workspace session={activeSession} profile={activeProfile} />
+            <PanelBoundary key={activeSession.sessionId} name="workspace">
+              <Workspace session={activeSession} profile={activeProfile} />
+            </PanelBoundary>
           ) : (
-            <p className="p-6 text-sm text-zinc-500">Open a connection to start writing SQL.</p>
+            <p className="p-6 text-sm text-zinc-500">
+              Open a connection to start writing SQL, or press {shortcutLabel("palette")} for
+              everything else.
+            </p>
           )}
         </main>
       </div>
@@ -290,7 +303,7 @@ export function App() {
             setOverlay("shortcuts");
           }}
           onError={(message) => {
-            setActionError({ code: "internal", message });
+            toast.error(message);
           }}
         />
       )}
@@ -320,6 +333,7 @@ export function App() {
         />
       )}
       <QuitGuard />
+      <Toaster />
       {deleting && (
         <ConfirmDialog
           title="Delete connection?"

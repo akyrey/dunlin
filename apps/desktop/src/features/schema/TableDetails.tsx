@@ -1,3 +1,4 @@
+import { Skeleton } from "../../components/Skeleton";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import {
@@ -121,7 +122,7 @@ function Ddl({ sessionId, table }: { sessionId: string; table: TableRef }) {
 }
 
 function LoadState<T>({ load, children }: { load: Loaded<T>; children: (data: T) => ReactNode }) {
-  if (load.status === "loading") return <p className="p-4 text-sm text-zinc-500">Loading…</p>;
+  if (load.status === "loading") return <Skeleton rows={6} label="Loading the table" />;
   if (load.status === "failed") {
     return (
       <p role="alert" className="p-4 text-sm text-rose-300">

@@ -60,7 +60,9 @@ describe("ResultPanel", () => {
   it("prompts before anything has run", () => {
     render(<ResultPanel tab={tab({})} {...props} />);
 
-    expect(screen.getByRole("status")).toHaveTextContent("Run a statement");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Run the statement at the cursor with Ctrl+↩",
+    );
   });
 
   it("shows one sub-tab per statement plus Messages, and the shown statement's outcome", () => {

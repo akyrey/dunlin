@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../components/Button";
 import { type AppError, type Value, toAppError } from "../../ipc";
 import { decodeBase64, hexDump, imageType } from "../../lib/binary";
-import { copyText } from "../../lib/clipboard";
+import { copyWithToast } from "../../lib/copy";
 import { prettyJson } from "../../lib/json";
 import { formatSize, rawText } from "../../lib/value";
 import { NO_TEXT_SUBSTITUTION } from "../../lib/quotes";
@@ -90,7 +90,7 @@ export function CellViewer({ column, value, loadFull, noFullReason, onClose, edi
         <Button
           variant="ghost"
           className="px-1 text-xs"
-          onClick={() => void copyText(rawText(shown))}
+          onClick={() => void copyWithToast(rawText(shown), "the value")}
         >
           Copy
         </Button>
