@@ -3,4 +3,8 @@
 /**
  * A statement's range in UTF-16 code units, as JavaScript and CodeMirror count.
  */
-export type StatementRange = { start: number, end: number, };
+export type StatementRange = { start: number, end: number, 
+/**
+ * Why running it needs confirmation, if it does; a script lists these before it starts.
+ */
+danger: string | null, };

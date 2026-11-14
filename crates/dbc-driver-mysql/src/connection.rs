@@ -284,6 +284,19 @@ impl Connection for MysqlConnection {
         introspect::describe_table(conn, flavour, table).await
     }
 
+    async fn default_namespace(&self) -> Result<Option<NamespaceRef>, DbError> {
+        let mut guard = self.conn.lock().await;
+        let conn = guard.as_mut().ok_or_else(closed)?;
+        let database: Option<Option<String>> = conn
+            .query_first("SELECT DATABASE()")
+            .await
+            .map_err(|e| map_error(&e))?;
+        Ok(database.flatten().map(|schema| NamespaceRef {
+            catalog: None,
+            schema: Some(schema),
+        }))
+    }
+
     async fn completion_schema(
         &self,
         namespace: &NamespaceRef,

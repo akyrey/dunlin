@@ -102,8 +102,8 @@ describe("editor store", () => {
   it("runs the statement under the cursor otherwise", async () => {
     useEditor.getState().setText(SESSION, "SELECT 1;\nSELECT 2;");
     sqlSplit.mockResolvedValue([
-      { start: 0, end: 8 },
-      { start: 10, end: 18 },
+      { start: 0, end: 8, danger: null },
+      { start: 10, end: 18, danger: null },
     ]);
     queryExecute.mockResolvedValue(rowsResult);
 
@@ -132,8 +132,8 @@ describe("editor store", () => {
   it("turns a server position into an absolute editor offset", async () => {
     useEditor.getState().setText(SESSION, "SELECT 1;\nSELECT * FRM t");
     sqlSplit.mockResolvedValue([
-      { start: 0, end: 8 },
-      { start: 10, end: 24 },
+      { start: 0, end: 8, danger: null },
+      { start: 10, end: 24, danger: null },
     ]);
     queryExecute.mockRejectedValue({
       code: "syntax",
@@ -217,7 +217,7 @@ describe("editor store", () => {
   it("reloads the schema tree after DDL, not after reads", async () => {
     const reload = vi.spyOn(useSchema.getState(), "reload").mockResolvedValue(undefined);
     useSchema.setState({ reload });
-    sqlSplit.mockResolvedValue([{ start: 0, end: 8 }]);
+    sqlSplit.mockResolvedValue([{ start: 0, end: 8, danger: null }]);
     queryExecute.mockResolvedValueOnce(rowsResult);
     queryExecute.mockResolvedValueOnce({ ...rowsResult, statementClass: "ddl" });
     useEditor.getState().setText(SESSION, "SELECT 1");

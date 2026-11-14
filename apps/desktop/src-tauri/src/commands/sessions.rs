@@ -40,6 +40,7 @@ pub async fn session_open(
         driver: session.kind,
         capabilities: session.capabilities,
         read_only: session.read_only,
+        default_namespace: session.default_namespace().await.map_err(AppError::from)?,
     })
 }
 

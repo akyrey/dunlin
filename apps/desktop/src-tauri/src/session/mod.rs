@@ -221,6 +221,12 @@ impl Session {
         self.check_metadata(&connection, result).await
     }
 
+    pub async fn default_namespace(&self) -> Result<Option<NamespaceRef>, DbError> {
+        let connection = self.metadata().await?;
+        let result = connection.default_namespace().await;
+        self.check_metadata(&connection, result).await
+    }
+
     /// Forgets all cached metadata: on refresh, and after DDL ran in this session.
     pub fn invalidate_schema(&self) {
         self.schema.clear();

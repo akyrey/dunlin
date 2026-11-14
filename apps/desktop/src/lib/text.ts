@@ -1,4 +1,5 @@
-import type { StatementRange } from "../ipc";
+/** Anything with a UTF-16 start and end, such as a `StatementRange`. */
+export type Span = { start: number; end: number };
 
 /** 1-based line and column of a UTF-16 `offset` in `text`. */
 export function lineAndColumn(text: string, offset: number): { line: number; column: number } {
@@ -12,7 +13,7 @@ export function lineAndColumn(text: string, offset: number): { line: number; col
  * The statement to run for a cursor at `cursor`: the one containing it, else the closest one
  * that ends before it (the cursor usually sits after the `;`), else the first one after it.
  */
-export function statementAt(ranges: StatementRange[], cursor: number): StatementRange | null {
+export function statementAt<T extends Span>(ranges: T[], cursor: number): T | null {
   const containing = ranges.find((r) => cursor >= r.start && cursor <= r.end);
   if (containing) return containing;
   const before = ranges.filter((r) => r.end < cursor);

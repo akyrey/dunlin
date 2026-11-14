@@ -342,6 +342,15 @@ pub async fn introspection_group(harness: &dyn Harness) -> Result<(), Failure> {
         )?;
     }
     check_completion(connection.as_ref(), &namespace).await?;
+    let default = connection
+        .default_namespace()
+        .await
+        .map_err(|e| fail("default_namespace", e.to_string()))?;
+    ensure(
+        default.as_ref() == Some(&namespace),
+        "default_namespace",
+        format!("expected {namespace:?}, got {default:?}"),
+    )?;
     check_missing(connection.as_ref(), &namespace).await?;
     connection
         .close()

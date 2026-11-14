@@ -249,6 +249,13 @@ impl Connection for SqliteConnection {
             .await
     }
 
+    async fn default_namespace(&self) -> Result<Option<NamespaceRef>, DbError> {
+        Ok(Some(NamespaceRef {
+            catalog: None,
+            schema: Some("main".to_owned()),
+        }))
+    }
+
     async fn completion_schema(
         &self,
         namespace: &NamespaceRef,

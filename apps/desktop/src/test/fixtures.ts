@@ -97,5 +97,6 @@ export function sessionFor(profile: ConnectionProfile, sessionId = "s1"): Sessio
     driver: profile.driver,
     capabilities: sqliteCapabilities,
     readOnly: profile.readOnly,
+    defaultNamespace: { catalog: null, schema: "main" },
   };
 }

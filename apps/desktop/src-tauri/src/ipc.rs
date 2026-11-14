@@ -126,6 +126,8 @@ pub struct SessionInfo {
     pub driver: DriverKind,
     pub capabilities: Capabilities,
     pub read_only: bool,
+    /// Where unqualified names resolve; autocomplete's default schema.
+    pub default_namespace: Option<NamespaceRef>,
 }
 
 #[derive(Debug, Clone, Deserialize, TS)]
@@ -179,11 +181,13 @@ pub struct SqlSplitArgs {
 }
 
 /// A statement's range in UTF-16 code units, as JavaScript and CodeMirror count.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct StatementRange {
     pub start: usize,
     pub end: usize,
+    /// Why running it needs confirmation, if it does; a script lists these before it starts.
+    pub danger: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, TS)]

@@ -69,7 +69,12 @@ function split(text: string): StatementRange[] {
   for (const part of text.split(";")) {
     const leading = part.length - part.trimStart().length;
     const trimmed = part.trim();
-    if (trimmed) ranges.push({ start: start + leading, end: start + leading + trimmed.length });
+    if (trimmed) {
+      const danger = /^delete from \w+$/i.test(trimmed)
+        ? "DELETE without WHERE affects every row"
+        : null;
+      ranges.push({ start: start + leading, end: start + leading + trimmed.length, danger });
+    }
     start += part.length + 1;
   }
   return ranges;

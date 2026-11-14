@@ -324,6 +324,19 @@ impl Connection for PostgresConnection {
         crate::introspect::describe_table(&*self.client()?, table).await
     }
 
+    async fn default_namespace(&self) -> Result<Option<NamespaceRef>, DbError> {
+        let client = self.client()?;
+        let row = client
+            .query_one("SELECT current_schema()::text", &[])
+            .await
+            .map_err(|e| map_error(&e, ""))?;
+        let schema: Option<String> = row.try_get(0).map_err(|e| map_error(&e, ""))?;
+        Ok(schema.map(|schema| NamespaceRef {
+            catalog: None,
+            schema: Some(schema),
+        }))
+    }
+
     async fn completion_schema(
         &self,
         namespace: &NamespaceRef,

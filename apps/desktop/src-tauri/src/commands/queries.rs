@@ -24,6 +24,11 @@ pub async fn sql_split(
         .map(|r| StatementRange {
             start: byte_to_utf16(&args.text, r.start),
             end: byte_to_utf16(&args.text, r.end),
+            danger: args
+                .text
+                .get(r.start..r.end)
+                .and_then(|statement| sql::classify(statement, rules).danger)
+                .map(|danger| danger.reason().to_owned()),
         })
         .collect();
     Ok(ranges)

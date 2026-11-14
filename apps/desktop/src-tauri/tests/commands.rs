@@ -289,7 +289,7 @@ async fn split_returns_utf16_ranges() {
     let session = fixture.session(false).await;
     let args = SqlSplitArgs {
         session_id: session.session_id.clone(),
-        text: "SELECT '🌍'; SELECT 2".into(),
+        text: "SELECT '🌍'; DELETE FROM t".into(),
     };
 
     let ranges = commands::sql_split(&fixture.state, args).await.unwrap();
@@ -297,9 +297,53 @@ async fn split_returns_utf16_ranges() {
     assert_eq!(
         ranges,
         vec![
-            StatementRange { start: 0, end: 11 },
-            StatementRange { start: 13, end: 21 }
+            StatementRange {
+                start: 0,
+                end: 11,
+                danger: None
+            },
+            StatementRange {
+                start: 13,
+                end: 26,
+                danger: Some("DELETE without WHERE affects every row".into())
+            }
         ]
+    );
+}
+
+#[tokio::test]
+async fn tabs_have_independent_transactions() {
+    let fixture = Fixture::new();
+    let session = fixture.session(false).await;
+    let in_tab = |tab: &str, sql: &str| QueryExecuteArgs {
+        session_id: session.session_id.clone(),
+        tab_id: tab.into(),
+        sql: sql.into(),
+        row_limit: 10,
+        confirmed: None,
+    };
+    let count = "SELECT count(*) FROM tags";
+
+    commands::query_execute(&fixture.state, in_tab("a", "BEGIN"))
+        .await
+        .unwrap();
+    commands::query_execute(
+        &fixture.state,
+        in_tab("a", "INSERT INTO tags (code) VALUES ('new')"),
+    )
+    .await
+    .unwrap();
+    let inside = commands::query_execute(&fixture.state, in_tab("a", count))
+        .await
+        .unwrap();
+    let outside = commands::query_execute(&fixture.state, in_tab("b", count))
+        .await
+        .unwrap();
+
+    assert_eq!(rows(inside).0, vec![vec![WireValue::Int { v: "1".into() }]]);
+    assert_eq!(
+        rows(outside).0,
+        vec![vec![WireValue::Int { v: "0".into() }]]
     );
 }
 

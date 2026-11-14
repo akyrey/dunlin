@@ -212,6 +212,12 @@ pub trait Connection: Send + Sync {
         Err(DbError::unsupported("list_namespaces"))
     }
 
+    /// Where unqualified names resolve (PostgreSQL's current schema, MySQL's selected database),
+    /// used as autocomplete's default schema. `None` when there is none.
+    async fn default_namespace(&self) -> Result<Option<NamespaceRef>, DbError> {
+        Ok(None)
+    }
+
     async fn list_objects(&self, _namespace: &NamespaceRef) -> Result<Vec<ObjectSummary>, DbError> {
         Err(DbError::unsupported("list_objects"))
     }
@@ -346,6 +352,11 @@ mod tests {
         ];
 
         assert!(codes.iter().all(|c| *c == Some(DbErrorCode::Unsupported)));
+    }
+
+    #[test]
+    fn default_namespace_defaults_to_none() {
+        assert_eq!(block_on(Minimal.default_namespace()), Ok(None));
     }
 
     /// Polls a future that never actually waits (the defaults are immediately ready).
