@@ -66,7 +66,8 @@ The classifier is a heuristic. It is a seatbelt against accidents, not an access
 
 ## Logging
 
-- Structured logs (`tracing`) to a file in the app log directory, rotated.
+- Structured logs (`tracing`, JSON lines) to the app log directory (`~/Library/Logs/<bundle id>` on macOS), one file a day, the last 7 kept. Settings has "Open logs folder".
+- Every command goes through `logging::logged`, which records only its name, duration and error code, so arguments cannot reach the log.
 - Logged: command names, durations, error codes, driver kind.
 - Not logged: SQL text, parameters, cell values, hostnames with credentials, secrets. SQL text lives only in the history table, which the user can clear.
 

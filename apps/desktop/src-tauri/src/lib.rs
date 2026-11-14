@@ -4,6 +4,7 @@ pub mod commands;
 pub mod connect;
 pub mod error;
 pub mod ipc;
+pub mod logging;
 pub mod profile;
 pub mod registry;
 pub mod session;
@@ -20,6 +21,10 @@ use crate::state::AppState;
 
 const STORE_FILE: &str = "dunlin.db";
 
+struct LogGuard {
+    _guard: tracing_appender::non_blocking::WorkerGuard,
+}
+
 /// Starts the app. Returns an error instead of panicking if setup fails.
 pub fn run() -> Result<(), tauri::Error> {
     tauri::Builder::default()
@@ -31,6 +36,11 @@ pub fn run() -> Result<(), tauri::Error> {
             let secrets = std::sync::Arc::new(dbc_store::KeychainSecretStore::open()?);
             let state = AppState::open(&dir.join(STORE_FILE), secrets)?;
             app.manage(state);
+            let logs = app.path().app_log_dir()?;
+            std::fs::create_dir_all(&logs)?;
+            let guard = logging::init(&logs).map_err(|e| std::io::Error::other(e.to_string()))?;
+            // Kept for the life of the app so buffered lines are written.
+            app.manage(LogGuard { _guard: guard });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

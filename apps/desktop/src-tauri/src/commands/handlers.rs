@@ -20,6 +20,7 @@ use crate::ipc::{
 };
 use crate::ipc::{ExportDone, ExportProgress, ExportResultArgs, ExportTableArgs, ExportTextArgs};
 use crate::ipc::{SavedQueryIdArgs, SavedQuerySaveArgs, SettingsSetArgs};
+use crate::logging::logged;
 use crate::state::AppState;
 
 #[tauri::command]
@@ -31,7 +32,7 @@ pub fn driver_list(state: State<'_, AppState>) -> Vec<DriverInfo> {
 pub async fn connection_list(
     state: State<'_, AppState>,
 ) -> Result<Vec<ConnectionProfile>, AppError> {
-    commands::connection_list(&state).await
+    logged("connection_list", commands::connection_list(&state)).await
 }
 
 #[tauri::command]
@@ -39,7 +40,7 @@ pub async fn connection_save(
     state: State<'_, AppState>,
     args: ConnectionSaveArgs,
 ) -> Result<ConnectionProfile, AppError> {
-    commands::connection_save(&state, args).await
+    logged("connection_save", commands::connection_save(&state, args)).await
 }
 
 #[tauri::command]
@@ -47,7 +48,11 @@ pub async fn connection_delete(
     state: State<'_, AppState>,
     args: ConnectionIdArgs,
 ) -> Result<(), AppError> {
-    commands::connection_delete(&state, args).await
+    logged(
+        "connection_delete",
+        commands::connection_delete(&state, args),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -55,7 +60,7 @@ pub async fn connection_test(
     state: State<'_, AppState>,
     args: ConnectionTestArgs,
 ) -> Result<ConnectionTestResult, AppError> {
-    commands::connection_test(&state, args).await
+    logged("connection_test", commands::connection_test(&state, args)).await
 }
 
 #[tauri::command]
@@ -63,7 +68,7 @@ pub async fn session_open(
     state: State<'_, AppState>,
     args: ConnectionIdArgs,
 ) -> Result<SessionInfo, AppError> {
-    commands::session_open(&state, args).await
+    logged("session_open", commands::session_open(&state, args)).await
 }
 
 #[tauri::command]
@@ -71,7 +76,7 @@ pub async fn session_close(
     state: State<'_, AppState>,
     args: SessionIdArgs,
 ) -> Result<(), AppError> {
-    commands::session_close(&state, args).await
+    logged("session_close", commands::session_close(&state, args)).await
 }
 
 #[tauri::command]
@@ -79,7 +84,7 @@ pub async fn sql_split(
     state: State<'_, AppState>,
     args: SqlSplitArgs,
 ) -> Result<Vec<StatementRange>, AppError> {
-    commands::sql_split(&state, args).await
+    logged("sql_split", commands::sql_split(&state, args)).await
 }
 
 #[tauri::command]
@@ -87,17 +92,17 @@ pub async fn query_execute(
     state: State<'_, AppState>,
     args: QueryExecuteArgs,
 ) -> Result<QueryResult, AppError> {
-    commands::query_execute(&state, args).await
+    logged("query_execute", commands::query_execute(&state, args)).await
 }
 
 #[tauri::command]
 pub async fn query_cancel(state: State<'_, AppState>, args: TabArgs) -> Result<(), AppError> {
-    commands::query_cancel(&state, args).await
+    logged("query_cancel", commands::query_cancel(&state, args)).await
 }
 
 #[tauri::command]
 pub async fn tab_close(state: State<'_, AppState>, args: TabArgs) -> Result<(), AppError> {
-    commands::tab_close(&state, args).await
+    logged("tab_close", commands::tab_close(&state, args)).await
 }
 
 #[tauri::command]
@@ -105,7 +110,11 @@ pub async fn schema_namespaces(
     state: State<'_, AppState>,
     args: SessionIdArgs,
 ) -> Result<Vec<Namespace>, AppError> {
-    commands::schema_namespaces(&state, args).await
+    logged(
+        "schema_namespaces",
+        commands::schema_namespaces(&state, args),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -113,7 +122,7 @@ pub async fn schema_objects(
     state: State<'_, AppState>,
     args: SchemaObjectsArgs,
 ) -> Result<Vec<ObjectSummary>, AppError> {
-    commands::schema_objects(&state, args).await
+    logged("schema_objects", commands::schema_objects(&state, args)).await
 }
 
 #[tauri::command]
@@ -121,7 +130,11 @@ pub async fn schema_completion(
     state: State<'_, AppState>,
     args: SchemaObjectsArgs,
 ) -> Result<CompletionSchema, AppError> {
-    commands::schema_completion(&state, args).await
+    logged(
+        "schema_completion",
+        commands::schema_completion(&state, args),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -129,7 +142,7 @@ pub async fn schema_table(
     state: State<'_, AppState>,
     args: SchemaTableArgs,
 ) -> Result<TableInfo, AppError> {
-    commands::schema_table(&state, args).await
+    logged("schema_table", commands::schema_table(&state, args)).await
 }
 
 #[tauri::command]
@@ -137,7 +150,7 @@ pub async fn schema_table_ddl(
     state: State<'_, AppState>,
     args: SchemaTableArgs,
 ) -> Result<String, AppError> {
-    commands::schema_table_ddl(&state, args).await
+    logged("schema_table_ddl", commands::schema_table_ddl(&state, args)).await
 }
 
 #[tauri::command]
@@ -145,7 +158,7 @@ pub async fn schema_snippets(
     state: State<'_, AppState>,
     args: SchemaTableArgs,
 ) -> Result<TableSnippets, AppError> {
-    commands::schema_snippets(&state, args).await
+    logged("schema_snippets", commands::schema_snippets(&state, args)).await
 }
 
 #[tauri::command]
@@ -153,7 +166,7 @@ pub async fn schema_refresh(
     state: State<'_, AppState>,
     args: SessionIdArgs,
 ) -> Result<(), AppError> {
-    commands::schema_refresh(&state, args).await
+    logged("schema_refresh", commands::schema_refresh(&state, args)).await
 }
 
 #[tauri::command]
@@ -161,7 +174,7 @@ pub async fn table_page(
     state: State<'_, AppState>,
     args: TablePageArgs,
 ) -> Result<TablePage, AppError> {
-    commands::table_page(&state, args).await
+    logged("table_page", commands::table_page(&state, args)).await
 }
 
 #[tauri::command]
@@ -169,7 +182,7 @@ pub async fn table_count(
     state: State<'_, AppState>,
     args: TableCountArgs,
 ) -> Result<RowCount, AppError> {
-    commands::table_count(&state, args).await
+    logged("table_count", commands::table_count(&state, args)).await
 }
 
 #[tauri::command]
@@ -177,7 +190,7 @@ pub async fn cell_full_value(
     state: State<'_, AppState>,
     args: CellFullValueArgs,
 ) -> Result<WireValue, AppError> {
-    commands::cell_full_value(&state, args).await
+    logged("cell_full_value", commands::cell_full_value(&state, args)).await
 }
 
 #[tauri::command]
@@ -185,7 +198,7 @@ pub async fn changes_preview(
     state: State<'_, AppState>,
     args: ChangesArgs,
 ) -> Result<Vec<String>, AppError> {
-    commands::changes_preview(&state, args).await
+    logged("changes_preview", commands::changes_preview(&state, args)).await
 }
 
 #[tauri::command]
@@ -193,7 +206,7 @@ pub async fn changes_apply(
     state: State<'_, AppState>,
     args: ChangesArgs,
 ) -> Result<ApplyResult, AppError> {
-    commands::changes_apply(&state, args).await
+    logged("changes_apply", commands::changes_apply(&state, args)).await
 }
 
 #[tauri::command]
@@ -201,7 +214,7 @@ pub async fn export_text(
     state: State<'_, AppState>,
     args: ExportTextArgs,
 ) -> Result<String, AppError> {
-    commands::export_text(&state, args).await
+    logged("export_text", commands::export_text(&state, args)).await
 }
 
 #[tauri::command]
@@ -209,7 +222,7 @@ pub async fn export_result(
     state: State<'_, AppState>,
     args: ExportResultArgs,
 ) -> Result<ExportDone, AppError> {
-    commands::export_result(&state, args).await
+    logged("export_result", commands::export_result(&state, args)).await
 }
 
 #[tauri::command]
@@ -218,12 +231,16 @@ pub async fn export_table(
     args: ExportTableArgs,
     on_progress: tauri::ipc::Channel<ExportProgress>,
 ) -> Result<ExportDone, AppError> {
-    commands::export_table(&state, args, move |rows| {
+    let progress = move |rows: u64| {
         // A closed channel means the window went away; the export itself carries on.
         let _ = on_progress.send(ExportProgress {
             rows_written: rows.to_string(),
         });
-    })
+    };
+    logged(
+        "export_table",
+        commands::export_table(&state, args, progress),
+    )
     .await
 }
 
@@ -231,7 +248,7 @@ pub async fn export_table(
 pub async fn saved_query_list(
     state: State<'_, AppState>,
 ) -> Result<Vec<dbc_store::SavedQuery>, AppError> {
-    commands::saved_query_list(&state).await
+    logged("saved_query_list", commands::saved_query_list(&state)).await
 }
 
 #[tauri::command]
@@ -239,7 +256,7 @@ pub async fn saved_query_save(
     state: State<'_, AppState>,
     args: SavedQuerySaveArgs,
 ) -> Result<dbc_store::SavedQuery, AppError> {
-    commands::saved_query_save(&state, args).await
+    logged("saved_query_save", commands::saved_query_save(&state, args)).await
 }
 
 #[tauri::command]
@@ -247,7 +264,11 @@ pub async fn saved_query_delete(
     state: State<'_, AppState>,
     args: SavedQueryIdArgs,
 ) -> Result<(), AppError> {
-    commands::saved_query_delete(&state, args).await
+    logged(
+        "saved_query_delete",
+        commands::saved_query_delete(&state, args),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -260,7 +281,7 @@ pub async fn settings_set(
     state: State<'_, AppState>,
     args: SettingsSetArgs,
 ) -> Result<dbc_store::Settings, AppError> {
-    commands::settings_set(&state, args).await
+    logged("settings_set", commands::settings_set(&state, args)).await
 }
 
 /// The folder the log files are written to (task 8.18).
@@ -278,7 +299,7 @@ pub async fn history_list(
     state: State<'_, AppState>,
     args: HistoryListArgs,
 ) -> Result<Vec<dbc_store::HistoryEntry>, AppError> {
-    commands::history_list(&state, args).await
+    logged("history_list", commands::history_list(&state, args)).await
 }
 
 #[tauri::command]
@@ -286,7 +307,7 @@ pub async fn history_clear(
     state: State<'_, AppState>,
     args: ConnectionIdArgs,
 ) -> Result<(), AppError> {
-    commands::history_clear(&state, args).await
+    logged("history_clear", commands::history_clear(&state, args)).await
 }
 
 #[tauri::command]
@@ -294,14 +315,18 @@ pub async fn ssh_trust_host(
     state: State<'_, AppState>,
     args: SshTrustHostArgs,
 ) -> Result<(), AppError> {
-    commands::ssh_trust_host(&state, args).await
+    logged("ssh_trust_host", commands::ssh_trust_host(&state, args)).await
 }
 
 #[tauri::command]
 pub async fn ssh_known_hosts_list(
     state: State<'_, AppState>,
 ) -> Result<Vec<dbc_store::KnownHost>, AppError> {
-    commands::ssh_known_hosts_list(&state).await
+    logged(
+        "ssh_known_hosts_list",
+        commands::ssh_known_hosts_list(&state),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -309,5 +334,9 @@ pub async fn ssh_known_host_remove(
     state: State<'_, AppState>,
     args: SshKnownHostRemoveArgs,
 ) -> Result<(), AppError> {
-    commands::ssh_known_host_remove(&state, args).await
+    logged(
+        "ssh_known_host_remove",
+        commands::ssh_known_host_remove(&state, args),
+    )
+    .await
 }
