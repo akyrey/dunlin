@@ -37,6 +37,7 @@ import {
   type ConnectionProfile,
   type ConnectionSecrets,
   type SshTrustHostArgs,
+  onSessionHealth,
   sshTrustHost,
   toAppError,
 } from "./ipc";
@@ -118,6 +119,21 @@ export function App() {
       ),
     [],
   );
+
+  useEffect(() => {
+    let stop: (() => void) | null = null;
+    let ended = false;
+    void onSessionHealth((event) => {
+      useSessions.getState().setHealth(event);
+    }).then((unlisten) => {
+      if (ended) unlisten();
+      else stop = unlisten;
+    });
+    return () => {
+      ended = true;
+      stop?.();
+    };
+  }, []);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

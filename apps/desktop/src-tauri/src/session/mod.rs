@@ -1,6 +1,9 @@
 //! Open sessions. `SessionManager` is the only shared mutable state in the backend.
 
+mod health;
 mod schema;
+
+pub use health::{Health, PING_INTERVAL};
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;

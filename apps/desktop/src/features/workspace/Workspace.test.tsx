@@ -1,5 +1,5 @@
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { App } from "../../App";
@@ -15,7 +15,7 @@ const mod = /Mac/.test(navigator.platform) ? { metaKey: true } : { ctrlKey: true
 
 beforeEach(() => {
   useConnections.setState({ drivers: [], profiles: [], loaded: false, error: null });
-  useSessions.setState({ sessions: {}, activeConnectionId: null, notice: null });
+  useSessions.setState({ sessions: {}, activeConnectionId: null, notice: null, unreachable: {} });
   useEditor.setState({ tabs: {} });
   useSchema.setState({ trees: {}, filter: "", showSystem: false });
   useWorkspace.setState({ workspaces: {} });
@@ -72,6 +72,21 @@ describe("workspace tabs", () => {
     fireEvent.keyDown(window, { key: "w", ...mod });
     await userEvent.click(screen.getByRole("button", { name: "Close Query 1" }));
     expect(titles(strip)).toEqual(["Query 2"]);
+  });
+
+  it("says when the server stops answering, and stops saying so when it is back", async () => {
+    render(<App />);
+    await open();
+    const sessionId = Object.values(useSessions.getState().sessions)[0]?.sessionId ?? "";
+
+    act(() => {
+      useSessions.getState().setHealth({ sessionId, status: "unreachable" });
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent("The server is not answering");
+    act(() => {
+      useSessions.getState().setHealth({ sessionId, status: "ok" });
+    });
+    expect(screen.queryByText(/The server is not answering/)).toBeNull();
   });
 
   it("asks before closing a tab with a running statement", async () => {

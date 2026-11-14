@@ -9,6 +9,7 @@ import { loadTabs } from "../editor/persistence";
 import { TableData } from "../data/TableData";
 import { useEdits } from "../edit/editStore";
 import { TableDetails } from "../schema/TableDetails";
+import { useSessions } from "../sessions/sessionsStore";
 import { matchShortcut } from "../shortcuts/registry";
 import { TabStrip } from "./TabStrip";
 import { type View, useWorkspace, workspaceOf } from "./workspaceStore";
@@ -39,6 +40,7 @@ export function Workspace({ session, profile }: Props) {
   /** A data view with unapplied edits waiting for "discard and close". */
   const [discarding, setDiscarding] = useState<string | null>(null);
   useInitialTabs(session);
+  const unreachable = useSessions((s) => s.unreachable[sessionId] === true);
 
   const active = workspace.views.find((v) => v.key === workspace.active) ?? null;
 
@@ -95,6 +97,15 @@ export function Workspace({ session, profile }: Props) {
 
   return (
     <div className="flex h-full flex-col">
+      {unreachable && (
+        <p
+          role="alert"
+          className="border-b border-amber-900 bg-amber-950/60 px-3 py-1 text-xs text-amber-300"
+        >
+          The server is not answering. Dunlin reconnects by itself when it is back; statements are
+          never re-run.
+        </p>
+      )}
       <TabStrip
         sessionId={sessionId}
         views={workspace.views}

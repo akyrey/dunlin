@@ -11,7 +11,7 @@ vi.mock("../../ipc", async (importOriginal) => {
 const session: SessionInfo = sessionFor(sqliteProfile());
 
 beforeEach(() => {
-  useSessions.setState({ sessions: {}, activeConnectionId: null });
+  useSessions.setState({ sessions: {}, activeConnectionId: null, unreachable: {}, notice: null });
   vi.mocked(ipc.sessionOpen).mockReset();
   vi.mocked(ipc.sessionClose).mockReset();
 });
@@ -58,6 +58,26 @@ describe("sessions store", () => {
     useSessions.getState().activate("c9");
 
     expect(useSessions.getState().activeConnectionId).toBe("c9");
+  });
+
+  it("marks a session unreachable until it answers again, and ignores unknown ones", () => {
+    useSessions.setState({ sessions: { c1: session } });
+
+    useSessions.getState().setHealth({ sessionId: session.sessionId, status: "unreachable" });
+    useSessions.getState().setHealth({ sessionId: "other", status: "unreachable" });
+    expect(useSessions.getState().unreachable).toEqual({ [session.sessionId]: true });
+
+    useSessions.getState().setHealth({ sessionId: session.sessionId, status: "ok" });
+    expect(useSessions.getState().unreachable).toEqual({});
+  });
+
+  it("closes a session whose tunnel the keeper found lost", () => {
+    useSessions.setState({ sessions: { c1: session }, activeConnectionId: "c1" });
+
+    useSessions.getState().setHealth({ sessionId: session.sessionId, status: "tunnel_lost" });
+
+    expect(useSessions.getState().sessions).toEqual({});
+    expect(useSessions.getState().notice).toMatch(/SSH connection was lost/);
   });
 
   it("forgets a session whose tunnel was lost and keeps a notice", () => {

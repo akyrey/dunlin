@@ -4,6 +4,7 @@ pub mod commands;
 pub mod connect;
 pub mod error;
 pub mod ipc;
+pub mod keeper;
 pub mod logging;
 pub mod profile;
 pub mod registry;
@@ -53,6 +54,7 @@ pub fn run() -> Result<(), tauri::Error> {
             let guard = logging::init(&logs).map_err(|e| std::io::Error::other(e.to_string()))?;
             // Kept for the life of the app so buffered lines are written.
             app.manage(LogGuard { _guard: guard });
+            keeper::spawn(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

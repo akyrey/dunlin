@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import { type SessionInfo, sessionClose, sessionOpen } from "../../ipc";
+import { type SessionHealthEvent, type SessionInfo, sessionClose, sessionOpen } from "../../ipc";
 
 type SessionsState = {
   /** Open sessions by connection id. */
@@ -11,6 +11,10 @@ type SessionsState = {
   /** Connections open when the app last ran, not reopened yet (task 8.12). */
   remembered: string[];
   remember: (connectionIds: string[]) => void;
+  /** Session ids whose server stopped answering; cleared when it answers again. */
+  unreachable: Record<string, true>;
+  /** Applies a `session_health` event from the backend. */
+  setHealth: (event: SessionHealthEvent) => void;
   open: (connectionId: string) => Promise<SessionInfo>;
   close: (connectionId: string) => Promise<void>;
   activate: (connectionId: string | null) => void;
@@ -30,6 +34,20 @@ export const useSessions = create<SessionsState>()((set, get) => ({
   activeConnectionId: null,
   notice: null,
   remembered: [],
+  unreachable: {},
+
+  setHealth: ({ sessionId, status }) => {
+    if (status === "tunnel_lost") {
+      get().markLost(sessionId, "The SSH connection was lost");
+      return;
+    }
+    const known = Object.values(get().sessions).some((s) => s.sessionId === sessionId);
+    if (!known) return;
+    const others = Object.fromEntries(
+      Object.entries(get().unreachable).filter(([id]) => id !== sessionId),
+    ) as Record<string, true>;
+    set({ unreachable: status === "unreachable" ? { ...others, [sessionId]: true } : others });
+  },
 
   remember: (connectionIds) => {
     set({ remembered: connectionIds });
