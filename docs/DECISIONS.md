@@ -113,3 +113,14 @@ Format: context, decision, consequences. Keep entries short.
 **Context.** `mysql_async` 0.37 implements "skip domain validation" by searching the rustls error's display text for `NotValidForName`, which never appears in it, so a chain-only check always fails. It exposes no way to install our own certificate verifier.
 **Decision.** `DriverInfo` lists the TLS modes a driver supports, and the connection form offers only those. The MySQL driver supports `disable`, `prefer`, `require` and `verify-full` (checked against the real server name via the hostname override, so tunnels work) and refuses `verify-ca` with a clear error.
 **Consequences.** MySQL servers whose certificate names do not match any reachable name must use `require` (encrypted, unverified, with the form's warning) until the library is fixed or replaced. Revisit on each `mysql_async` upgrade.
+
+## D-019 SSH with `russh` 0.65 (2026-11-14)
+
+**Context.** Phase 3 spike 3.1: prove the tunnel design on the current `russh` against real OpenSSH servers.
+**Decision.** Keep `russh` (`ring` backend, as for TLS). Verified against OpenSSH in containers: host key check in the handler, key/password/encrypted-key/agent authentication, `direct-tcpip` forwarding of several concurrent connections, a jump host as a second SSH session over a channel of the first (`connect_stream`), keepalive-based loss detection. Differences from the phase brief:
+- Key handling is part of `russh` (`russh::keys`); there is no separate `russh-keys`.
+- `check_server_key` receives `PublicKeyOrCertificate`; host certificates are refused (certificates are out of scope).
+- `SshAuth::Agent` carries the agent socket path. The app fills it from `SSH_AUTH_SOCK`; the library never reads the environment, so tests can use a private agent (setting variables is `unsafe` in Rust 2024).
+- Host keys are compared per algorithm, as OpenSSH does: a different key of the same algorithm is `Changed`, a key of another algorithm is `Unknown`. The user's `known_hosts` is read with `russh`'s parser (hashed entries and `[host]:port` work); `@revoked` and `@cert-authority` lines are not understood and match nothing.
+- `HostKeyStore::check` is synchronous; the app's table is loaded into a `FingerprintList` before connecting.
+**Consequences.** Forwarded connections that the server refuses are closed immediately; the database driver then reports a lost connection, and the session reports `tunnel_lost` if the SSH connection itself is gone.

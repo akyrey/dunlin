@@ -6,6 +6,7 @@ members = [
     "crates/dbc-driver-mysql",
     "crates/dbc-driver-sqlite",
     "crates/dbc-store",
+    "crates/dbc-tunnel",
     "apps/desktop/src-tauri",
 ]
 
@@ -22,6 +23,7 @@ dbc-driver-mysql = { path = "crates/dbc-driver-mysql" }
 dbc-driver-postgres = { path = "crates/dbc-driver-postgres" }
 dbc-driver-sqlite = { path = "crates/dbc-driver-sqlite" }
 dbc-store = { path = "crates/dbc-store" }
+dbc-tunnel = { path = "crates/dbc-tunnel" }
 
 async-trait = "0.1"
 base64 = "0.23"

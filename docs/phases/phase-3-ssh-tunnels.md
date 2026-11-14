@@ -51,13 +51,13 @@ pub trait HostKeyStore: Send + Sync {
 
 ## Tasks
 
-- [ ] 3.1 **Spike: `russh`.** Against a containerised OpenSSH server, prove: connect, verify host key in the handler, authenticate by key, open a `direct-tcpip` channel, pipe a TCP connection through it. Check the current API in its docs; note anything that differs from this brief.
-- [ ] 3.2 Integration harness: OpenSSH container plus a database container on a private Docker network, so the database is reachable only through SSH.
-- [ ] 3.3 `Tunnel::open` with key-file authentication, loopback listener, one forwarding task per accepted socket, clean shutdown.
-- [ ] 3.4 Password authentication and agent authentication (`SSH_AUTH_SOCK`). Encrypted private keys with passphrase.
-- [ ] 3.5 `HostKeyStore`: composite of the user's `~/.ssh/known_hosts` (read-only, including hashed entries) and the app's `known_hosts` table. Tests for trusted, unknown, changed.
+- [x] 3.1 **Spike: `russh`.** Against a containerised OpenSSH server, prove: connect, verify host key in the handler, authenticate by key, open a `direct-tcpip` channel, pipe a TCP connection through it. Check the current API in its docs; note anything that differs from this brief.
+- [x] 3.2 Integration harness: OpenSSH container plus a database container on a private Docker network, so the database is reachable only through SSH.
+- [x] 3.3 `Tunnel::open` with key-file authentication, loopback listener, one forwarding task per accepted socket, clean shutdown.
+- [x] 3.4 Password authentication and agent authentication (`SSH_AUTH_SOCK`). Encrypted private keys with passphrase.
+- [x] 3.5 `HostKeyStore`: composite of the user's `~/.ssh/known_hosts` (read-only, including hashed entries) and the app's `known_hosts` table. Tests for trusted, unknown, changed.
 - [ ] 3.6 Store migration for `known_hosts`; `ssh_trust_host` command; settings entry to list and remove trusted hosts.
-- [ ] 3.7 Jump host: second SSH session over a channel of the first. Integration test with two SSH containers.
+- [x] 3.7 Jump host: second SSH session over a channel of the first. Integration test with two SSH containers.
 - [ ] 3.8 Keepalive and loss detection: when the SSH connection drops, close the listener and surface `tunnel_lost` on the next database call.
 - [ ] 3.9 Session integration: open tunnel before connecting; pass `dial_host`/`dial_port` as the loopback address and keep `server_name` as the real host; route PostgreSQL cancel connections through the tunnel; close tunnel after connections.
 - [ ] 3.10 Profile model and store migration for tunnel settings; secret kinds `ssh_password` and `ssh_key_passphrase`.
