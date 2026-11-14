@@ -13,6 +13,7 @@ use dbc_core::DbError;
 use dbc_core::dialect::{Dialect, quote_with};
 use dbc_core::driver::{
     Capabilities, Connection, ConnectionConfig, Driver, DriverInfo, DriverKind, EndpointKind,
+    TlsMode,
 };
 use dbc_core::sql::SplitterRules;
 
@@ -29,6 +30,7 @@ impl Driver for PostgresDriver {
             label: "PostgreSQL".to_owned(),
             endpoint: EndpointKind::Tcp,
             default_port: Some(DEFAULT_PORT),
+            tls_modes: TlsMode::ALL.to_vec(),
             capabilities: Capabilities {
                 schemas: true,
                 multiple_databases: false,

@@ -92,6 +92,8 @@ pub struct DriverInfo {
     pub endpoint: EndpointKind,
     /// Pre-filled on the connection form for TCP drivers.
     pub default_port: Option<u16>,
+    /// TLS modes the driver supports; empty when it has no TLS.
+    pub tls_modes: Vec<TlsMode>,
     pub capabilities: Capabilities,
     pub options: Vec<OptionField>,
 }
@@ -133,6 +135,14 @@ pub struct TlsConfig {
 }
 
 impl TlsMode {
+    pub const ALL: [TlsMode; 5] = [
+        Self::Disable,
+        Self::Prefer,
+        Self::Require,
+        Self::VerifyCa,
+        Self::VerifyFull,
+    ];
+
     /// Whether the server certificate chain is checked.
     pub fn verifies_certificate(self) -> bool {
         matches!(self, Self::VerifyCa | Self::VerifyFull)

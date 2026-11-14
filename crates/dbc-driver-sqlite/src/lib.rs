@@ -29,6 +29,7 @@ impl Driver for SqliteDriver {
             label: "SQLite".to_owned(),
             endpoint: EndpointKind::File,
             default_port: None,
+            tls_modes: Vec::new(),
             capabilities: Capabilities {
                 cancel: true,
                 read_only_session: true,

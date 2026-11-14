@@ -28,9 +28,9 @@ Introspection (Phase 4), table paging (Phase 6), `apply_changes` (Phase 7), SSH 
 - [x] 2.3 Fixtures `postgres.sql` and `mysql.sql`; `testcontainers` harness giving each test its own database.
 - [x] 2.4 `dbc-driver-postgres`: connect (password, TLS modes, connect timeout, application name), `ping`, `execute`, error mapping with SQLSTATE and position, `CancelHandle`, read-only session.
 - [x] 2.5 PostgreSQL type decoding to `Value` for everything covered in 2.1, with a per-type test table.
-- [ ] 2.6 `dbc-driver-mysql`: connect (password, TLS modes), `ping`, `execute`, error mapping, `CancelHandle` via `KILL QUERY`, read-only session.
-- [ ] 2.7 MySQL type decoding: integer widths signed and unsigned, `DECIMAL`, `FLOAT`/`DOUBLE`, `BIT`, `DATE`/`TIME`/`DATETIME`/`TIMESTAMP` including zero dates, `JSON`, `ENUM`/`SET`, `BLOB`/`BINARY` versus `TEXT`/`CHAR`, `YEAR`.
-- [ ] 2.8 Conformance suite: add cancellation, read-only and error groups; run all three drivers. Run MySQL tests against both MySQL and MariaDB images.
+- [x] 2.6 `dbc-driver-mysql`: connect (password, TLS modes), `ping`, `execute`, error mapping, `CancelHandle` via `KILL QUERY`, read-only session.
+- [x] 2.7 MySQL type decoding: integer widths signed and unsigned, `DECIMAL`, `FLOAT`/`DOUBLE`, `BIT`, `DATE`/`TIME`/`DATETIME`/`TIMESTAMP` including zero dates, `JSON`, `ENUM`/`SET`, `BLOB`/`BINARY` versus `TEXT`/`CHAR`, `YEAR`.
+- [x] 2.8 Conformance suite: add cancellation, read-only and error groups; run all three drivers. Run MySQL tests against both MySQL and MariaDB images.
 - [ ] 2.9 `dbc-store`: keychain wrapper behind a trait (in-memory fake for tests), secret kinds, delete-on-connection-delete. Confirm `keyring` platform features against its docs.
 - [ ] 2.10 `connection_save`/`connection_test` accept secrets; `ConnectionProfile` exposes only `hasDbPassword`-style flags. Test that no command response contains a secret.
 - [ ] 2.11 Read-only enforcement in `query_execute` using `sql::classify`, in addition to the server-side setting.
