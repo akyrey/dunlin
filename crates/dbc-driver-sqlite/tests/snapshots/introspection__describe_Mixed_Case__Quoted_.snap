@@ -1,0 +1,70 @@
+---
+source: crates/dbc-driver-sqlite/tests/introspection.rs
+expression: info
+---
+{
+  "table": {
+    "namespace": {
+      "catalog": null,
+      "schema": "main"
+    },
+    "name": "Mixed Case \"Quoted\""
+  },
+  "kind": "table",
+  "comment": null,
+  "columns": [
+    {
+      "name": "select",
+      "typeName": "INTEGER",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 1,
+      "generated": false
+    },
+    {
+      "name": "spaced name",
+      "typeName": "TEXT",
+      "category": "text",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 2,
+      "generated": false
+    },
+    {
+      "name": "naïve",
+      "typeName": "TEXT",
+      "category": "text",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 3,
+      "generated": false
+    }
+  ],
+  "primaryKey": {
+    "name": null,
+    "columns": [
+      "select"
+    ]
+  },
+  "indexes": [
+    {
+      "name": "Mixed \"idx\"",
+      "columns": [
+        "spaced name"
+      ],
+      "unique": false,
+      "method": null,
+      "predicate": null
+    }
+  ],
+  "foreignKeys": [],
+  "uniqueConstraints": [],
+  "checkConstraints": [],
+  "rowKey": [
+    "select"
+  ]
+}

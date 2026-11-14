@@ -1,13 +1,18 @@
 //! Driver conformance suite. Every driver runs these groups from its own tests through a
 //! [`Harness`]. Each check returns a [`Failure`] naming what went wrong instead of panicking.
 
+mod introspection;
+
 use std::sync::Arc;
 
 use async_trait::async_trait;
 
+pub use introspection::{IntrospectionSupport, introspection_group};
+
 use crate::driver::{ConnectionConfig, Driver};
 use crate::error::DbErrorCode;
 use crate::result::{ExecuteOptions, StatementOutcome, TypeCategory};
+use crate::schema::NamespaceRef;
 use crate::value::Value;
 
 pub const SQLITE_FIXTURE: &str = include_str!("../test-support/fixtures/sqlite.sql");
@@ -97,6 +102,15 @@ pub trait Harness: Send + Sync {
     }
     /// A statement that runs for many seconds unless cancelled.
     fn slow_statement(&self) -> String;
+    /// Where the fixture tables live on a connection made with `config`.
+    fn fixture_namespace(&self, config: &ConnectionConfig) -> NamespaceRef;
+    /// A namespace `list_namespaces` must report as a system namespace.
+    fn system_namespace(&self) -> Option<String> {
+        None
+    }
+    fn introspection_support(&self) -> IntrospectionSupport {
+        IntrospectionSupport::default()
+    }
 }
 
 /// How long a cancelled statement may take to stop (acceptance: within a second).
@@ -110,7 +124,8 @@ pub async fn run_all(harness: &dyn Harness) -> Result<(), Failure> {
     row_limit_group(harness).await?;
     execute_group(harness).await?;
     read_only_group(harness).await?;
-    cancel_group(harness).await
+    cancel_group(harness).await?;
+    introspection_group(harness).await
 }
 
 /// Connect, ping, close; unreachable and bad credentials fail with the right codes.

@@ -1,0 +1,160 @@
+---
+source: crates/dbc-driver-sqlite/tests/introspection.rs
+expression: info
+---
+{
+  "table": {
+    "namespace": {
+      "catalog": null,
+      "schema": "main"
+    },
+    "name": "all_types"
+  },
+  "kind": "table",
+  "comment": null,
+  "columns": [
+    {
+      "name": "id",
+      "typeName": "INTEGER",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 1,
+      "generated": false
+    },
+    {
+      "name": "c_bool",
+      "typeName": "BOOLEAN",
+      "category": "bool",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 2,
+      "generated": false
+    },
+    {
+      "name": "c_int",
+      "typeName": "INTEGER",
+      "category": "integer",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 3,
+      "generated": false
+    },
+    {
+      "name": "c_bigint",
+      "typeName": "BIGINT",
+      "category": "integer",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 4,
+      "generated": false
+    },
+    {
+      "name": "c_real",
+      "typeName": "REAL",
+      "category": "float",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 5,
+      "generated": false
+    },
+    {
+      "name": "c_decimal",
+      "typeName": "NUMERIC",
+      "category": "decimal",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 6,
+      "generated": false
+    },
+    {
+      "name": "c_text",
+      "typeName": "TEXT",
+      "category": "text",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 7,
+      "generated": false
+    },
+    {
+      "name": "c_blob",
+      "typeName": "BLOB",
+      "category": "binary",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 8,
+      "generated": false
+    },
+    {
+      "name": "c_json",
+      "typeName": "JSON",
+      "category": "json",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 9,
+      "generated": false
+    },
+    {
+      "name": "c_xml",
+      "typeName": "XML",
+      "category": "xml",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 10,
+      "generated": false
+    },
+    {
+      "name": "c_uuid",
+      "typeName": "UUID",
+      "category": "uuid",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 11,
+      "generated": false
+    },
+    {
+      "name": "c_date",
+      "typeName": "DATE",
+      "category": "temporal",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 12,
+      "generated": false
+    },
+    {
+      "name": "c_ts",
+      "typeName": "TIMESTAMP",
+      "category": "temporal",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 13,
+      "generated": false
+    }
+  ],
+  "primaryKey": {
+    "name": null,
+    "columns": [
+      "id"
+    ]
+  },
+  "indexes": [],
+  "foreignKeys": [],
+  "uniqueConstraints": [],
+  "checkConstraints": [],
+  "rowKey": [
+    "id"
+  ]
+}

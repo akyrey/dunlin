@@ -19,6 +19,7 @@ tokio-postgres = { version = "0.7.18", default-features = false, features = ["ru
 tokio-postgres-rustls = { version = "0.14", default-features = false, features = ["ring"] }
 
 [dev-dependencies]
+insta.workspace = true
 async-trait.workspace = true
 dbc-tunnel = { workspace = true, features = ["test-support"] }
 dbc-core = { workspace = true, features = ["test-support"] }

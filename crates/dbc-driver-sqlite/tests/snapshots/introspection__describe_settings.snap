@@ -1,0 +1,50 @@
+---
+source: crates/dbc-driver-sqlite/tests/introspection.rs
+expression: info
+---
+{
+  "table": {
+    "namespace": {
+      "catalog": null,
+      "schema": "main"
+    },
+    "name": "settings"
+  },
+  "kind": "table",
+  "comment": null,
+  "columns": [
+    {
+      "name": "key",
+      "typeName": "TEXT",
+      "category": "text",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 1,
+      "generated": false
+    },
+    {
+      "name": "value",
+      "typeName": "TEXT",
+      "category": "text",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 2,
+      "generated": false
+    }
+  ],
+  "primaryKey": {
+    "name": null,
+    "columns": [
+      "key"
+    ]
+  },
+  "indexes": [],
+  "foreignKeys": [],
+  "uniqueConstraints": [],
+  "checkConstraints": [],
+  "rowKey": [
+    "key"
+  ]
+}

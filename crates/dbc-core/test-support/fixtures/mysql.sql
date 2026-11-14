@@ -56,6 +56,42 @@ CREATE TABLE `Mixed Case "Quoted"` (
 
 CREATE VIEW paid_orders AS SELECT id, customer_id, total FROM orders WHERE paid;
 
+-- Introspection (Phase 4): self-referencing and composite foreign keys with actions, a named
+-- check, a multi-column unique constraint, a generated column, multi-column, partial and
+-- expression indexes, comments, a quoted index name, and a table keyed by a unique not-null
+-- column.
+-- MySQL ignores REFERENCES on a column, so foreign keys are table constraints. MariaDB has no
+-- partial or expression indexes, so this flavour leaves them out.
+CREATE TABLE employees (
+    id         INT PRIMARY KEY,
+    manager_id INT,
+    first_name VARCHAR(100) NOT NULL,
+    last_name  VARCHAR(100) NOT NULL,
+    full_name  VARCHAR(201) AS (CONCAT(first_name, ' ', last_name)) STORED,
+    salary     DECIMAL(10, 2) COMMENT 'Yearly, before tax',
+    CONSTRAINT employees_name_key UNIQUE (last_name, first_name),
+    CONSTRAINT salary_positive CHECK (salary > 0),
+    INDEX employees_manager_name_idx (manager_id, last_name),
+    FOREIGN KEY (manager_id) REFERENCES employees (id) ON DELETE SET NULL
+) COMMENT = 'Staff, managed by other staff';
+
+CREATE TABLE shipments (
+    id       INT PRIMARY KEY,
+    order_id INT NOT NULL,
+    line     INT NOT NULL,
+    INDEX shipments_item_idx (order_id, line),
+    CONSTRAINT shipments_item_fk FOREIGN KEY (order_id, line)
+        REFERENCES order_items (order_id, line) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- No primary key; the unique not-null column addresses rows.
+CREATE TABLE tags (
+    code  VARCHAR(50) NOT NULL UNIQUE,
+    label TEXT
+);
+
+CREATE INDEX `Mixed "idx"` ON `Mixed Case "Quoted"` (`spaced name`(10));
+
 INSERT INTO customers (id, name, email) VALUES
     (1, 'Ada', 'ada@example.com'),
     (2, 'Grace', NULL),

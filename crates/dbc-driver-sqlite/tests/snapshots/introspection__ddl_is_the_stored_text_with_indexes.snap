@@ -1,0 +1,19 @@
+---
+source: crates/dbc-driver-sqlite/tests/introspection.rs
+expression: ddl
+---
+CREATE TABLE employees (
+    id         INTEGER PRIMARY KEY,
+    manager_id INTEGER REFERENCES employees (id) ON DELETE SET NULL,
+    first_name TEXT NOT NULL,
+    last_name  TEXT NOT NULL,
+    full_name  TEXT GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED,
+    salary     NUMERIC(10, 2) CONSTRAINT salary_positive CHECK (salary > 0),
+    CONSTRAINT employees_name_key UNIQUE (last_name, first_name)
+);
+
+CREATE INDEX employees_high_paid_idx ON employees (salary) WHERE salary > 100000;
+
+CREATE INDEX employees_lower_last_idx ON employees (lower(last_name));
+
+CREATE INDEX employees_manager_name_idx ON employees (manager_id, last_name);

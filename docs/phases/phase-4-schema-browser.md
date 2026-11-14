@@ -34,12 +34,12 @@ Use the system catalogs rather than `information_schema` on PostgreSQL: they are
 
 ## Tasks
 
-- [ ] 4.1 Extend fixtures: composite primary key, multi-column and partial indexes, expression index, self-referencing and composite foreign keys with `ON DELETE` actions, unique and check constraints, generated column, view, column and table comments, identifiers needing quotes.
-- [ ] 4.2 Conformance group for introspection asserting the full `TableInfo` for each fixture table, including `row_key` selection (primary key, unique not-null fallback, none).
+- [x] 4.1 Extend fixtures: composite primary key, multi-column and partial indexes, expression index, self-referencing and composite foreign keys with `ON DELETE` actions, unique and check constraints, generated column, view, column and table comments, identifiers needing quotes.
+- [x] 4.2 Conformance group for introspection asserting the full `TableInfo` for each fixture table, including `row_key` selection (primary key, unique not-null fallback, none).
 - [ ] 4.3 PostgreSQL: `list_namespaces`, `list_objects`, `describe_table`.
 - [ ] 4.4 PostgreSQL: `table_ddl` reconstruction (columns, defaults, constraints, indexes, comments), labelled as reconstructed. Snapshot tests.
 - [ ] 4.5 MySQL: all four methods. Test on MySQL and MariaDB (check constraints differ by version).
-- [ ] 4.6 SQLite: all four methods, including attached databases and `WITHOUT ROWID` tables.
+- [x] 4.6 SQLite: all four methods, including attached databases and `WITHOUT ROWID` tables.
 - [ ] 4.7 `schema_*` commands using the metadata connection; per-session cache keyed by namespace and table, invalidated by refresh and after any `Ddl`-class statement runs in that session.
 - [ ] 4.8 Frontend: sidebar tree (session → namespace → Tables / Views → object), lazy loading per node, loading and error states per node, filter box, refresh action, "show system objects" toggle.
 - [ ] 4.9 Frontend: table detail tab with sub-tabs Columns, Indexes, Constraints (primary key, foreign keys, unique, check), DDL (read-only CodeMirror). Foreign keys link to the referenced table's detail tab.

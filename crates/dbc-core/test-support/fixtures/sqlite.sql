@@ -57,6 +57,46 @@ CREATE TABLE "Mixed Case ""Quoted""" (
 
 CREATE VIEW paid_orders AS SELECT id, customer_id, total FROM orders WHERE paid = 1;
 
+-- Introspection (Phase 4): self-referencing and composite foreign keys with actions, a named
+-- check, a multi-column unique constraint, a generated column, multi-column, partial and
+-- expression indexes, comments, a quoted index name, and a table keyed by a unique not-null
+-- column.
+CREATE TABLE employees (
+    id         INTEGER PRIMARY KEY,
+    manager_id INTEGER REFERENCES employees (id) ON DELETE SET NULL,
+    first_name TEXT NOT NULL,
+    last_name  TEXT NOT NULL,
+    full_name  TEXT GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED,
+    salary     NUMERIC(10, 2) CONSTRAINT salary_positive CHECK (salary > 0),
+    CONSTRAINT employees_name_key UNIQUE (last_name, first_name)
+);
+CREATE INDEX employees_manager_name_idx ON employees (manager_id, last_name);
+CREATE INDEX employees_high_paid_idx ON employees (salary) WHERE salary > 100000;
+CREATE INDEX employees_lower_last_idx ON employees (lower(last_name));
+
+CREATE TABLE shipments (
+    id       INTEGER PRIMARY KEY,
+    order_id INTEGER NOT NULL,
+    line     INTEGER NOT NULL,
+    CONSTRAINT shipments_item_fk FOREIGN KEY (order_id, line)
+        REFERENCES order_items (order_id, line) ON DELETE CASCADE ON UPDATE CASCADE
+);
+CREATE INDEX shipments_item_idx ON shipments (order_id, line);
+
+-- No primary key; the unique not-null column addresses rows.
+CREATE TABLE tags (
+    code  TEXT NOT NULL UNIQUE,
+    label TEXT
+);
+
+CREATE INDEX "Mixed ""idx""" ON "Mixed Case ""Quoted""" ("spaced name");
+
+-- SQLite only: a WITHOUT ROWID table.
+CREATE TABLE settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT
+) WITHOUT ROWID;
+
 INSERT INTO customers (id, name, email) VALUES
     (1, 'Ada', 'ada@example.com'),
     (2, 'Grace', NULL),

@@ -1,7 +1,9 @@
 //! SQLite driver. Each connection lives on its own worker thread (`rusqlite` is not `Sync`).
 
+mod ddl;
 mod decode;
 mod errors;
+mod introspect;
 mod worker;
 
 use std::sync::Arc;

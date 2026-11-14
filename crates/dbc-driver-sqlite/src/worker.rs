@@ -8,6 +8,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use dbc_core::driver::{CancelHandle, Connection, ConnectionConfig, Endpoint};
 use dbc_core::result::{ColumnMeta, ExecuteOptions, ResultSet, StatementOutcome};
+use dbc_core::schema::{Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef};
 use dbc_core::{DbError, DbErrorCode, Value};
 use rusqlite::{InterruptHandle, OpenFlags};
 use tokio::sync::oneshot;
@@ -15,6 +16,7 @@ use tokio::sync::oneshot;
 use crate::OPTION_CREATE_IF_MISSING;
 use crate::decode::{category_for_declared, category_for_value, decode};
 use crate::errors::{map_error, map_open_error};
+use crate::introspect;
 
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -227,6 +229,27 @@ impl Connection for SqliteConnection {
         let sql = sql.to_owned();
         let row_limit = options.row_limit;
         self.call(move |c| run_statement(c, &sql, row_limit)).await
+    }
+
+    async fn list_namespaces(&self) -> Result<Vec<Namespace>, DbError> {
+        self.call(introspect::list_namespaces).await
+    }
+
+    async fn list_objects(&self, namespace: &NamespaceRef) -> Result<Vec<ObjectSummary>, DbError> {
+        let namespace = namespace.clone();
+        self.call(move |c| introspect::list_objects(c, &namespace))
+            .await
+    }
+
+    async fn describe_table(&self, table: &TableRef) -> Result<TableInfo, DbError> {
+        let table = table.clone();
+        self.call(move |c| introspect::describe_table(c, &table))
+            .await
+    }
+
+    async fn table_ddl(&self, table: &TableRef) -> Result<String, DbError> {
+        let table = table.clone();
+        self.call(move |c| introspect::table_ddl(c, &table)).await
     }
 
     fn cancel_handle(&self) -> Arc<dyn CancelHandle> {

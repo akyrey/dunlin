@@ -12,6 +12,7 @@ use dbc_core::Value;
 use dbc_core::conformance::{self, Harness, SyntaxErrorCase, TypeCase};
 use dbc_core::driver::{ConnectionConfig, Driver, Endpoint, TlsConfig, TlsMode};
 use dbc_core::result::{ExecuteOptions, StatementOutcome, TypeCategory};
+use dbc_core::schema::NamespaceRef;
 use dbc_driver_postgres::PostgresDriver;
 use dbc_tunnel::Tunnel;
 use dbc_tunnel::test_support::{Keys, SshServer, config as tunnel_config, key_auth, trusted_store};
@@ -73,6 +74,17 @@ impl Harness for TunnelHarness {
             TypeCase::new("SELECT 'héllo'::text", Value::Text("héllo".into())),
             TypeCase::new("SELECT NULL::int8", Value::Null),
         ]
+    }
+
+    fn fixture_namespace(&self, _config: &ConnectionConfig) -> NamespaceRef {
+        NamespaceRef {
+            catalog: None,
+            schema: Some("public".into()),
+        }
+    }
+
+    fn system_namespace(&self) -> Option<String> {
+        Some("pg_catalog".into())
     }
 
     fn syntax_error(&self) -> SyntaxErrorCase {

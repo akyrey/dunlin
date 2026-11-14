@@ -55,6 +55,42 @@ CREATE TABLE "Mixed Case ""Quoted""" (
 
 CREATE VIEW paid_orders AS SELECT id, customer_id, total FROM orders WHERE paid;
 
+-- Introspection (Phase 4): self-referencing and composite foreign keys with actions, a named
+-- check, a multi-column unique constraint, a generated column, multi-column, partial and
+-- expression indexes, comments, a quoted index name, and a table keyed by a unique not-null
+-- column.
+CREATE TABLE employees (
+    id         integer PRIMARY KEY,
+    manager_id integer REFERENCES employees (id) ON DELETE SET NULL,
+    first_name text NOT NULL,
+    last_name  text NOT NULL,
+    full_name  text GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED,
+    salary     numeric(10, 2) CONSTRAINT salary_positive CHECK (salary > 0),
+    CONSTRAINT employees_name_key UNIQUE (last_name, first_name)
+);
+CREATE INDEX employees_manager_name_idx ON employees (manager_id, last_name);
+CREATE INDEX employees_high_paid_idx ON employees (salary) WHERE salary > 100000;
+CREATE INDEX employees_lower_last_idx ON employees (lower(last_name));
+COMMENT ON TABLE employees IS 'Staff, managed by other staff';
+COMMENT ON COLUMN employees.salary IS 'Yearly, before tax';
+
+CREATE TABLE shipments (
+    id       integer PRIMARY KEY,
+    order_id integer NOT NULL,
+    line     integer NOT NULL,
+    CONSTRAINT shipments_item_fk FOREIGN KEY (order_id, line)
+        REFERENCES order_items (order_id, line) ON DELETE CASCADE ON UPDATE CASCADE
+);
+CREATE INDEX shipments_item_idx ON shipments (order_id, line);
+
+-- No primary key; the unique not-null column addresses rows.
+CREATE TABLE tags (
+    code  text NOT NULL UNIQUE,
+    label text
+);
+
+CREATE INDEX "Mixed ""idx""" ON "Mixed Case ""Quoted""" ("spaced name");
+
 INSERT INTO customers (id, name, email) VALUES
     (1, 'Ada', 'ada@example.com'),
     (2, 'Grace', NULL),

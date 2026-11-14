@@ -1,0 +1,77 @@
+---
+source: crates/dbc-driver-sqlite/tests/introspection.rs
+expression: info
+---
+{
+  "table": {
+    "namespace": {
+      "catalog": null,
+      "schema": "main"
+    },
+    "name": "customers"
+  },
+  "kind": "table",
+  "comment": null,
+  "columns": [
+    {
+      "name": "id",
+      "typeName": "INTEGER",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 1,
+      "generated": false
+    },
+    {
+      "name": "name",
+      "typeName": "TEXT",
+      "category": "text",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 2,
+      "generated": false
+    },
+    {
+      "name": "email",
+      "typeName": "TEXT",
+      "category": "text",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 3,
+      "generated": false
+    },
+    {
+      "name": "created_at",
+      "typeName": "TIMESTAMP",
+      "category": "temporal",
+      "nullable": true,
+      "default": "CURRENT_TIMESTAMP",
+      "comment": null,
+      "ordinal": 4,
+      "generated": false
+    }
+  ],
+  "primaryKey": {
+    "name": null,
+    "columns": [
+      "id"
+    ]
+  },
+  "indexes": [],
+  "foreignKeys": [],
+  "uniqueConstraints": [
+    {
+      "name": null,
+      "columns": [
+        "email"
+      ]
+    }
+  ],
+  "checkConstraints": [],
+  "rowKey": [
+    "id"
+  ]
+}

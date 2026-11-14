@@ -14,6 +14,7 @@ rusqlite = { workspace = true, features = ["column_decltype"] }
 tokio = { workspace = true, features = ["sync"] }
 
 [dev-dependencies]
+insta.workspace = true
 dbc-core = { workspace = true, features = ["test-support"] }
 rstest.workspace = true
 tempfile.workspace = true

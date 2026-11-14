@@ -6,9 +6,10 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use dbc_core::Value;
-use dbc_core::conformance::{self, Harness, SyntaxErrorCase, TypeCase};
+use dbc_core::conformance::{self, Harness, IntrospectionSupport, SyntaxErrorCase, TypeCase};
 use dbc_core::driver::{ConnectionConfig, Driver};
 use dbc_core::result::TypeCategory;
+use dbc_core::schema::NamespaceRef;
 use dbc_driver_sqlite::SqliteDriver;
 
 use common::{TempDatabases, config, creating};
@@ -80,6 +81,22 @@ impl Harness for SqliteHarness {
             .to_owned()
     }
 
+    fn fixture_namespace(&self, _config: &ConnectionConfig) -> NamespaceRef {
+        NamespaceRef {
+            catalog: None,
+            schema: Some("main".into()),
+        }
+    }
+
+    fn introspection_support(&self) -> IntrospectionSupport {
+        IntrospectionSupport {
+            constraint_names: false,
+            comments: false,
+            extra_tables: vec!["settings"],
+            ..IntrospectionSupport::default()
+        }
+    }
+
     fn syntax_error(&self) -> SyntaxErrorCase {
         SyntaxErrorCase {
             sql: "SELECT * FRM customers".into(),
@@ -126,6 +143,13 @@ async fn read_only_group() {
 #[tokio::test]
 async fn cancel_group() {
     conformance::cancel_group(&SqliteHarness::default())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn introspection_group() {
+    conformance::introspection_group(&SqliteHarness::default())
         .await
         .unwrap();
 }

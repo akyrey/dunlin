@@ -10,6 +10,7 @@ use dbc_core::Value;
 use dbc_core::conformance::{self, Harness, SyntaxErrorCase, TypeCase};
 use dbc_core::driver::{ConnectionConfig, Driver, Endpoint};
 use dbc_core::result::TypeCategory;
+use dbc_core::schema::NamespaceRef;
 use dbc_driver_postgres::PostgresDriver;
 use secrecy::SecretString;
 
@@ -186,6 +187,17 @@ impl Harness for PostgresHarness {
             case("''::text", Value::Text(String::new()), C::Text),
             case("NULL::int4", Value::Null, C::Integer),
         ]
+    }
+
+    fn fixture_namespace(&self, _config: &ConnectionConfig) -> NamespaceRef {
+        NamespaceRef {
+            catalog: None,
+            schema: Some("public".into()),
+        }
+    }
+
+    fn system_namespace(&self) -> Option<String> {
+        Some("pg_catalog".into())
     }
 
     fn syntax_error(&self) -> SyntaxErrorCase {

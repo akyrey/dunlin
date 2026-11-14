@@ -20,6 +20,8 @@ pub enum DbErrorCode {
     Execution,
     ConnectionLost,
     Unsupported,
+    /// The table, view or namespace does not exist (or is not visible to this user).
+    NotFound,
     RowCountMismatch,
     Internal,
 }
@@ -40,6 +42,7 @@ impl DbErrorCode {
             Self::Execution => "execution",
             Self::ConnectionLost => "connection_lost",
             Self::Unsupported => "unsupported",
+            Self::NotFound => "not_found",
             Self::RowCountMismatch => "row_count_mismatch",
             Self::Internal => "internal",
         }

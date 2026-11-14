@@ -27,6 +27,7 @@ dbc-tunnel = { path = "crates/dbc-tunnel" }
 
 async-trait = "0.1"
 base64 = "0.23"
+insta = { version = "1.49", features = ["json"] }
 proptest = "1"
 rstest = "0.28"
 rusqlite = { version = "0.42", features = ["bundled"] }

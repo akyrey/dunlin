@@ -7,9 +7,12 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use async_trait::async_trait;
 use dbc_core::Value;
-use dbc_core::conformance::{self, Harness, MYSQL_FIXTURE, SyntaxErrorCase, TypeCase};
+use dbc_core::conformance::{
+    self, Harness, IntrospectionSupport, MYSQL_FIXTURE, SyntaxErrorCase, TypeCase,
+};
 use dbc_core::driver::{ConnectionConfig, Driver, Endpoint, TlsConfig};
 use dbc_core::result::TypeCategory;
+use dbc_core::schema::NamespaceRef;
 use dbc_driver_mysql::MysqlDriver;
 use mysql_async::prelude::Queryable;
 use mysql_async::{Conn, Opts};
@@ -189,6 +192,25 @@ impl Harness for MysqlHarness {
             TypeCase::new("SELECT 9007199254740993", Value::Int(9_007_199_254_740_993)),
             TypeCase::new("SELECT NULL", Value::Null),
         ]
+    }
+
+    fn fixture_namespace(&self, config: &ConnectionConfig) -> NamespaceRef {
+        NamespaceRef {
+            catalog: None,
+            schema: config.database.clone(),
+        }
+    }
+
+    fn system_namespace(&self) -> Option<String> {
+        Some("information_schema".into())
+    }
+
+    fn introspection_support(&self) -> IntrospectionSupport {
+        IntrospectionSupport {
+            partial_indexes: false,
+            expression_indexes: false,
+            ..IntrospectionSupport::default()
+        }
     }
 
     fn syntax_error(&self) -> SyntaxErrorCase {

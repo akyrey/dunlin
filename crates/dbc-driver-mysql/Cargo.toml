@@ -16,6 +16,7 @@ secrecy = "0.10"
 tokio = { workspace = true, features = ["time", "sync"] }
 
 [dev-dependencies]
+insta.workspace = true
 dbc-tunnel = { workspace = true, features = ["test-support"] }
 dbc-core = { workspace = true, features = ["test-support"] }
 rcgen = "0.14"

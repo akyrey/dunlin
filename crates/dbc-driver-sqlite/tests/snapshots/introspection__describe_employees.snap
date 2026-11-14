@@ -1,0 +1,151 @@
+---
+source: crates/dbc-driver-sqlite/tests/introspection.rs
+expression: info
+---
+{
+  "table": {
+    "namespace": {
+      "catalog": null,
+      "schema": "main"
+    },
+    "name": "employees"
+  },
+  "kind": "table",
+  "comment": null,
+  "columns": [
+    {
+      "name": "id",
+      "typeName": "INTEGER",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 1,
+      "generated": false
+    },
+    {
+      "name": "manager_id",
+      "typeName": "INTEGER",
+      "category": "integer",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 2,
+      "generated": false
+    },
+    {
+      "name": "first_name",
+      "typeName": "TEXT",
+      "category": "text",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 3,
+      "generated": false
+    },
+    {
+      "name": "last_name",
+      "typeName": "TEXT",
+      "category": "text",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 4,
+      "generated": false
+    },
+    {
+      "name": "full_name",
+      "typeName": "TEXT",
+      "category": "text",
+      "nullable": true,
+      "default": "first_name || ' ' || last_name",
+      "comment": null,
+      "ordinal": 5,
+      "generated": true
+    },
+    {
+      "name": "salary",
+      "typeName": "NUMERIC(10, 2)",
+      "category": "decimal",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 6,
+      "generated": false
+    }
+  ],
+  "primaryKey": {
+    "name": null,
+    "columns": [
+      "id"
+    ]
+  },
+  "indexes": [
+    {
+      "name": "employees_high_paid_idx",
+      "columns": [
+        "salary"
+      ],
+      "unique": false,
+      "method": null,
+      "predicate": "salary > 100000"
+    },
+    {
+      "name": "employees_lower_last_idx",
+      "columns": [
+        "lower(last_name)"
+      ],
+      "unique": false,
+      "method": null,
+      "predicate": null
+    },
+    {
+      "name": "employees_manager_name_idx",
+      "columns": [
+        "manager_id",
+        "last_name"
+      ],
+      "unique": false,
+      "method": null,
+      "predicate": null
+    }
+  ],
+  "foreignKeys": [
+    {
+      "name": null,
+      "columns": [
+        "manager_id"
+      ],
+      "referencedTable": {
+        "namespace": {
+          "catalog": null,
+          "schema": "main"
+        },
+        "name": "employees"
+      },
+      "referencedColumns": [
+        "id"
+      ],
+      "onUpdate": null,
+      "onDelete": "set_null"
+    }
+  ],
+  "uniqueConstraints": [
+    {
+      "name": null,
+      "columns": [
+        "last_name",
+        "first_name"
+      ]
+    }
+  ],
+  "checkConstraints": [
+    {
+      "name": "salary_positive",
+      "expression": "salary > 0"
+    }
+  ],
+  "rowKey": [
+    "id"
+  ]
+}
