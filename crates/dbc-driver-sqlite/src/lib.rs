@@ -28,6 +28,7 @@ impl Driver for SqliteDriver {
             kind: DriverKind::Sqlite,
             label: "SQLite".to_owned(),
             endpoint: EndpointKind::File,
+            default_port: None,
             capabilities: Capabilities {
                 cancel: true,
                 read_only_session: true,

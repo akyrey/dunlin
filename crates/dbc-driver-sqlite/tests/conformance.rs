@@ -75,6 +75,11 @@ impl Harness for SqliteHarness {
         ]
     }
 
+    fn slow_statement(&self) -> String {
+        "WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c) SELECT count(*) FROM c"
+            .to_owned()
+    }
+
     fn syntax_error(&self) -> SyntaxErrorCase {
         SyntaxErrorCase {
             sql: "SELECT * FRM customers".into(),
@@ -114,6 +119,13 @@ async fn execute_group() {
 #[tokio::test]
 async fn read_only_group() {
     conformance::read_only_group(&SqliteHarness::default())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn cancel_group() {
+    conformance::cancel_group(&SqliteHarness::default())
         .await
         .unwrap();
 }

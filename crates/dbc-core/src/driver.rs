@@ -90,6 +90,8 @@ pub struct DriverInfo {
     pub kind: DriverKind,
     pub label: String,
     pub endpoint: EndpointKind,
+    /// Pre-filled on the connection form for TCP drivers.
+    pub default_port: Option<u16>,
     pub capabilities: Capabilities,
     pub options: Vec<OptionField>,
 }
@@ -107,7 +109,10 @@ pub enum Endpoint {
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+/// PostgreSQL's vocabulary, used for every driver (SECURITY.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(rename_all = "kebab-case")]
 pub enum TlsMode {
     #[default]
     Disable,
@@ -117,10 +122,21 @@ pub enum TlsMode {
     VerifyFull,
 }
 
-/// TLS settings. CA and client certificates arrive with the network drivers in Phase 2.
+/// TLS settings. Files are PEM; they are read at connect time, never copied.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TlsConfig {
     pub mode: TlsMode,
+    /// Extra CA certificate(s) trusted in addition to the platform roots.
+    pub ca_file: Option<PathBuf>,
+    pub client_cert_file: Option<PathBuf>,
+    pub client_key_file: Option<PathBuf>,
+}
+
+impl TlsMode {
+    /// Whether the server certificate chain is checked.
+    pub fn verifies_certificate(self) -> bool {
+        matches!(self, Self::VerifyCa | Self::VerifyFull)
+    }
 }
 
 /// Everything a driver needs to connect. Built by the app from a profile and its secrets.
@@ -237,6 +253,26 @@ mod tests {
         }
 
         assert_eq!(config.bool_option("flag", default), expected);
+    }
+
+    #[test]
+    fn only_verify_modes_check_certificates() {
+        let verifying: Vec<TlsMode> = [
+            TlsMode::Disable,
+            TlsMode::Prefer,
+            TlsMode::Require,
+            TlsMode::VerifyCa,
+            TlsMode::VerifyFull,
+        ]
+        .into_iter()
+        .filter(|m| m.verifies_certificate())
+        .collect();
+
+        assert_eq!(verifying, vec![TlsMode::VerifyCa, TlsMode::VerifyFull]);
+        assert_eq!(
+            serde_json::to_value(TlsMode::VerifyFull).unwrap(),
+            "verify-full"
+        );
     }
 
     #[test]

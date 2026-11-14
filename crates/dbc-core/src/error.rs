@@ -16,6 +16,8 @@ pub enum DbErrorCode {
     Permission,
     /// A write was attempted on a read-only connection.
     ReadOnly,
+    /// The server rejected the statement for another reason (data exception, division by zero, ...).
+    Execution,
     ConnectionLost,
     Unsupported,
     RowCountMismatch,
@@ -35,6 +37,7 @@ impl DbErrorCode {
             Self::Constraint => "constraint",
             Self::Permission => "permission",
             Self::ReadOnly => "read_only",
+            Self::Execution => "execution",
             Self::ConnectionLost => "connection_lost",
             Self::Unsupported => "unsupported",
             Self::RowCountMismatch => "row_count_mismatch",
@@ -126,6 +129,7 @@ mod tests {
             DbErrorCode::Constraint,
             DbErrorCode::Permission,
             DbErrorCode::ReadOnly,
+            DbErrorCode::Execution,
             DbErrorCode::ConnectionLost,
             DbErrorCode::Unsupported,
             DbErrorCode::RowCountMismatch,

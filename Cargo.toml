@@ -2,6 +2,8 @@
 resolver = "3"
 members = [
     "crates/dbc-core",
+    "crates/dbc-driver-postgres",
+    "crates/dbc-driver-mysql",
     "crates/dbc-driver-sqlite",
     "crates/dbc-store",
     "apps/desktop/src-tauri",

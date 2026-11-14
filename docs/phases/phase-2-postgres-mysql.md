@@ -23,11 +23,11 @@ Introspection (Phase 4), table paging (Phase 6), `apply_changes` (Phase 7), SSH 
 
 ## Tasks
 
-- [ ] 2.1 **Spike: PostgreSQL decoding.** Prove the `RawValue` approach from DRIVER_API.md against `numeric`, `jsonb`, `json`, `xml`, `timestamptz`, `timestamp`, `date`, `time`, `interval`, `uuid`, `bytea`, `inet`, enum, domain, arrays (including of enums and with nulls), a range type and one extension type. Record the outcome in DECISIONS.md; if it fails, switch to the documented fallback and update DRIVER_API.md.
-- [ ] 2.2 **Spike: early termination.** For both drivers, measure what happens when reading stops at the row limit on a multi-million-row result. Choose between dropping the stream and cancelling, and record it.
-- [ ] 2.3 Fixtures `postgres.sql` and `mysql.sql`; `testcontainers` harness giving each test its own database.
-- [ ] 2.4 `dbc-driver-postgres`: connect (password, TLS modes, connect timeout, application name), `ping`, `execute`, error mapping with SQLSTATE and position, `CancelHandle`, read-only session.
-- [ ] 2.5 PostgreSQL type decoding to `Value` for everything covered in 2.1, with a per-type test table.
+- [x] 2.1 **Spike: PostgreSQL decoding.** Prove the `RawValue` approach from DRIVER_API.md against `numeric`, `jsonb`, `json`, `xml`, `timestamptz`, `timestamp`, `date`, `time`, `interval`, `uuid`, `bytea`, `inet`, enum, domain, arrays (including of enums and with nulls), a range type and one extension type. Record the outcome in DECISIONS.md; if it fails, switch to the documented fallback and update DRIVER_API.md.
+- [x] 2.2 **Spike: early termination.** For both drivers, measure what happens when reading stops at the row limit on a multi-million-row result. Choose between dropping the stream and cancelling, and record it.
+- [x] 2.3 Fixtures `postgres.sql` and `mysql.sql`; `testcontainers` harness giving each test its own database.
+- [x] 2.4 `dbc-driver-postgres`: connect (password, TLS modes, connect timeout, application name), `ping`, `execute`, error mapping with SQLSTATE and position, `CancelHandle`, read-only session.
+- [x] 2.5 PostgreSQL type decoding to `Value` for everything covered in 2.1, with a per-type test table.
 - [ ] 2.6 `dbc-driver-mysql`: connect (password, TLS modes), `ping`, `execute`, error mapping, `CancelHandle` via `KILL QUERY`, read-only session.
 - [ ] 2.7 MySQL type decoding: integer widths signed and unsigned, `DECIMAL`, `FLOAT`/`DOUBLE`, `BIT`, `DATE`/`TIME`/`DATETIME`/`TIMESTAMP` including zero dates, `JSON`, `ENUM`/`SET`, `BLOB`/`BINARY` versus `TEXT`/`CHAR`, `YEAR`.
 - [ ] 2.8 Conformance suite: add cancellation, read-only and error groups; run all three drivers. Run MySQL tests against both MySQL and MariaDB images.

@@ -88,7 +88,7 @@ SQLite: `rusqlite::Connection` is synchronous and not `Sync`. Each SQLite connec
 
 There is no "load more" for ad-hoc results in v1: the user raises the limit and reruns. Wrapping arbitrary SQL in `LIMIT/OFFSET` is not safe in general.
 
-**Verify (Phase 2):** how each driver behaves when a row stream is abandoned early. If dropping the stream forces the client to drain the whole result, cancel the statement instead once the limit is reached.
+Abandoning a row stream makes the client drain the whole result, so network drivers cancel the statement once the limit is reached (DECISIONS D-017).
 
 ### Table browsing (grid)
 

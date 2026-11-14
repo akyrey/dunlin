@@ -1,0 +1,23 @@
+[package]
+name = "dbc-driver-mysql"
+description = "MySQL and MariaDB driver"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+dbc-core.workspace = true
+mysql_async = { version = "0.37.1", default-features = false, features = ["minimal-rust", "rustls-tls", "ring"] }
+tokio = { workspace = true, features = ["time"] }
+
+[dev-dependencies]
+dbc-core = { workspace = true, features = ["test-support"] }
+rstest.workspace = true
+testcontainers-modules = { version = "0.15", features = ["mysql", "mariadb"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
+
+[lints]
+workspace = true

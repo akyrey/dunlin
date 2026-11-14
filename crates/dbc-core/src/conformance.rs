@@ -11,6 +11,8 @@ use crate::result::{ExecuteOptions, StatementOutcome, TypeCategory};
 use crate::value::Value;
 
 pub const SQLITE_FIXTURE: &str = include_str!("../test-support/fixtures/sqlite.sql");
+pub const POSTGRES_FIXTURE: &str = include_str!("../test-support/fixtures/postgres.sql");
+pub const MYSQL_FIXTURE: &str = include_str!("../test-support/fixtures/mysql.sql");
 
 /// Returns ten rows (`n` = 1..=10) on every supported database.
 const TEN_ROWS: &str = "WITH RECURSIVE s(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM s WHERE n < 10) \
@@ -82,11 +84,24 @@ pub trait Harness: Send + Sync {
     fn bad_credentials(&self) -> Option<ConnectionConfig>;
     fn type_cases(&self) -> Vec<TypeCase>;
     fn syntax_error(&self) -> SyntaxErrorCase;
-    /// A write against the fixture, used to check read-only sessions.
-    fn write_statement(&self) -> String {
-        "INSERT INTO event_log (message) VALUES ('conformance')".to_owned()
+    /// Writes the server itself must refuse on a read-only session.
+    fn read_only_rejects(&self) -> Vec<String> {
+        [
+            "INSERT INTO event_log (message) VALUES ('conformance')",
+            "UPDATE orders SET paid = paid WHERE id = 10",
+            "DELETE FROM event_log WHERE message IS NULL",
+            "CREATE TABLE conformance_t (a integer)",
+        ]
+        .map(str::to_owned)
+        .to_vec()
     }
+    /// A statement that runs for many seconds unless cancelled.
+    fn slow_statement(&self) -> String;
 }
+
+/// How long a cancelled statement may take to stop (acceptance: within a second).
+const CANCEL_DEADLINE: std::time::Duration = std::time::Duration::from_secs(2);
+const CANCEL_RETRY: std::time::Duration = std::time::Duration::from_millis(50);
 
 /// Runs every group, stopping at the first failure.
 pub async fn run_all(harness: &dyn Harness) -> Result<(), Failure> {
@@ -94,7 +109,8 @@ pub async fn run_all(harness: &dyn Harness) -> Result<(), Failure> {
     type_round_trip_group(harness).await?;
     row_limit_group(harness).await?;
     execute_group(harness).await?;
-    read_only_group(harness).await
+    read_only_group(harness).await?;
+    cancel_group(harness).await
 }
 
 /// Connect, ping, close; unreachable and bad credentials fail with the right codes.
@@ -265,6 +281,20 @@ pub async fn execute_group(harness: &dyn Harness) -> Result<(), Failure> {
         format!("expected 2 affected rows, got {outcome:?}"),
     )?;
 
+    let duplicate = connection
+        .execute(
+            "INSERT INTO customers (id, name) VALUES (1, 'again')",
+            &options,
+        )
+        .await
+        .err()
+        .map(|e| e.code);
+    ensure(
+        duplicate == Some(DbErrorCode::Constraint),
+        "constraint violation",
+        format!("got {duplicate:?}"),
+    )?;
+
     let case = harness.syntax_error();
     let error = connection.execute(&case.sql, &options).await.err();
     let code = error.as_ref().map(|e| e.code);
@@ -293,17 +323,75 @@ pub async fn read_only_group(harness: &dyn Harness) -> Result<(), Failure> {
         .await
         .map_err(|e| fail("connect", e.to_string()))?;
     let options = ExecuteOptions::default();
-    let write = connection
-        .execute(&harness.write_statement(), &options)
-        .await;
-    let code = write.err().map(|e| e.code);
-    ensure(
-        code == Some(DbErrorCode::ReadOnly),
-        "read-only write",
-        format!("got {code:?}"),
-    )?;
+    for statement in harness.read_only_rejects() {
+        let code = connection
+            .execute(&statement, &options)
+            .await
+            .err()
+            .map(|e| e.code);
+        ensure(
+            code == Some(DbErrorCode::ReadOnly),
+            "read-only write",
+            format!("{statement}: got {code:?}"),
+        )?;
+    }
     let read = connection.execute("SELECT 1", &options).await;
     ensure(read.is_ok(), "read-only read", format!("{read:?}"))?;
+    connection
+        .close()
+        .await
+        .map_err(|e| fail("close", e.to_string()))
+}
+
+/// A slow statement is cancelled from another task, reports `Cancelled`, and the connection
+/// still works afterwards.
+pub async fn cancel_group(harness: &dyn Harness) -> Result<(), Failure> {
+    let connection = harness
+        .driver()
+        .connect(&harness.database(false).await)
+        .await
+        .map_err(|e| fail("connect", e.to_string()))?;
+    let cancel = connection.cancel_handle();
+    let statement = harness.slow_statement();
+    let started = std::time::Instant::now();
+    let options = ExecuteOptions::default();
+    let run = connection.execute(&statement, &options);
+    let cancel_loop = async {
+        // Cancelling before the statement starts may be a no-op, so keep trying.
+        loop {
+            tokio::time::sleep(CANCEL_RETRY).await;
+            if let Err(e) = cancel.cancel().await {
+                return e;
+            }
+        }
+    };
+    let outcome = tokio::select! {
+        outcome = run => outcome,
+        error = cancel_loop => return Err(fail("cancel", error.to_string())),
+        () = tokio::time::sleep(CANCEL_DEADLINE * 5) => {
+            return Err(fail("cancel", "the statement was not cancelled"));
+        }
+    };
+    let elapsed = started.elapsed();
+    let code = outcome.err().map(|e| e.code);
+    ensure(
+        code == Some(DbErrorCode::Cancelled),
+        "cancel",
+        format!("got {code:?}"),
+    )?;
+    ensure(
+        elapsed < CANCEL_DEADLINE,
+        "cancel",
+        format!("took {elapsed:?}"),
+    )?;
+    let after = connection
+        .execute("SELECT 1", &ExecuteOptions::default())
+        .await;
+    ensure(
+        after.is_ok(),
+        "cancel",
+        format!("connection unusable afterwards: {after:?}"),
+    )?;
     connection
         .close()
         .await
