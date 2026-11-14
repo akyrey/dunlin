@@ -158,6 +158,28 @@ async fn reads_do_not_invalidate_the_cache() {
 }
 
 #[tokio::test]
+async fn snippets_quote_for_the_dialect() {
+    let fixture = Fixture::new();
+    let session = fixture.session(false).await;
+
+    let snippets = commands::schema_snippets(
+        &fixture.state,
+        table_args(&session, "Mixed Case \"Quoted\""),
+    )
+    .await
+    .unwrap();
+    let ran = fixture.run(&session, &snippets.select).await;
+
+    assert_eq!(snippets.qualified_name, r#""main"."Mixed Case ""Quoted""""#);
+    assert_eq!(
+        snippets.select,
+        r#"SELECT "select", "spaced name", "naïve"
+FROM "main"."Mixed Case ""Quoted""";"#
+    );
+    assert!(ran.is_ok(), "{ran:?}");
+}
+
+#[tokio::test]
 async fn missing_tables_and_sessions_are_not_found() {
     let fixture = Fixture::new();
     let session = fixture.session(false).await;

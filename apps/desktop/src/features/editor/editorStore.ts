@@ -9,6 +9,7 @@ import {
   toAppError,
 } from "../../ipc";
 import { statementAt } from "../../lib/text";
+import { useSchema } from "../schema/schemaStore";
 import { useSessions } from "../sessions/sessionsStore";
 
 export const DEFAULT_ROW_LIMIT = 1000;
@@ -24,6 +25,8 @@ export type PendingConfirmation = { reason: string; sql: string; start: number }
 export type TabState = {
   tabId: string;
   text: string;
+  /** Bumped when the text is replaced from outside the editor, which remounts it. */
+  revision: number;
   running: boolean;
   /** `Date.now()` when the running statement started, for the elapsed timer. */
   startedAt: number | null;
@@ -39,6 +42,8 @@ type EditorState = {
   tabs: Record<string, TabState>;
   ensureTab: (sessionId: string) => void;
   setText: (sessionId: string, text: string) => void;
+  /** Adds text after what the editor holds (e.g. a generated SELECT). */
+  insertText: (sessionId: string, text: string) => void;
   run: (sessionId: string, selection: Selection) => Promise<void>;
   confirm: (sessionId: string) => Promise<void>;
   cancel: (sessionId: string) => Promise<void>;
@@ -50,6 +55,7 @@ function newTab(): TabState {
   return {
     tabId: crypto.randomUUID(),
     text: "",
+    revision: 0,
     running: false,
     startedAt: null,
     result: null,
@@ -92,6 +98,8 @@ export const useEditor = create<EditorState>()((set, get) => {
         confirmed,
       });
       update(sessionId, { running: false, startedAt: null, result });
+      // The backend cleared its schema cache; show the change in the tree.
+      if (result.statementClass === "ddl") void useSchema.getState().reload(sessionId);
     } catch (caught) {
       const error = toAppError(caught);
       if (error.code === "tunnel_lost") {
@@ -130,6 +138,14 @@ export const useEditor = create<EditorState>()((set, get) => {
 
     setText: (sessionId, text) => {
       update(sessionId, { text });
+    },
+
+    insertText: (sessionId, text) => {
+      get().ensureTab(sessionId);
+      const tab = get().tabs[sessionId];
+      if (!tab) return;
+      const joined = tab.text.trim() === "" ? text : `${tab.text.trimEnd()}\n\n${text}`;
+      update(sessionId, { text: joined, revision: tab.revision + 1 });
     },
 
     run: async (sessionId, selection) => {

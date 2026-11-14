@@ -148,6 +148,15 @@ pub struct SchemaTableArgs {
     pub table: TableRef,
 }
 
+/// Text for a table's context actions, quoted for the session's dialect.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct TableSnippets {
+    pub qualified_name: String,
+    /// `SELECT <every column> FROM <qualified name>;`
+    pub select: String,
+}
+
 #[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SqlSplitArgs {

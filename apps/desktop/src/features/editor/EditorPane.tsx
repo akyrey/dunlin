@@ -47,7 +47,7 @@ export function EditorPane({ session }: { session: SessionInfo }) {
       </div>
       <div className="min-h-0 flex-[3] border-b border-zinc-800">
         <SqlEditor
-          key={sessionId}
+          key={`${sessionId}:${String(tab.revision)}`}
           handleRef={editor}
           initialText={tab.text}
           onChange={(text) => {

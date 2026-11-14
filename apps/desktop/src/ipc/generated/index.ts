@@ -45,6 +45,7 @@ export type * from "./TabArgs";
 export type * from "./TableIndex";
 export type * from "./TableInfo";
 export type * from "./TableRef";
+export type * from "./TableSnippets";
 export type * from "./TextPayload";
 export type * from "./TlsMode";
 export type * from "./TlsSettings";

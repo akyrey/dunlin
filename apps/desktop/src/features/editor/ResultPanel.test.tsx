@@ -8,6 +8,7 @@ function tab(patch: Partial<TabState>): TabState {
   return {
     tabId: "t",
     text: "",
+    revision: 0,
     running: false,
     startedAt: null,
     result: null,

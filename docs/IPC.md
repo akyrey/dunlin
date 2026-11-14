@@ -60,6 +60,7 @@ Errors from `session_open` and `connection_test` carry `detail.stage`: `ssh_conn
 | `schema_table` | `{ sessionId, table }` | `TableInfo` | 4 |
 | `schema_table_ddl` | `{ sessionId, table }` | `string` | 4 |
 | `schema_refresh` | `{ sessionId }` | none (clears the session's metadata cache) | 4 |
+| `schema_snippets` | `{ sessionId, table }` | `TableSnippets` (`qualifiedName`, `select`), quoted for the dialect | 4 |
 | `schema_completion` | `{ sessionId, namespace }` | `CompletionSchema` | 5 |
 | `history_list` | `{ connectionId, search?, limit, before? }` | `HistoryEntry[]` | 5 |
 | `history_clear` | `{ connectionId }` | none | 5 |

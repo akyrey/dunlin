@@ -4,6 +4,7 @@ import { keymap } from "@codemirror/view";
 import { type RefObject, useEffect, useImperativeHandle, useRef } from "react";
 
 import type { Selection } from "./editorStore";
+import { editorTheme } from "./theme";
 
 export type EditorHandle = {
   selection: () => Selection;
@@ -16,22 +17,6 @@ type Props = {
   onRun: (selection: Selection) => void;
   handleRef: RefObject<EditorHandle | null>;
 };
-
-const theme = EditorView.theme(
-  {
-    "&": { height: "100%", fontSize: "13px", backgroundColor: "#18181b", color: "#e4e4e7" },
-    ".cm-content": {
-      fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-      caretColor: "#e4e4e7",
-    },
-    ".cm-gutters": { backgroundColor: "#18181b", color: "#71717a", border: "none" },
-    ".cm-activeLine, .cm-activeLineGutter": { backgroundColor: "#27272a80" },
-    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
-      backgroundColor: "#0369a180",
-    },
-  },
-  { dark: true },
-);
 
 function selectionOf(view: EditorView): Selection {
   const main = view.state.selection.main;
@@ -79,7 +64,7 @@ export function SqlEditor({ initialText, onChange, onRun, handleRef }: Props) {
         extensions: [
           basicSetup,
           runKey,
-          theme,
+          editorTheme,
           EditorView.contentAttributes.of({ "aria-label": "SQL editor" }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) callbacks.current.onChange(update.state.doc.toString());

@@ -1,5 +1,6 @@
 import type { QueryResult } from "../../ipc";
 import * as ipc from "../../ipc";
+import { useSchema } from "../schema/schemaStore";
 import { DEFAULT_ROW_LIMIT, useEditor } from "./editorStore";
 
 vi.mock("../../ipc", async (importOriginal) => {
@@ -203,6 +204,28 @@ describe("editor store", () => {
     await useEditor.getState().run("other", { from: 0, to: 8, head: 8 });
 
     expect(queryExecute).not.toHaveBeenCalled();
+  });
+
+  it("inserts text after what the editor holds and remounts it", () => {
+    useEditor.getState().insertText(SESSION, "SELECT 1;");
+    expect(tab()).toMatchObject({ text: "SELECT 1;", revision: 1 });
+
+    useEditor.getState().insertText(SESSION, "SELECT 2;");
+    expect(tab()).toMatchObject({ text: "SELECT 1;\n\nSELECT 2;", revision: 2 });
+  });
+
+  it("reloads the schema tree after DDL, not after reads", async () => {
+    const reload = vi.spyOn(useSchema.getState(), "reload").mockResolvedValue(undefined);
+    useSchema.setState({ reload });
+    sqlSplit.mockResolvedValue([{ start: 0, end: 8 }]);
+    queryExecute.mockResolvedValueOnce(rowsResult);
+    queryExecute.mockResolvedValueOnce({ ...rowsResult, statementClass: "ddl" });
+    useEditor.getState().setText(SESSION, "SELECT 1");
+
+    await useEditor.getState().run(SESSION, { from: 0, to: 0, head: 0 });
+    expect(reload).not.toHaveBeenCalled();
+    await useEditor.getState().run(SESSION, { from: 0, to: 0, head: 0 });
+    expect(reload).toHaveBeenCalledWith(SESSION);
   });
 
   it("drops a tab", () => {

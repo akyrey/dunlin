@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "./components/Button";
 import { ConfirmDialog } from "./components/ConfirmDialog";
@@ -7,12 +7,15 @@ import { ConnectionForm } from "./features/connections/ConnectionForm";
 import { ConnectionList } from "./features/connections/ConnectionList";
 import { useConnections } from "./features/connections/connectionsStore";
 import { draftFromProfile, emptyDraft } from "./features/connections/draft";
-import { EditorPane } from "./features/editor/EditorPane";
 import { useEditor } from "./features/editor/editorStore";
+import { SchemaTree } from "./features/schema/SchemaTree";
+import { useSchema } from "./features/schema/schemaStore";
 import { useSessions } from "./features/sessions/sessionsStore";
 import { HostKeyDialog } from "./features/ssh/HostKeyDialog";
 import { TrustedHosts } from "./features/ssh/TrustedHosts";
 import { describeConnectError, hostKeyFrom } from "./features/ssh/hostKey";
+import { Workspace } from "./features/workspace/Workspace";
+import { useWorkspace } from "./features/workspace/workspaceStore";
 import {
   type AppError,
   type ConnectionDraft,
@@ -45,6 +48,29 @@ export function App() {
   );
   const editingSavedSecrets = profiles.find((p) => p.id === editing?.id)?.savedSecrets ?? [];
   const firstDriver = drivers[0];
+  const treeSessions = useMemo(
+    () =>
+      profiles.flatMap((profile) => {
+        const session = sessions[profile.id];
+        return session
+          ? [{ connectionId: profile.id, sessionId: session.sessionId, label: profile.name }]
+          : [];
+      }),
+    [profiles, sessions],
+  );
+
+  // Forget the tree and tabs of sessions that ended (closed, deleted or lost).
+  useEffect(() => {
+    const open = new Set(Object.values(sessions).map((s) => s.sessionId));
+    for (const store of [useSchema, useWorkspace]) {
+      const known = Object.keys(
+        store === useSchema ? useSchema.getState().trees : useWorkspace.getState().workspaces,
+      );
+      for (const sessionId of known) {
+        if (!open.has(sessionId)) store.getState().dropSession(sessionId);
+      }
+    }
+  }, [sessions]);
 
   const openConnection = async (profile: ConnectionProfile) => {
     setActionError(null);
@@ -123,6 +149,7 @@ export function App() {
               {loadError ? loadError.message : actionError && describeConnectError(actionError)}
             </p>
           )}
+          <SchemaTree sessions={treeSessions} />
           {notice && (
             <p
               role="alert"
@@ -144,7 +171,7 @@ export function App() {
         </aside>
         <main className="min-w-0 flex-1">
           {activeSession ? (
-            <EditorPane session={activeSession} />
+            <Workspace session={activeSession} />
           ) : (
             <p className="p-6 text-sm text-zinc-500">Open a connection to start writing SQL.</p>
           )}

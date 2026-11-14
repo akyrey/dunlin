@@ -10,7 +10,7 @@ use crate::error::AppError;
 use crate::ipc::{
     ConnectionIdArgs, ConnectionSaveArgs, ConnectionTestArgs, ConnectionTestResult,
     QueryExecuteArgs, QueryResult, SchemaObjectsArgs, SchemaTableArgs, SessionIdArgs, SessionInfo,
-    SqlSplitArgs, SshKnownHostRemoveArgs, SshTrustHostArgs, StatementRange, TabArgs,
+    SqlSplitArgs, SshKnownHostRemoveArgs, SshTrustHostArgs, StatementRange, TabArgs, TableSnippets,
 };
 use crate::state::AppState;
 
@@ -122,6 +122,14 @@ pub async fn schema_table_ddl(
     args: SchemaTableArgs,
 ) -> Result<String, AppError> {
     commands::schema_table_ddl(&state, args).await
+}
+
+#[tauri::command]
+pub async fn schema_snippets(
+    state: State<'_, AppState>,
+    args: SchemaTableArgs,
+) -> Result<TableSnippets, AppError> {
+    commands::schema_snippets(&state, args).await
 }
 
 #[tauri::command]

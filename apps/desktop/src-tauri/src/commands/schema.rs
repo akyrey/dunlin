@@ -5,7 +5,7 @@ use dbc_core::DbError;
 use dbc_core::schema::{Namespace, ObjectSummary, TableInfo};
 
 use crate::error::AppError;
-use crate::ipc::{SchemaObjectsArgs, SchemaTableArgs, SessionIdArgs};
+use crate::ipc::{SchemaObjectsArgs, SchemaTableArgs, SessionIdArgs, TableSnippets};
 use crate::session::Session;
 use crate::state::AppState;
 
@@ -37,6 +37,32 @@ pub async fn schema_table_ddl(state: &AppState, args: SchemaTableArgs) -> Result
     let session = state.sessions.get(&args.session_id).await?;
     let result = session.schema_table_ddl(&args.table).await;
     finish(state, &session, result).await
+}
+
+/// The qualified name and a `SELECT` listing every column, for the tree's context actions.
+pub async fn schema_snippets(
+    state: &AppState,
+    args: SchemaTableArgs,
+) -> Result<TableSnippets, AppError> {
+    let session = state.sessions.get(&args.session_id).await?;
+    let result = session.schema_table(&args.table).await;
+    let info = finish(state, &session, result).await?;
+    let dialect = &session.dialect;
+    let qualified_name = dialect.qualified_name(&args.table);
+    let columns: Vec<String> = info
+        .columns
+        .iter()
+        .map(|c| dialect.quote_identifier(&c.name))
+        .collect();
+    let list = if columns.is_empty() {
+        "*".to_owned()
+    } else {
+        columns.join(", ")
+    };
+    Ok(TableSnippets {
+        select: format!("SELECT {list}\nFROM {qualified_name};"),
+        qualified_name,
+    })
 }
 
 pub async fn schema_refresh(state: &AppState, args: SessionIdArgs) -> Result<(), AppError> {

@@ -6,12 +6,18 @@ import type {
   ConnectionTestResult,
   DriverInfo,
   KnownHost,
+  Namespace,
+  NamespaceRef,
+  ObjectSummary,
   SshKnownHostRemoveArgs,
   SshTrustHostArgs,
   QueryExecuteArgs,
   QueryResult,
   SessionInfo,
   StatementRange,
+  TableInfo,
+  TableRef,
+  TableSnippets,
 } from "./generated";
 import { call } from "./invoke";
 
@@ -56,3 +62,24 @@ export const sshKnownHostRemove = (args: SshKnownHostRemoveArgs): Promise<void> 
 
 export const tabClose = (sessionId: string, tabId: string): Promise<void> =>
   call("tab_close", { sessionId, tabId });
+
+export const schemaNamespaces = (sessionId: string): Promise<Namespace[]> =>
+  call("schema_namespaces", { sessionId });
+
+export const schemaObjects = (
+  sessionId: string,
+  namespace: NamespaceRef,
+): Promise<ObjectSummary[]> => call("schema_objects", { sessionId, namespace });
+
+export const schemaTable = (sessionId: string, table: TableRef): Promise<TableInfo> =>
+  call("schema_table", { sessionId, table });
+
+export const schemaTableDdl = (sessionId: string, table: TableRef): Promise<string> =>
+  call("schema_table_ddl", { sessionId, table });
+
+export const schemaSnippets = (sessionId: string, table: TableRef): Promise<TableSnippets> =>
+  call("schema_snippets", { sessionId, table });
+
+/** Clears the session's metadata cache; callers then reload what they show. */
+export const schemaRefresh = (sessionId: string): Promise<void> =>
+  call("schema_refresh", { sessionId });

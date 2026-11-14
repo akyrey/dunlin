@@ -11,10 +11,14 @@ import type {
   ConnectionProfile,
   ConnectionSecrets,
   KnownHost,
+  Namespace,
+  ObjectSummary,
   QueryExecuteArgs,
   QueryResult,
   SecretKind,
   StatementRange,
+  TableInfo,
+  TableRef,
   Value,
 } from "../ipc/generated";
 import { SECRET_KINDS, type SecretField } from "../features/connections/draft";
@@ -70,6 +74,87 @@ function split(text: string): StatementRange[] {
   }
   return ranges;
 }
+
+const MAIN = { catalog: null, schema: "main" };
+const MOCK_NAMESPACES: Namespace[] = [
+  { namespace: MAIN, name: "main", system: false },
+  { namespace: { catalog: null, schema: "temp" }, name: "temp", system: true },
+];
+const MOCK_OBJECTS: ObjectSummary[] = [
+  { name: "orders", kind: "table", comment: null },
+  { name: "people", kind: "table", comment: "Everyone we know" },
+  { name: "rich_people", kind: "view", comment: null },
+];
+
+const column = (name: string, typeName: string, nullable: boolean, ordinal: number) => ({
+  name,
+  typeName,
+  category: typeName === "TEXT" ? ("text" as const) : ("integer" as const),
+  nullable,
+  default: null,
+  comment: null,
+  ordinal,
+  generated: false,
+});
+
+function mockTable(table: TableRef): TableInfo {
+  const base = {
+    table,
+    kind: "table" as const,
+    comment: null,
+    primaryKey: null,
+    indexes: [],
+    foreignKeys: [],
+    uniqueConstraints: [],
+    checkConstraints: [],
+    rowKey: null,
+  };
+  switch (table.name) {
+    case "people":
+      return {
+        ...base,
+        comment: "Everyone we know",
+        columns: [
+          column("id", "INTEGER", false, 1),
+          column("name", "TEXT", false, 2),
+          column("balance", "BIGINT", true, 3),
+        ],
+        primaryKey: { name: null, columns: ["id"] },
+        indexes: [
+          {
+            name: "people_name_idx",
+            columns: ["name"],
+            unique: false,
+            method: null,
+            predicate: null,
+          },
+        ],
+        checkConstraints: [{ name: "balance_ok", expression: "balance >= 0" }],
+        rowKey: ["id"],
+      };
+    case "orders":
+      return {
+        ...base,
+        columns: [column("id", "INTEGER", false, 1), column("person_id", "INTEGER", false, 2)],
+        primaryKey: { name: null, columns: ["id"] },
+        foreignKeys: [
+          {
+            name: null,
+            columns: ["person_id"],
+            referencedTable: { namespace: MAIN, name: "people" },
+            referencedColumns: ["id"],
+            onUpdate: null,
+            onDelete: "cascade",
+          },
+        ],
+        rowKey: ["id"],
+      };
+    default:
+      return { ...base, kind: "view", columns: [column("name", "TEXT", true, 1)] };
+  }
+}
+
+const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
 
 /** The SSH server's fingerprint in the mock; a host named `changed.example.com` presents another. */
 export const MOCK_FINGERPRINT = "SHA256:mockmockmockmockmockmockmockmockmockmockmock";
@@ -221,6 +306,29 @@ export function createMockBackend() {
     },
     sql_split: (a) => split(a.text as string),
     query_execute: (a) => execute(a as unknown as QueryExecuteArgs),
+    schema_namespaces: () => MOCK_NAMESPACES,
+    schema_objects: () => MOCK_OBJECTS,
+    schema_refresh: () => null,
+    schema_table: (a) => {
+      const table = a.table as TableRef;
+      if (!MOCK_OBJECTS.some((o) => o.name === table.name)) {
+        return reject("not_found", `${table.name} does not exist`);
+      }
+      return mockTable(table);
+    },
+    schema_table_ddl: (a) => {
+      const info = mockTable(a.table as TableRef);
+      const columns = info.columns.map((c) => `    ${c.name} ${c.typeName}`).join(",\n");
+      return `CREATE TABLE ${info.table.name} (\n${columns}\n);\n`;
+    },
+    schema_snippets: (a) => {
+      const table = a.table as TableRef;
+      const qualifiedName = `${quote(table.namespace.schema ?? "main")}.${quote(table.name)}`;
+      const columns = mockTable(table)
+        .columns.map((c) => quote(c.name))
+        .join(", ");
+      return { qualifiedName, select: `SELECT ${columns}\nFROM ${qualifiedName};` };
+    },
     ssh_trust_host: (a) => {
       knownHosts.push(a as unknown as KnownHost);
       return null;

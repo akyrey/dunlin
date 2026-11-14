@@ -41,10 +41,16 @@ Use the system catalogs rather than `information_schema` on PostgreSQL: they are
 - [x] 4.5 MySQL: all four methods. Test on MySQL and MariaDB (check constraints differ by version).
 - [x] 4.6 SQLite: all four methods, including attached databases and `WITHOUT ROWID` tables.
 - [x] 4.7 `schema_*` commands using the metadata connection; per-session cache keyed by namespace and table, invalidated by refresh and after any `Ddl`-class statement runs in that session.
-- [ ] 4.8 Frontend: sidebar tree (session → namespace → Tables / Views → object), lazy loading per node, loading and error states per node, filter box, refresh action, "show system objects" toggle.
-- [ ] 4.9 Frontend: table detail tab with sub-tabs Columns, Indexes, Constraints (primary key, foreign keys, unique, check), DDL (read-only CodeMirror). Foreign keys link to the referenced table's detail tab.
-- [ ] 4.10 Context actions on a table: open details, copy name, copy qualified name, generate `SELECT` into a new editor tab.
-- [ ] 4.11 E2E test: expand tree, open a table, see columns and DDL.
+- [x] 4.8 Frontend: sidebar tree (session → namespace → Tables / Views → object), lazy loading per node, loading and error states per node, filter box, refresh action, "show system objects" toggle.
+- [x] 4.9 Frontend: table detail tab with sub-tabs Columns, Indexes, Constraints (primary key, foreign keys, unique, check), DDL (read-only CodeMirror). Foreign keys link to the referenced table's detail tab.
+- [x] 4.10 Context actions on a table: open details, copy name, copy qualified name, generate `SELECT` into a new editor tab.
+- [x] 4.11 E2E test: expand tree, open a table, see columns and DDL.
+
+## Notes from implementation
+
+- Until Phase 5 adds editor tabs, "Generate SELECT" appends to the session's one editor and switches to it. The quoting comes from the backend (`schema_snippets`), since the frontend never branches on the driver.
+- The tree reads through the session's metadata connection, so a SQLite database `ATTACH`ed in an editor tab is not shown: the attachment belongs to that tab's connection.
+- The TypeScript name of `dbc_core::schema::Index` is `TableIndex`, because `Index.ts` would clash with the generated `index.ts` on case-insensitive file systems.
 
 ## Acceptance criteria
 

@@ -8,6 +8,12 @@ import {
   driverList,
   queryCancel,
   queryExecute,
+  schemaNamespaces,
+  schemaObjects,
+  schemaRefresh,
+  schemaSnippets,
+  schemaTable,
+  schemaTableDdl,
   sessionClose,
   sessionOpen,
   sqlSplit,
@@ -31,6 +37,9 @@ const draft: ConnectionDraft = {
   tls: { mode: "disable", caFile: null, certFile: null, keyFile: null },
   ssh: null,
 };
+
+const ns = { catalog: null, schema: "main" };
+const table = { namespace: ns, name: "t" };
 
 afterEach(() => {
   clearMocks();
@@ -57,6 +66,12 @@ describe("command wrappers", () => {
       { args: { sessionId: "s1", text: "SELECT 1" } },
     ],
     ["tab_close", () => tabClose("s1", "t1"), { args: { sessionId: "s1", tabId: "t1" } }],
+    ["schema_namespaces", () => schemaNamespaces("s1"), { args: { sessionId: "s1" } }],
+    ["schema_refresh", () => schemaRefresh("s1"), { args: { sessionId: "s1" } }],
+    ["schema_objects", () => schemaObjects("s1", ns), { args: { sessionId: "s1", namespace: ns } }],
+    ["schema_table", () => schemaTable("s1", table), { args: { sessionId: "s1", table } }],
+    ["schema_table_ddl", () => schemaTableDdl("s1", table), { args: { sessionId: "s1", table } }],
+    ["schema_snippets", () => schemaSnippets("s1", table), { args: { sessionId: "s1", table } }],
     [
       "query_execute",
       () => queryExecute({ sessionId: "s1", tabId: "t1", sql: "SELECT 1", rowLimit: 10 }),
