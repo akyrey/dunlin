@@ -1,0 +1,48 @@
+//! Forward-only migrations tracked with `PRAGMA user_version`.
+
+use crate::StoreError;
+
+/// Migration `i` upgrades the schema from version `i` to `i + 1`. Never edit a released entry.
+const MIGRATIONS: &[&str] = &[
+    // 1: saved connection profiles (secrets live in the keychain, not here).
+    "CREATE TABLE connections (
+        id         TEXT PRIMARY KEY NOT NULL,
+        name       TEXT NOT NULL,
+        driver     TEXT NOT NULL,
+        color      TEXT,
+        read_only  INTEGER NOT NULL DEFAULT 0,
+        host       TEXT,
+        port       INTEGER,
+        database   TEXT,
+        username   TEXT,
+        file_path  TEXT,
+        options    TEXT NOT NULL DEFAULT '{}',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+    );",
+];
+
+pub(crate) fn latest_version() -> u32 {
+    // The list is tiny; this cannot overflow.
+    MIGRATIONS.len() as u32
+}
+
+pub(crate) fn current_version(connection: &rusqlite::Connection) -> Result<u32, StoreError> {
+    Ok(connection.pragma_query_value(None, "user_version", |row| row.get(0))?)
+}
+
+/// Applies every pending migration, each in its own transaction with its version bump.
+pub(crate) fn migrate(connection: &rusqlite::Connection) -> Result<(), StoreError> {
+    let found = current_version(connection)?;
+    let supported = latest_version();
+    if found > supported {
+        return Err(StoreError::TooNew { found, supported });
+    }
+    for (index, sql) in MIGRATIONS.iter().enumerate().skip(found as usize) {
+        let version = index + 1;
+        connection.execute_batch(&format!(
+            "BEGIN; {sql}\nPRAGMA user_version = {version}; COMMIT;"
+        ))?;
+    }
+    Ok(())
+}

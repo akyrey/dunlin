@@ -3,6 +3,7 @@ resolver = "3"
 members = [
     "crates/dbc-core",
     "crates/dbc-driver-sqlite",
+    "crates/dbc-store",
 ]
 
 [workspace.package]
