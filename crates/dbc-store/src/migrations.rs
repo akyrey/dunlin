@@ -40,6 +40,19 @@ const MIGRATIONS: &[&str] = &[
         added_at    INTEGER NOT NULL,
         PRIMARY KEY (host, port, algorithm)
      );",
+    // 4: query history, per connection and capped by the app (ARCHITECTURE.md#store).
+    "CREATE TABLE query_history (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        connection_id TEXT NOT NULL REFERENCES connections (id) ON DELETE CASCADE,
+        statement     TEXT NOT NULL,
+        started_at    INTEGER NOT NULL,
+        duration_ms   INTEGER NOT NULL,
+        outcome       TEXT NOT NULL,
+        row_count     INTEGER,
+        truncated     INTEGER NOT NULL DEFAULT 0,
+        error         TEXT
+     );
+     CREATE INDEX query_history_by_connection ON query_history (connection_id, id);",
 ];
 
 pub(crate) fn latest_version() -> u32 {

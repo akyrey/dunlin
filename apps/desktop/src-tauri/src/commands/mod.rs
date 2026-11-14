@@ -3,6 +3,7 @@
 
 pub(crate) mod connections;
 pub(crate) mod handlers;
+mod history;
 mod queries;
 mod schema;
 mod sessions;
@@ -11,6 +12,7 @@ mod ssh;
 pub use connections::{
     connection_delete, connection_list, connection_save, connection_test, driver_list,
 };
+pub use history::{history_clear, history_list};
 pub use queries::{MAX_ROW_LIMIT, query_cancel, query_execute, sql_split};
 pub use schema::{
     schema_completion, schema_namespaces, schema_objects, schema_refresh, schema_snippets,

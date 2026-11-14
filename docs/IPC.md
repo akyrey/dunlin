@@ -62,7 +62,7 @@ Errors from `session_open` and `connection_test` carry `detail.stage`: `ssh_conn
 | `schema_refresh` | `{ sessionId }` | none (clears the session's metadata cache) | 4 |
 | `schema_snippets` | `{ sessionId, table }` | `TableSnippets` (`qualifiedName`, `select`), quoted for the dialect | 4 |
 | `schema_completion` | `{ sessionId, namespace }` | `CompletionSchema` (cached with the other `schema_*` results) | 5 |
-| `history_list` | `{ connectionId, search?, limit, before? }` | `HistoryEntry[]` | 5 |
+| `history_list` | `{ connectionId, search?, limit (1..=500), before? }` | `HistoryEntry[]`, newest first; `before` is the last id of the previous page | 5 |
 | `history_clear` | `{ connectionId }` | none | 5 |
 | `table_page` | `{ sessionId, table, filter?, sort?, limit, offset }` | `ResultSet` | 6 |
 | `table_count` | `{ sessionId, table, filter?, exact }` | `RowCount` | 6 |

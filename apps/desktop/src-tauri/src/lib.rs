@@ -51,6 +51,8 @@ pub fn run() -> Result<(), tauri::Error> {
             handlers::schema_table_ddl,
             handlers::schema_refresh,
             handlers::schema_snippets,
+            handlers::history_list,
+            handlers::history_clear,
             handlers::ssh_trust_host,
             handlers::ssh_known_hosts_list,
             handlers::ssh_known_host_remove,

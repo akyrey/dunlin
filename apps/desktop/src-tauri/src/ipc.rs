@@ -136,6 +136,20 @@ pub struct SessionIdArgs {
 
 #[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+pub struct HistoryListArgs {
+    pub connection_id: String,
+    #[serde(default)]
+    #[ts(optional)]
+    pub search: Option<String>,
+    pub limit: usize,
+    /// The id of the last entry of the previous page.
+    #[serde(default)]
+    #[ts(optional)]
+    pub before: Option<i64>,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct SchemaObjectsArgs {
     pub session_id: String,
     pub namespace: NamespaceRef,

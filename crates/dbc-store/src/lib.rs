@@ -1,6 +1,7 @@
 //! Local application state in one SQLite file. Secrets never go here (see SECURITY.md).
 
 mod connections;
+mod history;
 mod known_hosts;
 mod migrations;
 mod profile;
@@ -8,6 +9,10 @@ mod secrets;
 
 use std::path::Path;
 
+pub use history::{
+    DEFAULT_HISTORY_CAP, HistoryEntry, HistoryOutcome, HistoryQuery, MAX_HISTORY_PAGE,
+    NewHistoryEntry,
+};
 pub use known_hosts::KnownHost;
 pub use profile::{
     ConnectionDraft, ConnectionProfile, SshAuthMethod, SshHostSettings, SshSettings, TlsSettings,

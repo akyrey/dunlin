@@ -9,8 +9,9 @@ use crate::commands;
 use crate::error::AppError;
 use crate::ipc::{
     ConnectionIdArgs, ConnectionSaveArgs, ConnectionTestArgs, ConnectionTestResult,
-    QueryExecuteArgs, QueryResult, SchemaObjectsArgs, SchemaTableArgs, SessionIdArgs, SessionInfo,
-    SqlSplitArgs, SshKnownHostRemoveArgs, SshTrustHostArgs, StatementRange, TabArgs, TableSnippets,
+    HistoryListArgs, QueryExecuteArgs, QueryResult, SchemaObjectsArgs, SchemaTableArgs,
+    SessionIdArgs, SessionInfo, SqlSplitArgs, SshKnownHostRemoveArgs, SshTrustHostArgs,
+    StatementRange, TabArgs, TableSnippets,
 };
 use crate::state::AppState;
 
@@ -146,6 +147,22 @@ pub async fn schema_refresh(
     args: SessionIdArgs,
 ) -> Result<(), AppError> {
     commands::schema_refresh(&state, args).await
+}
+
+#[tauri::command]
+pub async fn history_list(
+    state: State<'_, AppState>,
+    args: HistoryListArgs,
+) -> Result<Vec<dbc_store::HistoryEntry>, AppError> {
+    commands::history_list(&state, args).await
+}
+
+#[tauri::command]
+pub async fn history_clear(
+    state: State<'_, AppState>,
+    args: ConnectionIdArgs,
+) -> Result<(), AppError> {
+    commands::history_clear(&state, args).await
 }
 
 #[tauri::command]

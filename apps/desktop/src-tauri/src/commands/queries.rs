@@ -58,6 +58,7 @@ pub async fn query_execute(
         return Err(AppError::confirmation_required(danger));
     }
     let started = Instant::now();
+    let started_at = super::history::now_millis();
     let options = ExecuteOptions {
         row_limit: args.row_limit,
     };
@@ -66,12 +67,23 @@ pub async fn query_execute(
     if classification.class == StatementClass::Ddl {
         session.invalidate_schema();
     }
+    let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+    super::history::record(
+        state,
+        super::history::Ran {
+            connection_id: &session.connection_id,
+            statement: &args.sql,
+            started_at,
+            duration_ms: elapsed_ms,
+            outcome: executed.as_ref(),
+        },
+    )
+    .await;
     let outcome = match executed {
         Ok(outcome) => outcome,
         Err(_) if session.tunnel_lost() => return Err(tunnel_lost(state, &session.id).await),
         Err(error) => return Err(AppError::from_db(error, &args.sql)),
     };
-    let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
     Ok(QueryResult {
         outcome: to_ipc(outcome),
         elapsed_ms,

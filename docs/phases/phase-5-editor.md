@@ -34,7 +34,7 @@ Saved queries (Phase 8), formatting SQL, snippets, parameterised queries with pr
 - [ ] 5.8 Tabs: new, close (confirm if a statement is running), rename, reorder; tab shows connection colour; unsaved editor content is persisted locally and restored on restart.
 - [ ] 5.9 Per-tab connection lifecycle: created on first run, closed with the tab (`tab_close`), recreated after `connection_lost`.
 - [ ] 5.10 Dangerous statements: backend returns `confirmation_required` with the reason; frontend dialog shows the statement, connection name and colour; retry with `confirmed: true`. For a script, list all dangerous statements once before starting.
-- [ ] 5.11 Store migration for `query_history`; record every executed statement with duration, row count or error; cap per connection.
+- [x] 5.11 Store migration for `query_history`; record every executed statement with duration, row count or error; cap per connection.
 - [ ] 5.12 `history_list` (search, pagination) and `history_clear`; history panel with search, click to insert into the editor, double-click to open in a new tab.
 - [ ] 5.13 Keyboard shortcuts: run (`Cmd/Ctrl+Enter`), run script (`Cmd/Ctrl+Shift+Enter`), cancel (`Esc` when running), new tab, close tab, next/previous tab, toggle comment, focus results.
 - [ ] 5.14 Row limit selector per tab (100 / 1000 / 10 000 / custom).
