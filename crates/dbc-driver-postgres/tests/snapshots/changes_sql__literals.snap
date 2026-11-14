@@ -1,0 +1,27 @@
+---
+source: crates/dbc-driver-postgres/tests/changes_sql.rs
+expression: "rendered.join(\"\\n\")"
+---
+null: NULL
+true: TRUE
+int: -9223372036854775808
+uint: 18446744073709551615
+float: 1.5
+nan: 'NaN'::float8
+decimal: 12345678901234567890.123456789
+decimal_not_a_number: '1; DROP TABLE x'::numeric
+text_quotes: '''; DROP TABLE x; --'
+text_backslash: 'C:\path\n'
+text_newline: 'two
+lines'
+bytes: '\xdead00'::bytea
+json: '{"a": "it''s"}'::jsonb
+xml: '<a>b</a>'::xml
+uuid: '6f1c2d3e-0000-4000-8000-000000000001'::uuid
+date: '2026-11-14'::date
+time: '10:00:00.5'::time
+timestamp: '2026-11-14T10:00:00'::timestamp
+timestamptz: '2026-11-14T10:00:00+01:00'::timestamptz
+interval: '1 day'::interval
+array: ARRAY[1, NULL]::integer[]
+unknown: 'a=>1'::hstore

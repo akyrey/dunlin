@@ -14,7 +14,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use dbc_core::DbError;
-use dbc_core::dialect::{Dialect, quote_with};
+use dbc_core::Value;
+use dbc_core::dialect::{Dialect, ansi_literal, hex, numeric_literal, quote_with, string_literal};
 use dbc_core::driver::{
     Capabilities, Connection, ConnectionConfig, Driver, DriverInfo, DriverKind, EndpointKind,
     TlsMode,
@@ -73,6 +74,40 @@ impl Dialect for PostgresDialect {
             dollar_quoting: true,
             nested_block_comments: true,
             ..SplitterRules::default()
+        }
+    }
+
+    /// Strings cast to the column's type, so the literal means what the bound parameter does.
+    fn render_literal(&self, value: &Value, type_name: &str) -> String {
+        let cast = |literal: String| {
+            let plain_text = type_name.is_empty()
+                || type_name == "text"
+                || type_name.starts_with("character")
+                || type_name.starts_with("varchar");
+            if plain_text {
+                literal
+            } else {
+                format!("{literal}::{type_name}")
+            }
+        };
+        match value {
+            Value::Bytes(bytes) => format!("'\\x{}'::bytea", hex(bytes)),
+            Value::Float(f) if !f.is_finite() => {
+                format!("{}::float8", string_literal(&f.to_string()))
+            }
+            Value::Null | Value::Bool(_) | Value::Int(_) | Value::UInt(_) | Value::Float(_) => {
+                ansi_literal(value)
+            }
+            Value::Decimal(text) if numeric_literal(text).is_some() => text.clone(),
+            Value::Array(items) => cast(format!(
+                "ARRAY[{}]",
+                items
+                    .iter()
+                    .map(ansi_literal)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )),
+            other => cast(ansi_literal(other)),
         }
     }
 

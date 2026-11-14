@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use dbc_core::Value;
-use dbc_core::conformance::{self, Harness, SyntaxErrorCase, TypeCase};
+use dbc_core::conformance::{self, Harness, SyntaxErrorCase, TypeCase, WriteCase, WriteSupport};
 use dbc_core::driver::{ConnectionConfig, Driver, Endpoint};
 use dbc_core::result::TypeCategory;
 use dbc_core::schema::NamespaceRef;
@@ -194,6 +194,39 @@ impl Harness for PostgresHarness {
             catalog: None,
             schema: Some("public".into()),
         }
+    }
+
+    fn write_support(&self) -> Option<WriteSupport> {
+        Some(WriteSupport {
+            text_type: "text",
+            integer_type: "bigint",
+            cases: vec![
+                WriteCase::same("bigint", Value::Int(i64::MIN)),
+                WriteCase::same(
+                    "numeric",
+                    Value::Decimal("12345678901234567890.123456789".into()),
+                ),
+                WriteCase::same("double precision", Value::Float(1.5)),
+                WriteCase::same("boolean", Value::Bool(true)),
+                WriteCase::same("text", Value::Text("'; DROP TABLE x; --".into())),
+                WriteCase::same("text", Value::Text("C:\\path\\n".into())),
+                WriteCase::same("text", Value::Null),
+                WriteCase::same("bytea", Value::Bytes(vec![0xde, 0xad, 0x00])),
+                WriteCase::same("jsonb", Value::Json("{\"a\": [1, \"it's\"]}".into())),
+                WriteCase::same("xml", Value::Xml("<a>b &amp; c</a>".into())),
+                WriteCase::same(
+                    "uuid",
+                    Value::Uuid("6f1c2d3e-0000-4000-8000-000000000001".into()),
+                ),
+                WriteCase::same("date", Value::Date("2026-11-14".into())),
+                WriteCase::same(
+                    "timestamp",
+                    Value::Timestamp("2026-11-14T10:00:00.123456".into()),
+                ),
+            ],
+            edits_table: "CREATE TABLE edits (id integer PRIMARY KEY, name text UNIQUE, a integer, b integer, \
+                          ab integer GENERATED ALWAYS AS (a + b) STORED)",
+        })
     }
 
     fn system_namespace(&self) -> Option<String> {

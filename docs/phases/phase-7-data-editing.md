@@ -44,10 +44,10 @@ A pure reducer over immutable state: editing a cell back to its original value r
 
 ## Tasks
 
-- [ ] 7.1 `dbc-core::changes`: `ChangeSet` → bound statements and preview strings. Tests per dialect with snapshots: single and composite keys, key column update, `NULL` in set and in key (`IS NULL` handling), every `Value` variant as parameter and as rendered literal, quoting of awkward identifiers, strings containing quotes and backslashes, empty change set.
-- [ ] 7.2 Property test: for random values, `render_literal` output executed on each real database returns the original value.
-- [ ] 7.3 `apply_changes` for PostgreSQL (text parameters with casts), MySQL and SQLite (typed binding from `Value`).
-- [ ] 7.4 Conformance group: insert, update, delete, mixed batch ordering, key update, write `NULL`, constraint violation rolls back everything, row deleted by another connection gives `RowCountMismatch` and rolls back, generated columns skipped, JSON, binary, decimal and timestamp values written and read back exactly.
+- [x] 7.1 `dbc-core::changes`: `ChangeSet` → bound statements and preview strings. Tests per dialect with snapshots: single and composite keys, key column update, `NULL` in set and in key (`IS NULL` handling), every `Value` variant as parameter and as rendered literal, quoting of awkward identifiers, strings containing quotes and backslashes, empty change set.
+- [x] 7.2 Property test: for random values, `render_literal` output executed on each real database returns the original value.
+- [x] 7.3 `apply_changes` for PostgreSQL (text parameters with casts), MySQL and SQLite (typed binding from `Value`).
+- [x] 7.4 Conformance group: insert, update, delete, mixed batch ordering, key update, write `NULL`, constraint violation rolls back everything, row deleted by another connection gives `RowCountMismatch` and rolls back, generated columns skipped, JSON, binary, decimal and timestamp values written and read back exactly.
 - [ ] 7.5 `changes_preview` and `changes_apply` commands; refuse on read-only sessions and on tables without a row key (checked in the backend, not only the UI).
 - [ ] 7.6 Pending-changes reducer with unit tests for every transition and cancellation rule above.
 - [ ] 7.7 Cell editors by `TypeCategory`: text input, number input kept as string with validation, boolean toggle, date/time text with format hint, JSON and long text edited in the cell viewer panel with validation, binary read-only (set to `NULL` only). Enter commits, Escape cancels, Tab moves on.

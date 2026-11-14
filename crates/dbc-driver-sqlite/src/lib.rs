@@ -11,7 +11,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use dbc_core::DbError;
-use dbc_core::dialect::{Dialect, quote_with};
+use dbc_core::Value;
+use dbc_core::dialect::{Dialect, ansi_literal, quote_with, string_literal};
 use dbc_core::driver::{
     Capabilities, Connection, ConnectionConfig, Driver, DriverInfo, DriverKind, EndpointKind,
     OptionField, OptionKind,
@@ -78,6 +79,15 @@ impl Dialect for SqliteDialect {
 
     fn placeholder(&self, index: usize, _type_name: &str) -> String {
         format!("?{index}")
+    }
+
+    /// Decimals are bound as text, so their literal is quoted too: an unquoted
+    /// `12345678901234567890.123456789` would become a lossy float.
+    fn render_literal(&self, value: &Value, _type_name: &str) -> String {
+        match value {
+            Value::Decimal(text) => string_literal(text),
+            other => ansi_literal(other),
+        }
     }
 }
 

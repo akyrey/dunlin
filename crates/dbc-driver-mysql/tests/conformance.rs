@@ -8,7 +8,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use async_trait::async_trait;
 use dbc_core::Value;
 use dbc_core::conformance::{
-    self, Harness, IntrospectionSupport, MYSQL_FIXTURE, SyntaxErrorCase, TypeCase,
+    self, Harness, IntrospectionSupport, MYSQL_FIXTURE, SyntaxErrorCase, TypeCase, WriteCase,
+    WriteSupport,
 };
 use dbc_core::driver::{ConnectionConfig, Driver, Endpoint, TlsConfig};
 use dbc_core::result::TypeCategory;
@@ -199,6 +200,49 @@ impl Harness for MysqlHarness {
             catalog: None,
             schema: config.database.clone(),
         }
+    }
+
+    fn write_support(&self) -> Option<WriteSupport> {
+        // MariaDB's JSON is LONGTEXT: it reads back as text.
+        let json = Value::Json("{\"a\": [1, \"it's\"]}".into());
+        let json_back = match self.flavour {
+            Flavour::Mysql => json.clone(),
+            Flavour::Mariadb => Value::Text("{\"a\": [1, \"it's\"]}".into()),
+        };
+        Some(WriteSupport {
+            text_type: "TEXT",
+            integer_type: "BIGINT",
+            cases: vec![
+                WriteCase::same("BIGINT", Value::Int(i64::MIN)),
+                WriteCase::same("BIGINT UNSIGNED", Value::UInt(u64::MAX)),
+                WriteCase::same(
+                    "DECIMAL(38, 9)",
+                    Value::Decimal("12345678901234567890.123456789".into()),
+                ),
+                WriteCase::same("DOUBLE", Value::Float(1.5)),
+                WriteCase::same("TEXT", Value::Text("'; DROP TABLE x; --".into())),
+                WriteCase::same("TEXT", Value::Text("C:\\path\\n".into())),
+                WriteCase::same("TEXT", Value::Null),
+                WriteCase::same("BLOB", Value::Bytes(vec![0xde, 0xad, 0x00])),
+                WriteCase {
+                    type_name: "JSON",
+                    value: json,
+                    read_back: json_back,
+                },
+                WriteCase::same("DATE", Value::Date("2026-11-14".into())),
+                WriteCase::same(
+                    "DATETIME(6)",
+                    Value::Timestamp("2026-11-14T10:00:00.123456".into()),
+                ),
+                WriteCase {
+                    type_name: "TINYINT(1)",
+                    value: Value::Bool(true),
+                    read_back: Value::Int(1),
+                },
+            ],
+            edits_table: "CREATE TABLE edits (id INT PRIMARY KEY, name VARCHAR(100) UNIQUE, a INT, b INT, \
+                          ab INT AS (a + b) STORED)",
+        })
     }
 
     fn system_namespace(&self) -> Option<String> {

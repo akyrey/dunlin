@@ -1,0 +1,19 @@
+---
+source: crates/dbc-driver-mysql/tests/changes_sql.rs
+expression: "rendered.join(\"\\n\\n\")"
+---
+DELETE FROM `shop`.`Order Items` WHERE `id` = ? AND `select` IS NULL
+  params: [Int(11)]
+  preview: DELETE FROM `shop`.`Order Items` WHERE `id` = 11 AND `select` IS NULL
+
+UPDATE `shop`.`Order Items` SET `line` = ?, `spaced "name"` = ? WHERE `id` = ? AND `line` = ?
+  params: [Int(3), Null, Int(10), Int(2)]
+  preview: UPDATE `shop`.`Order Items` SET `line` = 3, `spaced "name"` = NULL WHERE `id` = 10 AND `line` = 2
+
+INSERT INTO `shop`.`Order Items` (`id`, `note`) VALUES (?, ?)
+  params: [Int(1), Text("it's a \\ backslash")]
+  preview: INSERT INTO `shop`.`Order Items` (`id`, `note`) VALUES (1, _utf8mb4 X'697427732061205c206261636b736c617368')
+
+INSERT INTO `shop`.`Order Items` () VALUES ()
+  params: []
+  preview: INSERT INTO `shop`.`Order Items` () VALUES ()

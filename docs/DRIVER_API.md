@@ -35,8 +35,8 @@ pub trait Connection: Send + Sync {
     async fn query_params(&self, sql: &str, params: &[Value], options: &ExecuteOptions) -> Result<StatementOutcome, DbError>;
     async fn estimate_rows(&self, table: &TableRef) -> Result<Option<u64>, DbError>;   // default Ok(None)
 
-    // Phase 7:
-    // async fn apply_changes(&self, changes: &ChangeSet) -> Result<ApplyReport, DbError>;
+    // Edits (Phase 7) need no method of their own: `dbc_core::changes::apply` runs them through
+    // `execute` (BEGIN/COMMIT/ROLLBACK) and `query_params` (D-023).
 
     // Idempotent. Later calls on the connection fail with `ConnectionLost`.
     async fn close(&self) -> Result<(), DbError>;
@@ -229,8 +229,8 @@ pub trait Dialect: Send + Sync {
 
     fn placeholder(&self, index: usize, type_name: &str) -> String;   // "$1::text::integer", "?", "?1"
 
-    // Phase 7:
-    // fn render_literal(&self, value: &Value, type_name: &str) -> String; // preview only, never executed
+    fn render_literal(&self, value: &Value, type_name: &str) -> String;  // preview only, never executed (default: ANSI)
+    fn default_values(&self) -> &'static str;                             // "DEFAULT VALUES"; MySQL "() VALUES ()"
 }
 ```
 
@@ -254,9 +254,10 @@ pub enum RowOperation {
 }
 
 pub struct ApplyReport { pub statements: usize, pub rows_affected: u64 }
+pub struct ApplyFailure { pub operation: Option<usize>, pub error: DbError }   // index into operations
 ```
 
-`dbc-core::changes` turns a `ChangeSet` plus a `Dialect` into `Vec<BoundStatement { sql, params }>` (for execution) and `Vec<String>` (for preview). This is pure and heavily unit-tested. The driver's `apply_changes`:
+`dbc_core::changes::plan` turns a `ChangeSet` plus a `Dialect` into `PlannedStatement`s, each a list of SQL text and typed values. `bound()` renders it with placeholders and parameters (executed), `preview()` with `render_literal` (shown), so both come from one structure. This is pure and heavily unit-tested. `dbc_core::changes::apply`:
 
 1. begins a transaction;
 2. runs deletes, then updates, then inserts;

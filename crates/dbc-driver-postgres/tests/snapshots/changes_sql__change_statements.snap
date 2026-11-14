@@ -1,0 +1,19 @@
+---
+source: crates/dbc-driver-postgres/tests/changes_sql.rs
+expression: "rendered.join(\"\\n\\n\")"
+---
+DELETE FROM "public"."Order Items" WHERE "id" = $1::text::integer AND "select" IS NULL
+  params: [Int(11)]
+  preview: DELETE FROM "public"."Order Items" WHERE "id" = 11 AND "select" IS NULL
+
+UPDATE "public"."Order Items" SET "line" = $1::text::integer, "spaced ""name""" = $2::text::character varying(20) WHERE "id" = $3::text::integer AND "line" = $4::text::integer
+  params: [Int(3), Null, Int(10), Int(2)]
+  preview: UPDATE "public"."Order Items" SET "line" = 3, "spaced ""name""" = NULL WHERE "id" = 10 AND "line" = 2
+
+INSERT INTO "public"."Order Items" ("id", "note") VALUES ($1::text::integer, $2::text::text)
+  params: [Int(1), Text("it's a \\ backslash")]
+  preview: INSERT INTO "public"."Order Items" ("id", "note") VALUES (1, 'it''s a \ backslash')
+
+INSERT INTO "public"."Order Items" DEFAULT VALUES
+  params: []
+  preview: INSERT INTO "public"."Order Items" DEFAULT VALUES

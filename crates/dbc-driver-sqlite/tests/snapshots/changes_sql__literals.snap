@@ -1,0 +1,27 @@
+---
+source: crates/dbc-driver-sqlite/tests/changes_sql.rs
+expression: "rendered.join(\"\\n\")"
+---
+null: NULL
+true: TRUE
+int: -9223372036854775808
+uint: 18446744073709551615
+float: 1.5
+nan: 'NaN'
+decimal: '12345678901234567890.123456789'
+decimal_not_a_number: '1; DROP TABLE x'
+text_quotes: '''; DROP TABLE x; --'
+text_backslash: 'C:\path\n'
+text_newline: 'two
+lines'
+bytes: X'dead00'
+json: '{"a": "it''s"}'
+xml: '<a>b</a>'
+uuid: '6f1c2d3e-0000-4000-8000-000000000001'
+date: '2026-11-14'
+time: '10:00:00.5'
+timestamp: '2026-11-14T10:00:00'
+timestamptz: '2026-11-14T10:00:00+01:00'
+interval: '1 day'
+array: ARRAY[1, NULL]
+unknown: 'a=>1'

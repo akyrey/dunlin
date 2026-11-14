@@ -6,7 +6,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use dbc_core::Value;
-use dbc_core::conformance::{self, Harness, IntrospectionSupport, SyntaxErrorCase, TypeCase};
+use dbc_core::conformance::{
+    self, Harness, IntrospectionSupport, SyntaxErrorCase, TypeCase, WriteCase, WriteSupport,
+};
 use dbc_core::driver::{ConnectionConfig, Driver};
 use dbc_core::result::TypeCategory;
 use dbc_core::schema::NamespaceRef;
@@ -88,6 +90,39 @@ impl Harness for SqliteHarness {
         }
     }
 
+    fn write_support(&self) -> Option<WriteSupport> {
+        let text = |s: &str| Value::Text(s.into());
+        Some(WriteSupport {
+            text_type: "TEXT",
+            integer_type: "INTEGER",
+            cases: vec![
+                WriteCase::same("INTEGER", Value::Int(i64::MIN)),
+                WriteCase::same("REAL", Value::Float(1.5)),
+                WriteCase::same("TEXT", text("'; DROP TABLE x; --")),
+                WriteCase::same("TEXT", Value::Null),
+                WriteCase::same("BLOB", Value::Bytes(vec![0xde, 0xad, 0x00])),
+                // SQLite has no decimal, JSON or timestamp types: they are stored as text.
+                WriteCase {
+                    type_name: "TEXT",
+                    value: Value::Decimal("12345678901234567890.123456789".into()),
+                    read_back: text("12345678901234567890.123456789"),
+                },
+                WriteCase {
+                    type_name: "TEXT",
+                    value: Value::Json("{\"a\": [1, \"it's\"]}".into()),
+                    read_back: text("{\"a\": [1, \"it's\"]}"),
+                },
+                WriteCase {
+                    type_name: "TEXT",
+                    value: Value::Timestamp("2026-11-14T10:00:00".into()),
+                    read_back: text("2026-11-14T10:00:00"),
+                },
+            ],
+            edits_table: "CREATE TABLE edits (id INTEGER PRIMARY KEY, name TEXT UNIQUE, a INTEGER, b INTEGER, \
+                          ab INTEGER GENERATED ALWAYS AS (a + b) STORED)",
+        })
+    }
+
     fn introspection_support(&self) -> IntrospectionSupport {
         IntrospectionSupport {
             constraint_names: false,
@@ -157,6 +192,20 @@ async fn introspection_group() {
 #[tokio::test]
 async fn table_data_group() {
     conformance::table_data_group(&SqliteHarness::default())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn literal_round_trip_group() {
+    conformance::literal_round_trip_group(&SqliteHarness::default())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn apply_changes_group() {
+    conformance::apply_changes_group(&SqliteHarness::default())
         .await
         .unwrap();
 }

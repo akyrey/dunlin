@@ -1,0 +1,19 @@
+---
+source: crates/dbc-driver-sqlite/tests/changes_sql.rs
+expression: "rendered.join(\"\\n\\n\")"
+---
+DELETE FROM "main"."Order Items" WHERE "id" = ?1 AND "select" IS NULL
+  params: [Int(11)]
+  preview: DELETE FROM "main"."Order Items" WHERE "id" = 11 AND "select" IS NULL
+
+UPDATE "main"."Order Items" SET "line" = ?1, "spaced ""name""" = ?2 WHERE "id" = ?3 AND "line" = ?4
+  params: [Int(3), Null, Int(10), Int(2)]
+  preview: UPDATE "main"."Order Items" SET "line" = 3, "spaced ""name""" = NULL WHERE "id" = 10 AND "line" = 2
+
+INSERT INTO "main"."Order Items" ("id", "note") VALUES (?1, ?2)
+  params: [Int(1), Text("it's a \\ backslash")]
+  preview: INSERT INTO "main"."Order Items" ("id", "note") VALUES (1, 'it''s a \ backslash')
+
+INSERT INTO "main"."Order Items" DEFAULT VALUES
+  params: []
+  preview: INSERT INTO "main"."Order Items" DEFAULT VALUES

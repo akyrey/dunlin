@@ -1,6 +1,7 @@
 //! Driver conformance suite. Every driver runs these groups from its own tests through a
 //! [`Harness`]. Each check returns a [`Failure`] naming what went wrong instead of panicking.
 
+mod changes;
 mod introspection;
 mod table_data;
 
@@ -8,6 +9,10 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
+pub use changes::{
+    WriteCase, WriteSupport, apply_changes_group, change_cases, literal_cases,
+    literal_round_trip_group,
+};
 pub use introspection::{IntrospectionSupport, introspection_group};
 pub use table_data::{page_sql_cases, table_data_group};
 
@@ -110,6 +115,10 @@ pub trait Harness: Send + Sync {
     fn system_namespace(&self) -> Option<String> {
         None
     }
+    /// Column types and tables for the write groups; `None` skips them.
+    fn write_support(&self) -> Option<WriteSupport> {
+        None
+    }
     fn introspection_support(&self) -> IntrospectionSupport {
         IntrospectionSupport::default()
     }
@@ -131,7 +140,9 @@ pub async fn run_all(harness: &dyn Harness) -> Result<(), Failure> {
     read_only_group(harness).await?;
     cancel_group(harness).await?;
     introspection_group(harness).await?;
-    table_data_group(harness).await
+    table_data_group(harness).await?;
+    literal_round_trip_group(harness).await?;
+    apply_changes_group(harness).await
 }
 
 /// Connect, ping, close; unreachable and bad credentials fail with the right codes.

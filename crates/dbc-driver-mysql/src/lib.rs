@@ -10,7 +10,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use dbc_core::DbError;
-use dbc_core::dialect::{Dialect, quote_with};
+use dbc_core::Value;
+use dbc_core::dialect::{Dialect, ansi_literal, hex, numeric_literal, quote_with, string_literal};
 use dbc_core::driver::{
     Capabilities, Connection, ConnectionConfig, Driver, DriverInfo, DriverKind, EndpointKind,
     TlsMode,
@@ -74,6 +75,38 @@ impl Dialect for MysqlDialect {
 
     fn placeholder(&self, _index: usize, _type_name: &str) -> String {
         "?".to_owned()
+    }
+
+    /// Strings that backslash escaping could change (backslashes, control characters) are
+    /// written as `_utf8mb4 X'..'`, which means the same in every `sql_mode`.
+    fn render_literal(&self, value: &Value, _type_name: &str) -> String {
+        let text = match value {
+            Value::Timestamp(s) | Value::TimestampTz(s) => s.replacen('T', " ", 1),
+            Value::Text(s)
+            | Value::Json(s)
+            | Value::Xml(s)
+            | Value::Uuid(s)
+            | Value::Date(s)
+            | Value::Time(s)
+            | Value::Interval(s)
+            | Value::Decimal(s) => s.clone(),
+            Value::Unknown { text: Some(s), .. } => s.clone(),
+            other => return ansi_literal(other),
+        };
+        if let Value::Decimal(_) = value
+            && numeric_literal(&text).is_some()
+        {
+            return text;
+        }
+        if text.chars().any(|c| c == '\\' || c.is_control()) {
+            format!("_utf8mb4 X'{}'", hex(text.as_bytes()))
+        } else {
+            string_literal(&text)
+        }
+    }
+
+    fn default_values(&self) -> &'static str {
+        "() VALUES ()"
     }
 }
 
