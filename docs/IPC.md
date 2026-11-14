@@ -30,7 +30,11 @@ type AppError = {
 
 Two codes drive UI flows rather than error toasts:
 
-- `ssh_host_key_unknown`: show the fingerprint; on accept call `ssh_trust_host`, then retry `session_open`.
+- `ssh_host_key_unknown`: show the fingerprint (`detail: { host, port, algorithm, fingerprint }`); on accept call `ssh_trust_host`, then retry `session_open`.
+- `ssh_host_key_changed`: shown as an error with no way to proceed; the user removes the old key in Settings (or their `~/.ssh/known_hosts`) deliberately.
+- `tunnel_lost`: the backend has closed the session; the frontend forgets it and offers to reopen.
+
+Errors from `session_open` and `connection_test` carry `detail.stage`: `ssh_connect`, `host_key`, `ssh_auth`, `forward`, `db_connect` or `db_auth`.
 - `confirmation_required`: show the reason from `detail`; on accept retry `query_execute` with `confirmed: true`.
 
 ## Commands
@@ -48,7 +52,9 @@ Two codes drive UI flows rather than error toasts:
 | `query_execute` | `{ sessionId, tabId, sql, rowLimit (1..=100000), confirmed? }` | `QueryResult` | 1 |
 | `query_cancel` | `{ sessionId, tabId }` | none (no-op when the tab is idle) | 2 |
 | `tab_close` | `{ sessionId, tabId }` | none | 1 |
-| `ssh_trust_host` | `{ host, port, fingerprint }` | none | 3 |
+| `ssh_trust_host` | `{ host, port, algorithm, fingerprint }` | none (refused if a different key is trusted for that host, port and algorithm) | 3 |
+| `ssh_known_hosts_list` | none | `KnownHost[]` | 3 |
+| `ssh_known_host_remove` | `{ host, port, algorithm }` | none | 3 |
 | `schema_namespaces` | `{ sessionId }` | `Namespace[]` | 4 |
 | `schema_objects` | `{ sessionId, namespace }` | `ObjectSummary[]` | 4 |
 | `schema_table` | `{ sessionId, table }` | `TableInfo` | 4 |
@@ -79,7 +85,7 @@ type QueryResult = {
 
 ## Secrets over IPC
 
-Secrets travel only **from** the frontend to the backend, in `connection_save` and `connection_test` (`secrets: { dbPassword?: string | null }`). No command returns a secret. `ConnectionProfile` reports only which secrets are stored (`hasDbPassword: true`). Leaving a secret out of `connection_save` keeps the stored one; `null` deletes it; a string replaces it. `connection_test` uses the given password, else the stored one when the profile has an `id`.
+Secrets travel only **from** the frontend to the backend, in `connection_save` and `connection_test` (`secrets: { dbPassword?, sshPassword?, sshKeyPassphrase?, jumpPassword?, jumpKeyPassphrase? }`, each `string | null`). No command returns a secret. `ConnectionProfile` reports only which secrets are stored (`savedSecrets: ["db_password", ...]`). Leaving a secret out of `connection_save` keeps the stored one; `null` deletes it; a string replaces it. `connection_test` uses the given password, else the stored one when the profile has an `id`.
 
 ## Tauri permissions
 

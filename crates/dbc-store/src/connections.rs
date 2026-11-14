@@ -1,99 +1,27 @@
-//! Saved connection profiles. Secrets are not part of a profile.
+//! Saved connection profiles: persistence and validation.
 
-use std::collections::BTreeMap;
+use dbc_core::driver::TlsMode;
+use serde::Serialize;
 
-use dbc_core::driver::{DriverKind, TlsMode};
-use serde::{Deserialize, Serialize};
-
+use crate::profile::{
+    ConnectionDraft, ConnectionProfile, SshAuthMethod, SshHostSettings, TlsSettings,
+};
+use crate::secrets::SecretKind;
 use crate::{Store, StoreError};
-
-/// A saved connection as shown to the frontend.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-#[serde(rename_all = "camelCase")]
-pub struct ConnectionProfile {
-    pub id: String,
-    pub name: String,
-    pub driver: DriverKind,
-    /// `#rrggbb`.
-    pub color: Option<String>,
-    pub read_only: bool,
-    pub host: Option<String>,
-    pub port: Option<u16>,
-    pub database: Option<String>,
-    pub user: Option<String>,
-    pub file_path: Option<String>,
-    pub options: BTreeMap<String, String>,
-    pub tls: TlsSettings,
-    /// A database password is stored in the keychain. The value itself is never returned.
-    pub has_db_password: bool,
-}
-
-/// TLS settings as saved; files are referenced by path, never copied.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-#[serde(rename_all = "camelCase")]
-pub struct TlsSettings {
-    pub mode: TlsMode,
-    pub ca_file: Option<String>,
-    pub cert_file: Option<String>,
-    pub key_file: Option<String>,
-}
-
-/// A profile to save: without `id` it is created, with `id` it replaces that profile.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-#[serde(rename_all = "camelCase")]
-pub struct ConnectionDraft {
-    pub id: Option<String>,
-    pub name: String,
-    pub driver: DriverKind,
-    pub color: Option<String>,
-    #[serde(default)]
-    pub read_only: bool,
-    pub host: Option<String>,
-    pub port: Option<u16>,
-    pub database: Option<String>,
-    pub user: Option<String>,
-    pub file_path: Option<String>,
-    #[serde(default)]
-    pub options: BTreeMap<String, String>,
-    #[serde(default)]
-    pub tls: TlsSettings,
-}
-
-impl From<ConnectionProfile> for ConnectionDraft {
-    fn from(profile: ConnectionProfile) -> Self {
-        Self {
-            id: Some(profile.id),
-            name: profile.name,
-            driver: profile.driver,
-            color: profile.color,
-            read_only: profile.read_only,
-            host: profile.host,
-            port: profile.port,
-            database: profile.database,
-            user: profile.user,
-            file_path: profile.file_path,
-            options: profile.options,
-            tls: profile.tls,
-        }
-    }
-}
 
 const MAX_NAME_LENGTH: usize = 200;
 const COLUMNS: &str = "id, name, driver, color, read_only, host, port, database, username, \
-    file_path, options, tls_mode, tls_ca_file, tls_cert_file, tls_key_file, has_db_password";
+    file_path, options, tls_mode, tls_ca_file, tls_cert_file, tls_key_file, ssh, saved_secrets";
 
-/// Both statements take the same 16 parameters, in `save_connection`'s order.
+/// Both statements take the same 17 parameters, in `save_connection`'s order.
 const INSERT_SQL: &str = "INSERT INTO connections (id, name, driver, color, read_only, host, port,
        database, username, file_path, options, created_at, updated_at,
-       tls_mode, tls_ca_file, tls_cert_file, tls_key_file)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?12, ?13, ?14, ?15, ?16)";
+       tls_mode, tls_ca_file, tls_cert_file, tls_key_file, ssh)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?12, ?13, ?14, ?15, ?16, ?17)";
 const UPDATE_SQL: &str = "UPDATE connections SET name = ?2, driver = ?3, color = ?4,
        read_only = ?5, host = ?6, port = ?7, database = ?8, username = ?9, file_path = ?10,
        options = ?11, updated_at = ?12, tls_mode = ?13, tls_ca_file = ?14, tls_cert_file = ?15,
-       tls_key_file = ?16
+       tls_key_file = ?16, ssh = ?17
      WHERE id = ?1";
 
 impl Store {
@@ -116,9 +44,8 @@ impl Store {
 
     pub fn save_connection(&self, draft: ConnectionDraft) -> Result<ConnectionProfile, StoreError> {
         let draft = validate(draft)?;
-        let now = now_millis();
         let options = serde_json::to_string(&draft.options)?;
-        let tls_mode = enum_text(draft.tls.mode)?;
+        let ssh = draft.ssh.as_ref().map(serde_json::to_string).transpose()?;
         let (id, sql) = match &draft.id {
             Some(id) => (id.clone(), UPDATE_SQL),
             None => (uuid::Uuid::new_v4().to_string(), INSERT_SQL),
@@ -137,11 +64,12 @@ impl Store {
                 draft.user,
                 draft.file_path,
                 options,
-                now,
-                tls_mode,
+                now_millis(),
+                enum_text(draft.tls.mode)?,
                 draft.tls.ca_file,
                 draft.tls.cert_file,
-                draft.tls.key_file
+                draft.tls.key_file,
+                ssh
             ],
         )?;
         if changed == 0 {
@@ -150,15 +78,27 @@ impl Store {
         self.get_connection(&id)
     }
 
-    /// Records whether the keychain holds a database password for `id`.
-    pub fn set_has_db_password(&self, id: &str, saved: bool) -> Result<(), StoreError> {
-        let changed = self.connection.execute(
-            "UPDATE connections SET has_db_password = ?2 WHERE id = ?1",
-            rusqlite::params![id, saved],
-        )?;
-        if changed == 0 {
-            return Err(StoreError::NotFound(id.to_owned()));
+    /// Records whether the keychain holds a secret of `kind` for connection `id`.
+    pub fn set_secret_saved(
+        &self,
+        id: &str,
+        kind: SecretKind,
+        saved: bool,
+    ) -> Result<(), StoreError> {
+        let profile = self.get_connection(id)?;
+        let mut kinds: Vec<SecretKind> = profile
+            .saved_secrets
+            .into_iter()
+            .filter(|k| *k != kind)
+            .collect();
+        if saved {
+            kinds.push(kind);
         }
+        kinds.sort();
+        self.connection.execute(
+            "UPDATE connections SET saved_secrets = ?2 WHERE id = ?1",
+            rusqlite::params![id, serde_json::to_string(&kinds)?],
+        )?;
         Ok(())
     }
 
@@ -173,33 +113,57 @@ impl Store {
     }
 }
 
+fn invalid(message: impl Into<String>) -> StoreError {
+    StoreError::Invalid(message.into())
+}
+
 fn validate(draft: ConnectionDraft) -> Result<ConnectionDraft, StoreError> {
     let name = draft.name.trim().to_owned();
     if name.is_empty() {
-        return Err(StoreError::Invalid(
-            "The connection name is required".to_owned(),
-        ));
+        return Err(invalid("The connection name is required"));
     }
     if name.chars().count() > MAX_NAME_LENGTH {
-        return Err(StoreError::Invalid(format!(
+        return Err(invalid(format!(
             "The connection name is longer than {MAX_NAME_LENGTH} characters"
         )));
     }
     if let Some(color) = &draft.color
         && !is_hex_color(color)
     {
-        return Err(StoreError::Invalid(
-            "The colour must look like #rrggbb".to_owned(),
-        ));
+        return Err(invalid("The colour must look like #rrggbb"));
     }
     if let Some(id) = &draft.id
         && uuid::Uuid::parse_str(id).is_err()
     {
-        return Err(StoreError::Invalid(
-            "The connection id is not a UUID".to_owned(),
-        ));
+        return Err(invalid("The connection id is not a UUID"));
+    }
+    if let Some(ssh) = &draft.ssh {
+        validate_ssh_host(&ssh.server, "SSH")?;
+        if let Some(jump) = &ssh.jump {
+            validate_ssh_host(jump, "Jump host")?;
+        }
     }
     Ok(ConnectionDraft { name, ..draft })
+}
+
+fn validate_ssh_host(host: &SshHostSettings, label: &str) -> Result<(), StoreError> {
+    if host.host.trim().is_empty() {
+        return Err(invalid(format!("{label}: the host is required")));
+    }
+    if host.user.trim().is_empty() {
+        return Err(invalid(format!("{label}: the user is required")));
+    }
+    if host.port == 0 {
+        return Err(invalid(format!("{label}: the port is required")));
+    }
+    let has_key = host
+        .key_file
+        .as_deref()
+        .is_some_and(|k| !k.trim().is_empty());
+    if host.auth == SshAuthMethod::KeyFile && !has_key {
+        return Err(invalid(format!("{label}: choose a private key file")));
+    }
+    Ok(())
 }
 
 fn is_hex_color(color: &str) -> bool {
@@ -210,41 +174,31 @@ fn is_hex_color(color: &str) -> bool {
 fn enum_text<T: Serialize>(value: T) -> Result<String, StoreError> {
     match serde_json::to_value(value)? {
         serde_json::Value::String(text) => Ok(text),
-        other => Err(StoreError::Invalid(format!(
-            "unexpected enum value {other}"
-        ))),
+        other => Err(invalid(format!("unexpected enum value {other}"))),
     }
 }
 
-fn now_millis() -> i64 {
+pub(crate) fn now_millis() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))
 }
 
-/// A row as stored, before parsing the driver name and options.
+/// A row as stored, before parsing its JSON and enum columns.
 struct StoredRow {
-    id: String,
-    name: String,
+    profile: ConnectionProfile,
     driver: String,
-    color: Option<String>,
-    read_only: bool,
-    host: Option<String>,
-    port: Option<u16>,
-    database: Option<String>,
-    user: Option<String>,
-    file_path: Option<String>,
     options: String,
     tls_mode: String,
-    tls: TlsSettings,
-    has_db_password: bool,
+    ssh: Option<String>,
+    saved_secrets: String,
 }
 
 fn read_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredRow> {
-    Ok(StoredRow {
+    let profile = ConnectionProfile {
         id: row.get(0)?,
         name: row.get(1)?,
-        driver: row.get(2)?,
+        driver: dbc_core::driver::DriverKind::Sqlite,
         color: row.get(3)?,
         read_only: row.get(4)?,
         host: row.get(5)?,
@@ -252,38 +206,39 @@ fn read_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredRow> {
         database: row.get(7)?,
         user: row.get(8)?,
         file_path: row.get(9)?,
-        options: row.get(10)?,
-        tls_mode: row.get(11)?,
+        options: Default::default(),
         tls: TlsSettings {
             mode: TlsMode::Disable,
             ca_file: row.get(12)?,
             cert_file: row.get(13)?,
             key_file: row.get(14)?,
         },
-        has_db_password: row.get(15)?,
+        ssh: None,
+        saved_secrets: Vec::new(),
+    };
+    Ok(StoredRow {
+        profile,
+        driver: row.get(2)?,
+        options: row.get(10)?,
+        tls_mode: row.get(11)?,
+        ssh: row.get(15)?,
+        saved_secrets: row.get(16)?,
     })
 }
 
 impl StoredRow {
     fn into_profile(self) -> Result<ConnectionProfile, StoreError> {
-        let driver = serde_json::from_value(serde_json::Value::String(self.driver))?;
+        let text = |s: String| serde_json::Value::String(s);
         Ok(ConnectionProfile {
-            id: self.id,
-            name: self.name,
-            driver,
-            color: self.color,
-            read_only: self.read_only,
-            host: self.host,
-            port: self.port,
-            database: self.database,
-            user: self.user,
-            file_path: self.file_path,
+            driver: serde_json::from_value(text(self.driver))?,
             options: serde_json::from_str(&self.options)?,
             tls: TlsSettings {
-                mode: serde_json::from_value(serde_json::Value::String(self.tls_mode))?,
-                ..self.tls
+                mode: serde_json::from_value(text(self.tls_mode))?,
+                ..self.profile.tls
             },
-            has_db_password: self.has_db_password,
+            ssh: self.ssh.as_deref().map(serde_json::from_str).transpose()?,
+            saved_secrets: serde_json::from_str(&self.saved_secrets)?,
+            ..self.profile
         })
     }
 }

@@ -8,8 +8,8 @@ use crate::commands;
 use crate::error::AppError;
 use crate::ipc::{
     ConnectionIdArgs, ConnectionSaveArgs, ConnectionTestArgs, ConnectionTestResult,
-    QueryExecuteArgs, QueryResult, SessionIdArgs, SessionInfo, SqlSplitArgs, StatementRange,
-    TabArgs,
+    QueryExecuteArgs, QueryResult, SessionIdArgs, SessionInfo, SqlSplitArgs,
+    SshKnownHostRemoveArgs, SshTrustHostArgs, StatementRange, TabArgs,
 };
 use crate::state::AppState;
 
@@ -89,4 +89,27 @@ pub async fn query_cancel(state: State<'_, AppState>, args: TabArgs) -> Result<(
 #[tauri::command]
 pub async fn tab_close(state: State<'_, AppState>, args: TabArgs) -> Result<(), AppError> {
     commands::tab_close(&state, args).await
+}
+
+#[tauri::command]
+pub async fn ssh_trust_host(
+    state: State<'_, AppState>,
+    args: SshTrustHostArgs,
+) -> Result<(), AppError> {
+    commands::ssh_trust_host(&state, args).await
+}
+
+#[tauri::command]
+pub async fn ssh_known_hosts_list(
+    state: State<'_, AppState>,
+) -> Result<Vec<dbc_store::KnownHost>, AppError> {
+    commands::ssh_known_hosts_list(&state).await
+}
+
+#[tauri::command]
+pub async fn ssh_known_host_remove(
+    state: State<'_, AppState>,
+    args: SshKnownHostRemoveArgs,
+) -> Result<(), AppError> {
+    commands::ssh_known_host_remove(&state, args).await
 }

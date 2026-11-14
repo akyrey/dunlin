@@ -1,14 +1,12 @@
 use std::time::Instant;
 
 use dbc_core::driver::DriverInfo;
-use dbc_store::{ConnectionDraft, ConnectionProfile, SecretKind};
+use dbc_store::{ConnectionProfile, SecretKind};
 use secrecy::SecretString;
 
+use crate::connect::{self, connect_error};
 use crate::error::AppError;
-use crate::ipc::{
-    ConnectionIdArgs, ConnectionSaveArgs, ConnectionSecrets, ConnectionTestArgs,
-    ConnectionTestResult,
-};
+use crate::ipc::{ConnectionIdArgs, ConnectionSaveArgs, ConnectionTestArgs, ConnectionTestResult};
 use crate::profile;
 use crate::state::AppState;
 
@@ -22,7 +20,7 @@ pub async fn connection_list(state: &AppState) -> Result<Vec<ConnectionProfile>,
         .await
 }
 
-/// Saves the profile, then applies the secrets: absent keeps, `null` deletes, a value replaces.
+/// Saves the profile, then applies each secret: absent keeps, `null` deletes, a value replaces.
 pub async fn connection_save(
     state: &AppState,
     args: ConnectionSaveArgs,
@@ -33,26 +31,33 @@ pub async fn connection_save(
     let saved = state
         .with_store(move |store| Ok(store.save_connection(profile)?))
         .await?;
-    match args.secrets.unwrap_or_default().db_password {
-        None => Ok(saved),
-        Some(password) => set_db_password(state, &saved.id, password).await,
+    let changes: Vec<(SecretKind, Option<String>)> = args
+        .secrets
+        .unwrap_or_default()
+        .changes()
+        .into_iter()
+        .filter_map(|(kind, change)| change.clone().map(|value| (kind, value)))
+        .collect();
+    if changes.is_empty() {
+        return Ok(saved);
     }
+    apply_secrets(state, &saved.id, changes).await
 }
 
-async fn set_db_password(
+async fn apply_secrets(
     state: &AppState,
     id: &str,
-    password: Option<String>,
+    changes: Vec<(SecretKind, Option<String>)>,
 ) -> Result<ConnectionProfile, AppError> {
     let owned = id.to_owned();
-    let stored = password.is_some();
+    let flags: Vec<(SecretKind, bool)> = changes.iter().map(|(k, v)| (*k, v.is_some())).collect();
     state
         .with_secrets(move |secrets| {
-            match password {
-                Some(value) => {
-                    secrets.set(&owned, SecretKind::DbPassword, &SecretString::from(value))?
+            for (kind, value) in changes {
+                match value {
+                    Some(value) => secrets.set(&owned, kind, &SecretString::from(value))?,
+                    None => secrets.delete(&owned, kind)?,
                 }
-                None => secrets.delete(&owned, SecretKind::DbPassword)?,
             }
             Ok(())
         })
@@ -60,7 +65,9 @@ async fn set_db_password(
     let owned = id.to_owned();
     state
         .with_store(move |store| {
-            store.set_has_db_password(&owned, stored)?;
+            for (kind, saved) in flags {
+                store.set_secret_saved(&owned, kind, saved)?;
+            }
             Ok(store.get_connection(&owned)?)
         })
         .await
@@ -82,47 +89,54 @@ pub async fn connection_delete(state: &AppState, args: ConnectionIdArgs) -> Resu
         .await
 }
 
-/// Connects with an unsaved profile, reads the server version and disconnects. The password
-/// is the one given, else the stored one for a saved profile.
+/// Opens the tunnel (if any) and a database connection with an unsaved profile, reads the
+/// server version, then closes both. Errors carry the failing stage in `detail.stage`.
 pub async fn connection_test(
     state: &AppState,
     args: ConnectionTestArgs,
 ) -> Result<ConnectionTestResult, AppError> {
     let driver = state.registry.get(args.profile.driver)?;
-    let password = password_for_test(state, &args.profile, args.secrets).await?;
-    let config = profile::config(&args.profile, &driver.info(), password)?;
+    let saved = saved_secret_kinds(state, args.profile.id.as_deref()).await?;
+    let secrets = connect::resolve_secrets(
+        state,
+        args.profile.id.as_deref(),
+        &saved,
+        &args.secrets.unwrap_or_default(),
+    )
+    .await?;
     let started = Instant::now();
-    let connection = driver.connect(&config).await?;
-    let version = connection.server_version().await;
-    let latency_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
-    connection.close().await?;
-    Ok(ConnectionTestResult {
-        server_version: version?,
-        latency_ms,
-    })
-}
-
-async fn password_for_test(
-    state: &AppState,
-    draft: &ConnectionDraft,
-    secrets: Option<ConnectionSecrets>,
-) -> Result<Option<SecretString>, AppError> {
-    match secrets.unwrap_or_default().db_password {
-        Some(given) => Ok(given.map(SecretString::from)),
-        None => match &draft.id {
-            Some(id) => stored_password(state, id).await,
-            None => Ok(None),
-        },
+    let prepared = connect::prepare(state, &args.profile, &driver.info(), &secrets).await?;
+    let result = async {
+        let connection = driver
+            .connect(&prepared.config)
+            .await
+            .map_err(connect_error)?;
+        let version = connection.server_version().await;
+        let latency_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+        connection.close().await?;
+        Ok(ConnectionTestResult {
+            server_version: version?,
+            latency_ms,
+        })
     }
+    .await;
+    connect::discard(prepared.tunnel).await;
+    result
 }
 
-/// The keychain password for a saved connection, if one is stored.
-pub(crate) async fn stored_password(
+/// Which secrets the keychain holds for a saved profile; none for an unsaved one.
+pub(crate) async fn saved_secret_kinds(
     state: &AppState,
-    id: &str,
-) -> Result<Option<SecretString>, AppError> {
-    let owned = id.to_owned();
+    id: Option<&str>,
+) -> Result<Vec<SecretKind>, AppError> {
+    let Some(id) = id.map(str::to_owned) else {
+        return Ok(Vec::new());
+    };
     state
-        .with_secrets(move |secrets| Ok(secrets.get(&owned, SecretKind::DbPassword)?))
+        .with_store(move |store| match store.get_connection(&id) {
+            Ok(profile) => Ok(profile.saved_secrets),
+            Err(dbc_store::StoreError::NotFound(_)) => Ok(Vec::new()),
+            Err(other) => Err(other.into()),
+        })
         .await
 }

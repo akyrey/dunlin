@@ -48,9 +48,9 @@ jobs:
               --ignore-filename-regex 'conformance\.rs$'
           done
           # Network drivers are mostly covered by their Docker tests.
-          for crate in dbc-driver-postgres dbc-driver-mysql; do
+          for crate in dbc-driver-postgres dbc-driver-mysql dbc-tunnel; do
             cargo llvm-cov --package "$crate" --all-features --fail-under-lines 80 --summary-only \
-              --ignore-filename-regex 'conformance\.rs$' -- --include-ignored
+              --ignore-filename-regex '(conformance|test_support)\.rs$' -- --include-ignored
           done
       - name: Generated TypeScript is committed
         run: |

@@ -101,6 +101,7 @@ fn draft(path: &Path) -> ConnectionDraft {
         file_path: Some(path.to_string_lossy().into_owned()),
         options: BTreeMap::new(),
         tls: TlsSettings::default(),
+        ssh: None,
     }
 }
 

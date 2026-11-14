@@ -1,11 +1,13 @@
 //! Dunlin desktop backend: Tauri commands over the session manager.
 
 pub mod commands;
+pub mod connect;
 pub mod error;
 pub mod ipc;
 pub mod profile;
 pub mod registry;
 pub mod session;
+pub mod ssh;
 pub mod state;
 
 #[cfg(test)]
@@ -42,6 +44,9 @@ pub fn run() -> Result<(), tauri::Error> {
             handlers::query_execute,
             handlers::query_cancel,
             handlers::tab_close,
+            handlers::ssh_trust_host,
+            handlers::ssh_known_hosts_list,
+            handlers::ssh_known_host_remove,
         ])
         .run(tauri::generate_context!())
 }

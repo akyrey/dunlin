@@ -61,16 +61,25 @@ pub async fn query_execute(
     let options = ExecuteOptions {
         row_limit: args.row_limit,
     };
-    let outcome = session
-        .execute(&args.tab_id, &args.sql, &options)
-        .await
-        .map_err(|e| AppError::from_db(e, &args.sql))?;
+    let outcome = match session.execute(&args.tab_id, &args.sql, &options).await {
+        Ok(outcome) => outcome,
+        Err(_) if session.tunnel_lost() => return Err(tunnel_lost(state, &session.id).await),
+        Err(error) => return Err(AppError::from_db(error, &args.sql)),
+    };
     let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
     Ok(QueryResult {
         outcome: to_ipc(outcome),
         elapsed_ms,
         statement_class: classification.class,
     })
+}
+
+/// The session's SSH tunnel dropped: the session is closed so it can be reopened cleanly once
+/// the server is back (task 3.8).
+async fn tunnel_lost(state: &AppState, session_id: &str) -> AppError {
+    // The session is unusable either way; a failure to close it changes nothing for the user.
+    let _ = state.sessions.close(session_id).await;
+    AppError::from(dbc_tunnel::TunnelError::Lost)
 }
 
 /// Cancels the statement running in a tab, if any.

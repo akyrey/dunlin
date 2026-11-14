@@ -43,6 +43,7 @@ Adding a driver means implementing the traits and passing this suite.
 - Frontend: Vitest coverage (v8) with a threshold of 80.
 - Generated code and `main.rs` wiring are excluded. So is `dbc-core`'s conformance suite when measuring `dbc-core` alone: it is test-support code that runs from the driver crates' tests.
 - CI gates `dbc-core`, `dbc-driver-sqlite` and `dbc-store` individually (`cargo llvm-cov --package <crate> --fail-under-lines 80`), and `dbc-driver-postgres` and `dbc-driver-mysql` with their Docker tests included (`-- --include-ignored`); more crates join as their phases add them.
+- `dbc-tunnel` is gated the same way. Its `test-support` feature (OpenSSH containers, client keys from `ssh-keygen`, a private `ssh-agent`) is used as a dev-dependency by the driver crates and `src-tauri` to run the conformance suite and the session tests through real tunnels; it is excluded from coverage like the conformance suite. Dev-dependencies do not change the production dependency rule.
 - Spike tests (`spike_*.rs`) are `#[ignore]` and only print measurements; they document decisions D-016 and D-017.
 
 ## CI (GitHub Actions)

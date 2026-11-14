@@ -6,6 +6,8 @@ mod config;
 mod error;
 mod handler;
 mod host_keys;
+#[cfg(feature = "test-support")]
+pub mod test_support;
 mod tunnel;
 
 pub use config::{DEFAULT_KEEPALIVE, KEEPALIVE_MAX_MISSED, SshAuth, SshHost, TunnelConfig};

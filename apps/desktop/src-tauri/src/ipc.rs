@@ -4,7 +4,7 @@ use dbc_core::WireValue;
 use dbc_core::driver::{Capabilities, DriverKind};
 use dbc_core::result::ColumnMeta;
 use dbc_core::sql::StatementClass;
-use dbc_store::ConnectionDraft;
+use dbc_store::{ConnectionDraft, SecretKind};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -34,19 +34,64 @@ pub struct ConnectionSecrets {
     #[serde(default, deserialize_with = "present")]
     #[ts(optional, type = "string | null")]
     pub db_password: Option<Option<String>>,
+    #[serde(default, deserialize_with = "present")]
+    #[ts(optional, type = "string | null")]
+    pub ssh_password: Option<Option<String>>,
+    #[serde(default, deserialize_with = "present")]
+    #[ts(optional, type = "string | null")]
+    pub ssh_key_passphrase: Option<Option<String>>,
+    #[serde(default, deserialize_with = "present")]
+    #[ts(optional, type = "string | null")]
+    pub jump_password: Option<Option<String>>,
+    #[serde(default, deserialize_with = "present")]
+    #[ts(optional, type = "string | null")]
+    pub jump_key_passphrase: Option<Option<String>>,
+}
+
+impl ConnectionSecrets {
+    /// Each field with the secret kind it is stored under.
+    pub fn changes(&self) -> [(SecretKind, &Option<Option<String>>); 5] {
+        [
+            (SecretKind::DbPassword, &self.db_password),
+            (SecretKind::SshPassword, &self.ssh_password),
+            (SecretKind::SshKeyPassphrase, &self.ssh_key_passphrase),
+            (SecretKind::JumpPassword, &self.jump_password),
+            (SecretKind::JumpKeyPassphrase, &self.jump_key_passphrase),
+        ]
+    }
 }
 
 impl std::fmt::Debug for ConnectionSecrets {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let state = match &self.db_password {
-            None => "unchanged",
-            Some(None) => "cleared",
-            Some(Some(_)) => "[redacted]",
-        };
-        f.debug_struct("ConnectionSecrets")
-            .field("db_password", &state)
-            .finish()
+        let mut debug = f.debug_struct("ConnectionSecrets");
+        for (kind, change) in self.changes() {
+            let state = match change {
+                None => "unchanged",
+                Some(None) => "cleared",
+                Some(Some(_)) => "[redacted]",
+            };
+            debug.field(kind.as_str(), &state);
+        }
+        debug.finish()
     }
+}
+
+/// Trusts an SSH host key after the user confirmed its fingerprint.
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SshTrustHostArgs {
+    pub host: String,
+    pub port: u16,
+    pub algorithm: String,
+    pub fingerprint: String,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SshKnownHostRemoveArgs {
+    pub host: String,
+    pub port: u16,
+    pub algorithm: String,
 }
 
 /// Distinguishes a field set to `null` (`Some(None)`) from an absent one (`None`, via default).

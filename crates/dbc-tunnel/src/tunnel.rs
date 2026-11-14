@@ -70,6 +70,7 @@ impl Tunnel {
                 )
             }
         };
+        probe_forward(&session, &config.target_host, config.target_port).await?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
             .await
             .map_err(|e| TunnelError::Internal(format!("cannot listen on 127.0.0.1: {e}")))?;
@@ -200,6 +201,22 @@ impl Hop {
             reason: error.to_string(),
         }
     }
+}
+
+/// Opens and closes one channel to the target, so a forward the server refuses (unknown host,
+/// closed port, `PermitOpen`) is reported as `ForwardRefused` when the tunnel opens rather than
+/// as a dropped database connection later.
+async fn probe_forward(session: &Handle<Client>, host: &str, port: u16) -> Result<(), TunnelError> {
+    let channel = session
+        .channel_open_direct_tcpip(host.to_owned(), u32::from(port), "127.0.0.1", 0)
+        .await
+        .map_err(|e| TunnelError::ForwardRefused {
+            target: format!("{host}:{port}"),
+            reason: e.to_string(),
+        })?;
+    // The probe carried no data; failing to close it cleanly does not affect the tunnel.
+    let _ = channel.close().await;
+    Ok(())
 }
 
 fn rejected(rejection: &Rejection) -> Option<TunnelError> {

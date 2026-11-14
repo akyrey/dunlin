@@ -26,6 +26,7 @@ fn sqlite_draft(name: &str) -> ConnectionDraft {
         file_path: Some("/tmp/app.db".to_owned()),
         options: BTreeMap::from([("create_if_missing".to_owned(), "true".to_owned())]),
         tls: TlsSettings::default(),
+        ssh: None,
     }
 }
 
@@ -232,25 +233,171 @@ fn tls_settings_round_trip() {
 }
 
 #[test]
-fn the_password_flag_is_recorded_and_kept_across_edits() {
+fn saved_secret_kinds_are_recorded_and_kept_across_edits() {
     let (_dir, path) = temp_path();
     let store = Store::open(&path).unwrap();
     let profile = store.save_connection(sqlite_draft("x")).unwrap();
 
-    store.set_has_db_password(&profile.id, true).unwrap();
+    store
+        .set_secret_saved(&profile.id, SecretKind::SshPassword, true)
+        .unwrap();
+    store
+        .set_secret_saved(&profile.id, SecretKind::DbPassword, true)
+        .unwrap();
+    store
+        .set_secret_saved(&profile.id, SecretKind::DbPassword, true)
+        .unwrap();
     let edited = store
         .save_connection(ConnectionDraft {
             name: "renamed".into(),
             ..ConnectionDraft::from(profile.clone())
         })
         .unwrap();
+    store
+        .set_secret_saved(&profile.id, SecretKind::SshPassword, false)
+        .unwrap();
 
-    assert!(!profile.has_db_password);
-    assert!(edited.has_db_password);
+    assert!(profile.saved_secrets.is_empty());
+    assert_eq!(
+        edited.saved_secrets,
+        vec![SecretKind::DbPassword, SecretKind::SshPassword]
+    );
+    assert_eq!(
+        store.get_connection(&profile.id).unwrap().saved_secrets,
+        vec![SecretKind::DbPassword]
+    );
+    assert!(edited.has_secret(SecretKind::DbPassword));
     assert!(matches!(
-        store.set_has_db_password("missing", true),
+        store.set_secret_saved("missing", SecretKind::DbPassword, true),
         Err(StoreError::NotFound(_))
     ));
+}
+
+fn ssh_host(host: &str, auth: SshAuthMethod, key_file: Option<&str>) -> SshHostSettings {
+    SshHostSettings {
+        host: host.into(),
+        port: 22,
+        user: "deploy".into(),
+        auth,
+        key_file: key_file.map(str::to_owned),
+    }
+}
+
+#[test]
+fn ssh_settings_round_trip() {
+    let (_dir, path) = temp_path();
+    let store = Store::open(&path).unwrap();
+    let ssh = SshSettings {
+        server: ssh_host(
+            "bastion.internal",
+            SshAuthMethod::KeyFile,
+            Some("/home/me/.ssh/id_ed25519"),
+        ),
+        jump: Some(ssh_host("jump.example.com", SshAuthMethod::Agent, None)),
+    };
+
+    let profile = store
+        .save_connection(ConnectionDraft {
+            ssh: Some(ssh.clone()),
+            ..sqlite_draft("x")
+        })
+        .unwrap();
+
+    assert_eq!(profile.ssh, Some(ssh));
+}
+
+#[rstest::rstest]
+#[case::no_host(ssh_host(" ", SshAuthMethod::Agent, None))]
+#[case::no_user(SshHostSettings { user: String::new(), ..ssh_host("h", SshAuthMethod::Agent, None) })]
+#[case::no_port(SshHostSettings { port: 0, ..ssh_host("h", SshAuthMethod::Agent, None) })]
+#[case::key_without_file(ssh_host("h", SshAuthMethod::KeyFile, None))]
+fn invalid_ssh_settings_are_rejected(#[case] server: SshHostSettings) {
+    let (_dir, path) = temp_path();
+    let store = Store::open(&path).unwrap();
+    let draft = ConnectionDraft {
+        ssh: Some(SshSettings { server, jump: None }),
+        ..sqlite_draft("x")
+    };
+
+    assert!(matches!(
+        store.save_connection(draft),
+        Err(StoreError::Invalid(_))
+    ));
+}
+
+#[test]
+fn a_version_two_password_flag_becomes_a_saved_secret() {
+    let (_dir, path) = temp_path();
+    let old = rusqlite::Connection::open(&path).unwrap();
+    old.execute_batch(
+        "CREATE TABLE connections (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL,
+           driver TEXT NOT NULL, color TEXT, read_only INTEGER NOT NULL DEFAULT 0, host TEXT,
+           port INTEGER, database TEXT, username TEXT, file_path TEXT,
+           options TEXT NOT NULL DEFAULT '{}', created_at INTEGER NOT NULL,
+           updated_at INTEGER NOT NULL, tls_mode TEXT NOT NULL DEFAULT 'disable',
+           tls_ca_file TEXT, tls_cert_file TEXT, tls_key_file TEXT,
+           has_db_password INTEGER NOT NULL DEFAULT 0);
+         INSERT INTO connections (id, name, driver, file_path, created_at, updated_at, has_db_password)
+           VALUES ('11111111-1111-4111-8111-111111111111', 'old', 'postgres', NULL, 0, 0, 1);
+         PRAGMA user_version = 2;",
+    )
+    .unwrap();
+    drop(old);
+
+    let store = Store::open(&path).unwrap();
+
+    assert_eq!(
+        store.list_connections().unwrap()[0].saved_secrets,
+        vec![SecretKind::DbPassword]
+    );
+}
+
+fn known(host: &str, fingerprint: &str) -> KnownHost {
+    KnownHost {
+        host: host.into(),
+        port: 22,
+        algorithm: "ssh-ed25519".into(),
+        fingerprint: fingerprint.into(),
+    }
+}
+
+#[test]
+fn trusted_hosts_are_listed_and_removed() {
+    let (_dir, path) = temp_path();
+    let store = Store::open(&path).unwrap();
+
+    store
+        .trust_host(&known("Bastion.Example.com", "SHA256:a"))
+        .unwrap();
+    store
+        .trust_host(&known("bastion.example.com", "SHA256:a"))
+        .unwrap();
+    let listed = store.list_known_hosts().unwrap();
+    store
+        .remove_known_host("BASTION.example.com", 22, "ssh-ed25519")
+        .unwrap();
+
+    assert_eq!(listed, vec![known("bastion.example.com", "SHA256:a")]);
+    assert!(store.list_known_hosts().unwrap().is_empty());
+    assert!(matches!(
+        store.remove_known_host("x", 22, "ssh-ed25519"),
+        Err(StoreError::NotFound(_))
+    ));
+}
+
+#[test]
+fn a_different_key_is_never_silently_replaced() {
+    let (_dir, path) = temp_path();
+    let store = Store::open(&path).unwrap();
+    store.trust_host(&known("bastion", "SHA256:a")).unwrap();
+
+    let result = store.trust_host(&known("bastion", "SHA256:b"));
+
+    assert!(matches!(result, Err(StoreError::Invalid(_))));
+    assert_eq!(
+        store.list_known_hosts().unwrap(),
+        vec![known("bastion", "SHA256:a")]
+    );
 }
 
 #[test]
@@ -275,5 +422,5 @@ fn a_version_one_store_is_upgraded_in_place() {
     let profiles = store.list_connections().unwrap();
     assert_eq!(profiles.len(), 1);
     assert_eq!(profiles[0].tls, TlsSettings::default());
-    assert!(!profiles[0].has_db_password);
+    assert!(profiles[0].saved_secrets.is_empty());
 }

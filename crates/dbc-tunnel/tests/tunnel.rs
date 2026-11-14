@@ -178,3 +178,20 @@ async fn losing_the_ssh_server_is_detected_and_the_listener_closes() {
     assert!(TcpStream::connect(tunnel.local_addr()).await.is_err());
     tunnel.close().await.unwrap();
 }
+
+#[tokio::test]
+#[ignore = "needs Docker"]
+async fn a_target_the_server_cannot_reach_is_refused_when_opening() {
+    let keys = Keys::generate();
+    let server = SshServer::start(&keys, None).await;
+    let mut config = config(server.host(key_auth(&keys)));
+    let store = trusted_store(&config).await;
+    config.target_host = "no-such-host.invalid".into();
+
+    let result = Tunnel::open(&config, store).await.err();
+
+    assert!(
+        matches!(result, Some(TunnelError::ForwardRefused { .. })),
+        "{result:?}"
+    );
+}

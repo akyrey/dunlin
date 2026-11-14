@@ -7,6 +7,7 @@ use dbc_core::dialect::Dialect;
 use dbc_core::driver::{Capabilities, Connection, ConnectionConfig, Driver, DriverKind};
 use dbc_core::result::{ExecuteOptions, StatementOutcome};
 use dbc_core::{DbError, DbErrorCode};
+use dbc_tunnel::Tunnel;
 use tokio::sync::{Mutex, RwLock};
 
 use crate::error::AppError;
@@ -25,6 +26,8 @@ pub struct Session {
     tabs: Mutex<HashMap<String, Arc<dyn Connection>>>,
     /// Tabs with a statement in flight; only these can be cancelled.
     running: std::sync::Mutex<HashSet<String>>,
+    /// The SSH tunnel every connection of this session dials through, if any.
+    tunnel: std::sync::Mutex<Option<Tunnel>>,
 }
 
 /// Removes a tab from the running set when the statement finishes, however it finishes.
@@ -131,8 +134,31 @@ impl Session {
         self.tabs.lock().await.len()
     }
 
-    /// Closes every tab connection, then the metadata connection. Reports the first error.
+    /// The tunnel's loopback address, while the session has one.
+    pub fn tunnel_addr(&self) -> Option<std::net::SocketAddr> {
+        self.tunnel
+            .lock()
+            .ok()
+            .and_then(|tunnel| tunnel.as_ref().map(Tunnel::local_addr))
+    }
+
+    /// The SSH connection under this session has dropped (task 3.8).
+    pub fn tunnel_lost(&self) -> bool {
+        self.tunnel
+            .lock()
+            .is_ok_and(|tunnel| tunnel.as_ref().is_some_and(Tunnel::is_lost))
+    }
+
+    /// Closes every tab connection, the metadata connection, then the tunnel.
+    /// Reports the first error.
     async fn close(&self) -> Result<(), DbError> {
+        let result = self.close_connections().await;
+        let tunnel = self.tunnel.lock().ok().and_then(|mut slot| slot.take());
+        crate::connect::discard(tunnel).await;
+        result
+    }
+
+    async fn close_connections(&self) -> Result<(), DbError> {
         let tabs: Vec<_> = self.tabs.lock().await.drain().map(|(_, c)| c).collect();
         let mut first_error = None;
         for connection in tabs {
@@ -153,14 +179,22 @@ pub struct SessionManager {
 }
 
 impl SessionManager {
-    /// Connects the metadata connection and registers a new session.
+    /// Connects the metadata connection (through `tunnel`, if given) and registers a new
+    /// session. On failure the tunnel is closed.
     pub async fn open(
         &self,
         connection_id: &str,
         driver: Arc<dyn Driver>,
         config: ConnectionConfig,
+        tunnel: Option<Tunnel>,
     ) -> Result<Arc<Session>, DbError> {
-        let metadata = driver.connect(&config).await?;
+        let metadata = match driver.connect(&config).await {
+            Ok(metadata) => metadata,
+            Err(error) => {
+                crate::connect::discard(tunnel).await;
+                return Err(error);
+            }
+        };
         let info = driver.info();
         let session = Arc::new(Session {
             id: uuid::Uuid::new_v4().to_string(),
@@ -174,6 +208,7 @@ impl SessionManager {
             metadata,
             tabs: Mutex::new(HashMap::new()),
             running: std::sync::Mutex::new(HashSet::new()),
+            tunnel: std::sync::Mutex::new(tunnel),
         });
         self.sessions
             .write()

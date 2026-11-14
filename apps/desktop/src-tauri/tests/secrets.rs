@@ -133,6 +133,7 @@ impl Fixture {
     ) -> dbc_store::ConnectionProfile {
         let secrets = password.map(|p| ConnectionSecrets {
             db_password: Some(p.map(str::to_owned)),
+            ..Default::default()
         });
         commands::connection_save(
             &self.state,
@@ -175,6 +176,7 @@ fn draft() -> ConnectionDraft {
         file_path: None,
         options: BTreeMap::new(),
         tls: TlsSettings::default(),
+        ssh: None,
     }
 }
 
@@ -191,7 +193,7 @@ async fn a_saved_password_is_in_the_keychain_and_nowhere_in_the_store_file() {
     let profile = fixture.save(draft(), Some(Some(PASSWORD))).await;
 
     assert_eq!(fixture.stored(&profile.id).as_deref(), Some(PASSWORD));
-    assert!(profile.has_db_password);
+    assert!(profile.has_secret(SecretKind::DbPassword));
     assert!(
         !contains(&fixture.store_bytes(), PASSWORD),
         "password found in the store file"
@@ -237,9 +239,9 @@ async fn omitting_secrets_keeps_the_stored_password_and_null_deletes_it() {
         .save(ConnectionDraft::from(renamed.clone()), Some(None))
         .await;
 
-    assert!(renamed.has_db_password);
+    assert!(renamed.has_secret(SecretKind::DbPassword));
     assert_eq!(kept.as_deref(), Some(PASSWORD));
-    assert!(!cleared.has_db_password);
+    assert!(!cleared.has_secret(SecretKind::DbPassword));
     assert_eq!(fixture.stored(&created.id), None);
 }
 
@@ -269,6 +271,7 @@ async fn testing_uses_the_given_password_or_else_the_stored_one() {
     let saved = fixture.save(draft(), Some(Some(PASSWORD))).await;
     let typed = ConnectionSecrets {
         db_password: Some(Some("typed".into())),
+        ..Default::default()
     };
 
     commands::connection_test(

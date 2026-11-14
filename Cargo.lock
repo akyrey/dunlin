@@ -1058,6 +1058,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dbc-core",
+ "dbc-tunnel",
  "mysql_async",
  "rcgen",
  "rstest",
@@ -1074,6 +1075,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dbc-core",
+ "dbc-tunnel",
  "futures-util",
  "rcgen",
  "rstest",
@@ -1121,6 +1123,7 @@ dependencies = [
 name = "dbc-tunnel"
 version = "0.1.0"
 dependencies = [
+ "dbc-tunnel",
  "rstest",
  "russh",
  "secrecy",
@@ -1410,6 +1413,7 @@ dependencies = [
  "dbc-driver-postgres",
  "dbc-driver-sqlite",
  "dbc-store",
+ "dbc-tunnel",
  "rusqlite",
  "secrecy",
  "serde",
@@ -1418,6 +1422,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-dialog",
  "tempfile",
+ "testcontainers-modules",
  "thiserror 2.0.21",
  "tokio",
  "ts-rs",

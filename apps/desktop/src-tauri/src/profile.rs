@@ -11,6 +11,12 @@ use crate::error::AppError;
 
 pub fn validate(draft: &ConnectionDraft, info: &DriverInfo) -> Result<(), AppError> {
     endpoint(draft, info).map(|_| ())?;
+    if draft.ssh.is_some() && !info.capabilities.tunnel {
+        return Err(AppError::invalid(format!(
+            "{} connections cannot use an SSH tunnel",
+            info.label
+        )));
+    }
     let mode = draft.tls.mode;
     if mode != TlsMode::Disable && !info.tls_modes.contains(&mode) {
         return Err(AppError::invalid(format!(
@@ -115,7 +121,30 @@ mod tests {
             file_path: file_path.map(str::to_owned),
             options: BTreeMap::new(),
             tls: TlsSettings::default(),
+            ssh: None,
         }
+    }
+
+    #[test]
+    fn file_databases_cannot_use_a_tunnel() {
+        let ssh = dbc_store::SshSettings {
+            server: dbc_store::SshHostSettings {
+                host: "bastion".into(),
+                port: 22,
+                user: "me".into(),
+                auth: dbc_store::SshAuthMethod::Agent,
+                key_file: None,
+            },
+            jump: None,
+        };
+        let draft = ConnectionDraft {
+            ssh: Some(ssh),
+            ..draft(Some("/a.db"))
+        };
+
+        let error = validate(&draft, &SqliteDriver.info()).err().unwrap();
+
+        assert_eq!(error.code, "invalid_argument");
     }
 
     #[test]

@@ -46,7 +46,10 @@ enum Flavour {
 }
 
 struct MysqlHarness {
+    /// Where the test administers the server.
     port: u16,
+    /// Where the driver under test dials: the server itself, or an SSH tunnel to it.
+    dial: std::net::SocketAddr,
     flavour: Flavour,
     counter: AtomicUsize,
 }
@@ -60,8 +63,8 @@ impl MysqlHarness {
     fn config(&self, database: &str, read_only: bool) -> ConnectionConfig {
         ConnectionConfig {
             endpoint: Endpoint::Tcp {
-                dial_host: "127.0.0.1".into(),
-                dial_port: self.port,
+                dial_host: self.dial.ip().to_string(),
+                dial_port: self.dial.port(),
                 server_name: "localhost".into(),
             },
             database: Some(database.into()),
@@ -213,10 +216,16 @@ impl Harness for MysqlHarness {
     }
 }
 
-async fn run<I: Image>(container: &ContainerAsync<I>, flavour: Flavour) {
+async fn run<I: Image>(
+    container: &ContainerAsync<I>,
+    flavour: Flavour,
+    dial: Option<std::net::SocketAddr>,
+) {
     let port = container.get_host_port_ipv4(3306).await.unwrap();
+    let dial = dial.unwrap_or_else(|| std::net::SocketAddr::from(([127, 0, 0, 1], port)));
     let harness = MysqlHarness {
         port,
+        dial,
         flavour,
         counter: AtomicUsize::new(0),
     };
@@ -227,12 +236,44 @@ async fn run<I: Image>(container: &ContainerAsync<I>, flavour: Flavour) {
 #[ignore = "needs Docker"]
 async fn conformance_suite_mysql() {
     let container = Mysql::default().with_tag("8.4").start().await.unwrap();
-    run(&container, Flavour::Mysql).await;
+    run(&container, Flavour::Mysql, None).await;
 }
 
 #[tokio::test]
 #[ignore = "needs Docker"]
 async fn conformance_suite_mariadb() {
     let container = Mariadb::default().with_tag("11.4").start().await.unwrap();
-    run(&container, Flavour::Mariadb).await;
+    run(&container, Flavour::Mariadb, None).await;
+}
+
+/// Phase 3 acceptance: MySQL reached only through an SSH tunnel (including `KILL QUERY`,
+/// whose side connection also goes through the tunnel).
+#[tokio::test]
+#[ignore = "needs Docker"]
+async fn conformance_suite_mysql_through_a_tunnel() {
+    use dbc_tunnel::test_support::{
+        Keys, SshServer, config as tunnel_config, key_auth, trusted_store,
+    };
+
+    let id = std::process::id();
+    let network = format!("dunlin-mysql-tunnel-{id}");
+    let database_name = format!("dunlin-mysql-{id}");
+    let keys = Keys::generate();
+    let container = Mysql::default()
+        .with_tag("8.4")
+        .with_network(network.clone())
+        .with_container_name(database_name.clone())
+        .start()
+        .await
+        .unwrap();
+    let ssh = SshServer::start(&keys, Some((&network, &format!("dunlin-mysql-ssh-{id}")))).await;
+    let mut config = tunnel_config(ssh.host(key_auth(&keys)));
+    config.target_host = database_name;
+    config.target_port = 3306;
+    let tunnel = dbc_tunnel::Tunnel::open(&config, trusted_store(&config).await)
+        .await
+        .unwrap();
+
+    run(&container, Flavour::Mysql, Some(tunnel.local_addr())).await;
+    tunnel.close().await.unwrap();
 }

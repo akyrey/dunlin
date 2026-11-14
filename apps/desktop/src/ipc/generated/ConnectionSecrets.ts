@@ -4,4 +4,4 @@
  * Secrets only ever travel from the frontend to the backend (docs/IPC.md#secrets-over-ipc).
  * For each field: absent keeps the stored secret, `null` deletes it, a string replaces it.
  */
-export type ConnectionSecrets = { dbPassword?: string | null, };
+export type ConnectionSecrets = { dbPassword?: string | null, sshPassword?: string | null, sshKeyPassphrase?: string | null, jumpPassword?: string | null, jumpKeyPassphrase?: string | null, };

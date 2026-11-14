@@ -11,61 +11,8 @@ use dbc_core::Value;
 use dbc_core::driver::{ConnectionConfig, Driver, Endpoint, TlsConfig, TlsMode};
 use dbc_core::result::{ExecuteOptions, StatementOutcome};
 use dbc_driver_postgres::PostgresDriver;
-use rcgen::{BasicConstraints, CertificateParams, IsCa, Issuer, KeyPair};
-use testcontainers_modules::postgres::Postgres;
-use testcontainers_modules::testcontainers::CopyTargetOptions;
-use testcontainers_modules::testcontainers::ImageExt;
-use testcontainers_modules::testcontainers::runners::AsyncRunner;
 
 use common::Server;
-
-struct Pki {
-    ca_pem: String,
-    cert_pem: String,
-    key_pem: String,
-}
-
-fn pki() -> Pki {
-    let ca_key = KeyPair::generate().unwrap();
-    let mut ca_params = CertificateParams::new(Vec::<String>::new()).unwrap();
-    ca_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
-    let ca = ca_params.self_signed(&ca_key).unwrap();
-    let issuer = Issuer::new(ca_params, ca_key);
-    let server_key = KeyPair::generate().unwrap();
-    let server = CertificateParams::new(vec!["localhost".to_owned()])
-        .unwrap()
-        .signed_by(&server_key, &issuer)
-        .unwrap();
-    Pki {
-        ca_pem: ca.pem(),
-        cert_pem: server.pem(),
-        key_pem: server_key.serialize_pem(),
-    }
-}
-
-async fn tls_server(pki: &Pki) -> Server {
-    // The copied directory is root-only and the key must belong to `postgres`. The entrypoint
-    // runs a non-`postgres` command as root, so install the files, then start normally.
-    const START: &str = "install -o postgres -m 644 /tls/server.crt /tmp/server.crt \\
-        && install -o postgres -m 600 /tls/server.key /tmp/server.key \\
-        && exec docker-entrypoint.sh postgres -c ssl=on \\
-           -c ssl_cert_file=/tmp/server.crt -c ssl_key_file=/tmp/server.key";
-    let container = Postgres::default()
-        .with_tag(common::TAG)
-        .with_copy_to(
-            CopyTargetOptions::new("/tls/server.crt"),
-            pki.cert_pem.clone().into_bytes(),
-        )
-        .with_copy_to(
-            CopyTargetOptions::new("/tls/server.key"),
-            pki.key_pem.clone().into_bytes(),
-        )
-        .with_cmd(["sh", "-c", START])
-        .start()
-        .await
-        .unwrap();
-    Server::from(container).await
-}
 
 fn config(
     server: &Server,
@@ -105,8 +52,8 @@ async fn uses_tls(config: &ConnectionConfig) -> Result<bool, DbErrorCode> {
 #[tokio::test]
 #[ignore = "needs Docker"]
 async fn tls_modes_verify_as_documented() {
-    let pki = pki();
-    let server = tls_server(&pki).await;
+    let pki = common::pki();
+    let server = common::tls_server(&pki, None).await;
     let dir = tempfile::tempdir().unwrap();
     let ca = dir.path().join("ca.pem");
     std::fs::write(&ca, &pki.ca_pem).unwrap();
