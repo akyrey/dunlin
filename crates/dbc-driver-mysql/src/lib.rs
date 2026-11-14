@@ -1,5 +1,6 @@
 //! MySQL and MariaDB driver.
 
+mod completion;
 mod connection;
 mod decode;
 mod errors;

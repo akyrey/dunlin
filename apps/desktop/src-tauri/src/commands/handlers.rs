@@ -1,7 +1,7 @@
 //! Tauri command wrappers. Each one only forwards to the implementation in `commands`.
 
 use dbc_core::driver::DriverInfo;
-use dbc_core::schema::{Namespace, ObjectSummary, TableInfo};
+use dbc_core::schema::{CompletionSchema, Namespace, ObjectSummary, TableInfo};
 use dbc_store::ConnectionProfile;
 use tauri::State;
 
@@ -106,6 +106,14 @@ pub async fn schema_objects(
     args: SchemaObjectsArgs,
 ) -> Result<Vec<ObjectSummary>, AppError> {
     commands::schema_objects(&state, args).await
+}
+
+#[tauri::command]
+pub async fn schema_completion(
+    state: State<'_, AppState>,
+    args: SchemaObjectsArgs,
+) -> Result<CompletionSchema, AppError> {
+    commands::schema_completion(&state, args).await
 }
 
 #[tauri::command]

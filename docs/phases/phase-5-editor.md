@@ -24,8 +24,8 @@ Saved queries (Phase 8), formatting SQL, snippets, parameterised queries with pr
 
 ## Tasks
 
-- [ ] 5.1 `completion_schema` in all three drivers: one query per namespace returning table and column names. Conformance test.
-- [ ] 5.2 `schema_completion` command with caching shared with the Phase 4 metadata cache.
+- [x] 5.1 `completion_schema` in all three drivers: one query per namespace returning table and column names. Conformance test.
+- [x] 5.2 `schema_completion` command with caching shared with the Phase 4 metadata cache.
 - [ ] 5.3 Editor language setup: map `DriverKind` to a CodeMirror SQL dialect through a registry in `features/editor/dialects.ts` (the one place the frontend maps driver to dialect); light and dark themes.
 - [ ] 5.4 Autocomplete: feed the schema to `lang-sql`, set the default schema, reconfigure through a compartment when the cache refreshes. Completes keywords, schemas, tables and `table.column`.
 - [ ] 5.5 Statement under cursor: call `sql_split` (debounced, cached per document version), highlight the active statement subtly, resolve the run target as selection, else statement at cursor, else nothing.

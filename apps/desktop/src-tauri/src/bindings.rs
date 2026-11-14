@@ -8,7 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use dbc_core::driver::DriverInfo;
-use dbc_core::schema::{Namespace, ObjectSummary, TableInfo};
+use dbc_core::schema::{CompletionSchema, Namespace, ObjectSummary, TableInfo};
 use dbc_store::{ConnectionProfile, KnownHost};
 use ts_rs::{Config, TS};
 
@@ -52,6 +52,7 @@ fn export_all(dir: &Path) {
     Namespace::export_all(&config).unwrap();
     ObjectSummary::export_all(&config).unwrap();
     TableInfo::export_all(&config).unwrap();
+    CompletionSchema::export_all(&config).unwrap();
     TableSnippets::export_all(&config).unwrap();
     write_index(dir);
 }

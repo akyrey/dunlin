@@ -5,6 +5,8 @@ export type * from "./Capabilities";
 export type * from "./Check";
 export type * from "./Column";
 export type * from "./ColumnMeta";
+export type * from "./CompletionSchema";
+export type * from "./CompletionTable";
 export type * from "./ConnectionDraft";
 export type * from "./ConnectionIdArgs";
 export type * from "./ConnectionProfile";

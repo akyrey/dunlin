@@ -46,6 +46,7 @@ pub fn run() -> Result<(), tauri::Error> {
             handlers::tab_close,
             handlers::schema_namespaces,
             handlers::schema_objects,
+            handlers::schema_completion,
             handlers::schema_table,
             handlers::schema_table_ddl,
             handlers::schema_refresh,

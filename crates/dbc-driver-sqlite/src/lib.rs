@@ -1,5 +1,6 @@
 //! SQLite driver. Each connection lives on its own worker thread (`rusqlite` is not `Sync`).
 
+mod completion;
 mod ddl;
 mod decode;
 mod errors;

@@ -2,7 +2,7 @@
 //! and its cache; `schema_refresh` clears it.
 
 use dbc_core::DbError;
-use dbc_core::schema::{Namespace, ObjectSummary, TableInfo};
+use dbc_core::schema::{CompletionSchema, Namespace, ObjectSummary, TableInfo};
 
 use crate::error::AppError;
 use crate::ipc::{SchemaObjectsArgs, SchemaTableArgs, SessionIdArgs, TableSnippets};
@@ -24,6 +24,16 @@ pub async fn schema_objects(
 ) -> Result<Vec<ObjectSummary>, AppError> {
     let session = state.sessions.get(&args.session_id).await?;
     let result = session.schema_objects(&args.namespace).await;
+    finish(state, &session, result).await
+}
+
+/// Table and column names of one namespace, for editor autocomplete (task 5.2).
+pub async fn schema_completion(
+    state: &AppState,
+    args: SchemaObjectsArgs,
+) -> Result<CompletionSchema, AppError> {
+    let session = state.sessions.get(&args.session_id).await?;
+    let result = session.schema_completion(&args.namespace).await;
     finish(state, &session, result).await
 }
 

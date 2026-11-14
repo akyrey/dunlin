@@ -8,7 +8,9 @@ use std::time::Duration;
 use async_trait::async_trait;
 use dbc_core::driver::{CancelHandle, Connection, ConnectionConfig, Endpoint};
 use dbc_core::result::{ColumnMeta, ExecuteOptions, ResultSet, StatementOutcome};
-use dbc_core::schema::{Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef};
+use dbc_core::schema::{
+    CompletionSchema, Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef,
+};
 use dbc_core::{DbError, DbErrorCode, Value};
 use rusqlite::{InterruptHandle, OpenFlags};
 use tokio::sync::oneshot;
@@ -244,6 +246,15 @@ impl Connection for SqliteConnection {
     async fn describe_table(&self, table: &TableRef) -> Result<TableInfo, DbError> {
         let table = table.clone();
         self.call(move |c| introspect::describe_table(c, &table))
+            .await
+    }
+
+    async fn completion_schema(
+        &self,
+        namespace: &NamespaceRef,
+    ) -> Result<CompletionSchema, DbError> {
+        let namespace = namespace.clone();
+        self.call(move |c| crate::completion::completion_schema(c, &namespace))
             .await
     }
 

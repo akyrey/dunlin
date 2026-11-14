@@ -7,7 +7,9 @@ use std::time::Duration;
 use async_trait::async_trait;
 use dbc_core::driver::{CancelHandle, Connection, ConnectionConfig, Endpoint, TlsConfig, TlsMode};
 use dbc_core::result::{ExecuteOptions, ResultSet, StatementOutcome};
-use dbc_core::schema::{Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef};
+use dbc_core::schema::{
+    CompletionSchema, Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef,
+};
 use dbc_core::{DbError, DbErrorCode, Value, sql};
 use mysql_async::prelude::Queryable;
 use mysql_async::{ClientIdentity, Conn, DriverError, Error, Opts, OptsBuilder, SslOpts};
@@ -280,6 +282,14 @@ impl Connection for MysqlConnection {
         let conn = guard.as_mut().ok_or_else(closed)?;
         let flavour = self.flavour(conn).await?;
         introspect::describe_table(conn, flavour, table).await
+    }
+
+    async fn completion_schema(
+        &self,
+        namespace: &NamespaceRef,
+    ) -> Result<CompletionSchema, DbError> {
+        let mut guard = self.conn.lock().await;
+        crate::completion::completion_schema(guard.as_mut().ok_or_else(closed)?, namespace).await
     }
 
     async fn table_ddl(&self, table: &TableRef) -> Result<String, DbError> {

@@ -180,6 +180,25 @@ FROM "main"."Mixed Case ""Quoted""";"#
 }
 
 #[tokio::test]
+async fn completion_is_cached_and_follows_ddl() {
+    let fixture = Fixture::new();
+    let session = fixture.session(false).await;
+    let completion = || commands::schema_completion(&fixture.state, objects_args(&session));
+
+    let before = completion().await.unwrap();
+    fixture
+        .run(&session, "CREATE TABLE users (id INTEGER, email TEXT)")
+        .await
+        .unwrap();
+    let after = completion().await.unwrap();
+
+    let users = after.tables.iter().find(|t| t.name == "users").unwrap();
+    assert!(before.tables.iter().all(|t| t.name != "users"));
+    assert_eq!(users.columns, vec!["id".to_owned(), "email".to_owned()]);
+    assert_eq!(users.schema.as_deref(), Some("main"));
+}
+
+#[tokio::test]
 async fn missing_tables_and_sessions_are_not_found() {
     let fixture = Fixture::new();
     let session = fixture.session(false).await;

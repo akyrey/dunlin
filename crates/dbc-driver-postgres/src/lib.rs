@@ -1,5 +1,6 @@
 //! PostgreSQL driver.
 
+mod completion;
 mod connection;
 mod ddl;
 mod decode;

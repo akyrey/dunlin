@@ -341,6 +341,7 @@ pub async fn introspection_group(harness: &dyn Harness) -> Result<(), Failure> {
             format!("{}: DDL does not name the table: {ddl}", expected.name),
         )?;
     }
+    check_completion(connection.as_ref(), &namespace).await?;
     check_missing(connection.as_ref(), &namespace).await?;
     connection
         .close()
@@ -410,6 +411,56 @@ async fn check_objects(
         "list_objects comment",
         format!("expected {wanted:?}, got {comment:?}"),
     )
+}
+
+/// One row per object, with the columns `describe_table` reports, in the same order.
+async fn check_completion(
+    connection: &dyn Connection,
+    namespace: &NamespaceRef,
+) -> Result<(), Failure> {
+    let completion = connection
+        .completion_schema(namespace)
+        .await
+        .map_err(|e| fail("completion_schema", e.to_string()))?;
+    let objects = connection
+        .list_objects(namespace)
+        .await
+        .map_err(|e| fail("list_objects", e.to_string()))?;
+    let names: BTreeSet<&str> = completion.tables.iter().map(|t| t.name.as_str()).collect();
+    let wanted: BTreeSet<&str> = objects.iter().map(|o| o.name.as_str()).collect();
+    ensure(
+        names == wanted && names.len() == completion.tables.len(),
+        "completion_schema",
+        format!("expected one entry per object {wanted:?}, got {names:?}"),
+    )?;
+    for table in &completion.tables {
+        ensure(
+            table.schema == namespace.schema,
+            "completion_schema",
+            format!("{}: schema {:?}", table.name, table.schema),
+        )?;
+        let info = connection
+            .describe_table(&TableRef {
+                namespace: namespace.clone(),
+                name: table.name.clone(),
+            })
+            .await
+            .map_err(|e| fail("describe_table", e.to_string()))?;
+        let described: Vec<&str> = info.columns.iter().map(|c| c.name.as_str()).collect();
+        ensure(
+            names_of(&table.columns) == described,
+            "completion columns",
+            format!(
+                "{}: expected {described:?}, got {:?}",
+                table.name, table.columns
+            ),
+        )?;
+    }
+    Ok(())
+}
+
+fn names_of(columns: &[String]) -> Vec<&str> {
+    columns.iter().map(String::as_str).collect()
 }
 
 async fn check_missing(

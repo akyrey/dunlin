@@ -7,7 +7,9 @@ use std::time::Duration;
 use async_trait::async_trait;
 use dbc_core::driver::{CancelHandle, Connection, ConnectionConfig, Endpoint, TlsMode};
 use dbc_core::result::{ColumnMeta, ExecuteOptions, ResultSet, StatementOutcome};
-use dbc_core::schema::{Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef};
+use dbc_core::schema::{
+    CompletionSchema, Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef,
+};
 use dbc_core::{DbError, DbErrorCode, Value};
 use futures_util::{StreamExt, pin_mut};
 use rustls::ClientConfig;
@@ -320,6 +322,13 @@ impl Connection for PostgresConnection {
 
     async fn describe_table(&self, table: &TableRef) -> Result<TableInfo, DbError> {
         crate::introspect::describe_table(&*self.client()?, table).await
+    }
+
+    async fn completion_schema(
+        &self,
+        namespace: &NamespaceRef,
+    ) -> Result<CompletionSchema, DbError> {
+        crate::completion::completion_schema(&*self.client()?, namespace).await
     }
 
     async fn table_ddl(&self, table: &TableRef) -> Result<String, DbError> {

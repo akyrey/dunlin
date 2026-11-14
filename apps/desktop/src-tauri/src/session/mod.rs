@@ -8,7 +8,9 @@ use std::sync::Arc;
 use dbc_core::dialect::Dialect;
 use dbc_core::driver::{Capabilities, Connection, ConnectionConfig, Driver, DriverKind};
 use dbc_core::result::{ExecuteOptions, StatementOutcome};
-use dbc_core::schema::{Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef};
+use dbc_core::schema::{
+    CompletionSchema, Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef,
+};
 use dbc_core::{DbError, DbErrorCode};
 use dbc_tunnel::Tunnel;
 use tokio::sync::{Mutex, RwLock};
@@ -197,6 +199,18 @@ impl Session {
         let result = self
             .schema
             .table(table, connection.describe_table(table))
+            .await;
+        self.check_metadata(&connection, result).await
+    }
+
+    pub async fn schema_completion(
+        &self,
+        namespace: &NamespaceRef,
+    ) -> Result<CompletionSchema, DbError> {
+        let connection = self.metadata().await?;
+        let result = self
+            .schema
+            .completion(namespace, connection.completion_schema(namespace))
             .await;
         self.check_metadata(&connection, result).await
     }

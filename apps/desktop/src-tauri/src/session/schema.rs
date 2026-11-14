@@ -6,7 +6,9 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use dbc_core::DbError;
-use dbc_core::schema::{Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef};
+use dbc_core::schema::{
+    CompletionSchema, Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef,
+};
 
 #[derive(Default)]
 struct Entries {
@@ -16,6 +18,7 @@ struct Entries {
     objects: HashMap<NamespaceRef, Vec<ObjectSummary>>,
     tables: HashMap<TableRef, TableInfo>,
     ddl: HashMap<TableRef, String>,
+    completion: HashMap<NamespaceRef, CompletionSchema>,
 }
 
 #[derive(Default)]
@@ -94,6 +97,18 @@ impl SchemaCache {
         let get = |e: &Entries| e.tables.get(table).cloned();
         let put = |e: &mut Entries, v| {
             e.tables.insert(table.clone(), v);
+        };
+        self.cached(get, put, load).await
+    }
+
+    pub async fn completion(
+        &self,
+        namespace: &NamespaceRef,
+        load: impl Future<Output = Result<CompletionSchema, DbError>>,
+    ) -> Result<CompletionSchema, DbError> {
+        let get = |e: &Entries| e.completion.get(namespace).cloned();
+        let put = |e: &mut Entries, v| {
+            e.completion.insert(namespace.clone(), v);
         };
         self.cached(get, put, load).await
     }
