@@ -3,7 +3,7 @@
 A desktop database client written in Rust, in the spirit of DBeaver but much smaller.
 Product name: **Dunlin**. Crate prefix `dbc-` (see DECISIONS D-012, D-014).
 
-**Status:** documentation complete, implementation not started. See [docs/ROADMAP.md](docs/ROADMAP.md).
+**Status:** Phase 1 (skeleton) implemented; awaiting CI on GitHub and the manual smoke test. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## What it does (v1)
 
@@ -59,4 +59,6 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 pnpm --dir apps/desktop test                                # frontend unit tests
 pnpm --dir apps/desktop lint
+pnpm --dir apps/desktop e2e                                 # Playwright against the mocked backend
+pnpm --dir apps/desktop gen:types                           # regenerate TypeScript IPC types
 ```

@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: Rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tauri system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy, llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov,cargo-audit
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Tests (includes the generated TypeScript staleness check)
+        run: cargo test --workspace
+      - name: Integration tests (Docker)
+        run: cargo test --workspace -- --ignored
+      - name: Coverage per crate (80% lines)
+        run: |
+          for crate in dbc-core dbc-driver-sqlite dbc-store; do
+            # The conformance suite is test-support code, exercised by the driver crates.
+            cargo llvm-cov --package "$crate" --all-features --fail-under-lines 80 --summary-only \
+              --ignore-filename-regex 'conformance\.rs$'
+          done
+      - name: Generated TypeScript is committed
+        run: |
+          DUNLIN_UPDATE_BINDINGS=1 cargo test -p dunlin --lib bindings
+          git diff --exit-code -- apps/desktop/src/ipc/generated
+      - name: Audit
+        run: cargo audit
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test:coverage
+      - run: pnpm audit --prod
+      - name: Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+      - name: E2E
+        run: pnpm e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/desktop/playwright-report
+          retention-days: 7

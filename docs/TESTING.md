@@ -41,7 +41,8 @@ Adding a driver means implementing the traits and passing this suite.
 
 - Rust: `cargo llvm-cov --workspace --ignored` (includes integration tests) with a threshold of 80.
 - Frontend: Vitest coverage (v8) with a threshold of 80.
-- Generated code and `main.rs` wiring are excluded.
+- Generated code and `main.rs` wiring are excluded. So is `dbc-core`'s conformance suite when measuring `dbc-core` alone: it is test-support code that runs from the driver crates' tests.
+- CI gates `dbc-core`, `dbc-driver-sqlite` and `dbc-store` individually (`cargo llvm-cov --package <crate> --fail-under-lines 80`); more crates join as their phases add them.
 
 ## CI (GitHub Actions)
 

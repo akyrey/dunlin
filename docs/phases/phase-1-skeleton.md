@@ -24,7 +24,7 @@ Highlighting configuration and autocomplete (Phase 5), schema tree (Phase 4), an
 ## Tasks
 
 - [x] 1.1 `git init`, `.gitignore`, `rust-toolchain.toml`, workspace `Cargo.toml` with shared lints (`unsafe_code = "forbid"`, clippy `unwrap_used`/`expect_used` denied outside tests), `rustfmt.toml`.
-- [ ] 1.2 Scaffold `apps/desktop` with Tauri 2, React, TypeScript, Vite, Tailwind, ESLint, Prettier, Vitest. Check the current `create-tauri-app` docs first.
+- [x] 1.2 Scaffold `apps/desktop` with Tauri 2, React, TypeScript, Vite, Tailwind, ESLint, Prettier, Vitest. Check the current `create-tauri-app` docs first.
 - [x] 1.3 `dbc-core::value`: `Value`, custom `Serialize`/`Deserialize` for the wire format, truncation of large values. Tests: every variant round-trips; `i64::MAX`, `u64::MAX`, `NaN`, infinities, empty string versus null, invalid UTF-8 bytes.
 - [x] 1.4 `dbc-core::error`, `schema`, `driver`, `dialect`: types and traits as in DRIVER_API.md. Decide `async-trait` versus native async traits and record it in DECISIONS.md.
 - [x] 1.5 `dbc-core::sql::split`. Tests: strings with `;`, escaped quotes, quoted identifiers, backticks, line and block comments, nested block comments (PostgreSQL), dollar quoting with and without tags, trailing statement without `;`, empty statements, property test that ranges never overlap and cover all non-whitespace text.
@@ -34,11 +34,11 @@ Highlighting configuration and autocomplete (Phase 5), schema tree (Phase 4), an
 - [x] 1.9 `dbc-store`: open or create the store file, migration runner, `connections` CRUD. Tests against a temp file, including upgrade from an empty file and reopening an existing one.
 - [x] 1.10 `src-tauri`: driver registry, `SessionManager`, `AppError` mapping, commands `driver_list`, `connection_*`, `session_open`, `session_close`, `sql_split`, `query_execute`, `tab_close`. Command tests with a temp store and temp SQLite file.
 - [x] 1.11 Type generation with `ts-rs` into `src/ipc/generated/`, plus a check that fails when output is stale. Confirm the `Value` type generates correctly (DECISIONS D-010).
-- [ ] 1.12 Frontend `src/ipc/` wrappers and value formatting helpers (`formatValue`, null rendering). Unit tests.
-- [ ] 1.13 Frontend: layout shell, connection list, SQLite connection form with file picker and "Test connection".
-- [ ] 1.14 Frontend: editor tab (CodeMirror, basic setup), run with a button and `Cmd/Ctrl+Enter`, result grid (TanStack Table + Virtual, read-only), affected-rows message, error panel with position, truncated indicator.
-- [ ] 1.15 Playwright setup with mocked IPC and one E2E test: add connection, open, run query, see rows.
-- [ ] 1.16 GitHub Actions workflow with the steps in TESTING.md that apply so far.
+- [x] 1.12 Frontend `src/ipc/` wrappers and value formatting helpers (`formatValue`, null rendering). Unit tests.
+- [x] 1.13 Frontend: layout shell, connection list, SQLite connection form with file picker and "Test connection".
+- [x] 1.14 Frontend: editor tab (CodeMirror, basic setup), run with a button and `Cmd/Ctrl+Enter`, result grid (TanStack Table + Virtual, read-only), affected-rows message, error panel with position, truncated indicator.
+- [x] 1.15 Playwright setup with mocked IPC and one E2E test: add connection, open, run query, see rows.
+- [x] 1.16 GitHub Actions workflow with the steps in TESTING.md that apply so far.
 
 ## Acceptance criteria
 
