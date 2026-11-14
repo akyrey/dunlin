@@ -9,7 +9,7 @@ import { loadTabs } from "../editor/persistence";
 import { TableData } from "../data/TableData";
 import { useEdits } from "../edit/editStore";
 import { TableDetails } from "../schema/TableDetails";
-import { matchShortcut } from "./shortcuts";
+import { matchShortcut } from "../shortcuts/registry";
 import { TabStrip } from "./TabStrip";
 import { type View, useWorkspace, workspaceOf } from "./workspaceStore";
 
@@ -58,7 +58,14 @@ export function Workspace({ session, profile }: Props) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const shortcut = matchShortcut(event);
-      if (!shortcut) return;
+      // The palette, settings and the shortcut list are the app's (App.tsx).
+      if (
+        !shortcut ||
+        shortcut === "palette" ||
+        shortcut === "settings" ||
+        shortcut === "shortcuts"
+      )
+        return;
       event.preventDefault();
       const { views, active: current } = workspaceOf(useWorkspace.getState(), sessionId);
       const view = views.find((v) => v.key === current);

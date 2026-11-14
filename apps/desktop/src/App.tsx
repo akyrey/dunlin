@@ -16,7 +16,10 @@ import { useSavedQueries } from "./features/saved/savedQueriesStore";
 import { SchemaTree } from "./features/schema/SchemaTree";
 import { useSessions } from "./features/sessions/sessionsStore";
 import { HostKeyDialog } from "./features/ssh/HostKeyDialog";
+import { AppCommands } from "./features/palette/AppCommands";
 import { SettingsView } from "./features/settings/SettingsView";
+import { ShortcutsView } from "./features/shortcuts/ShortcutsView";
+import { matchShortcut } from "./features/shortcuts/registry";
 import { useSettings } from "./features/settings/settingsStore";
 import { useApplyTheme } from "./features/settings/theme";
 import { TrustedHosts } from "./features/ssh/TrustedHosts";
@@ -52,6 +55,7 @@ export function App() {
   const [hostKeyPrompt, setHostKeyPrompt] = useState<HostKeyPrompt | null>(null);
   const [showTrustedHosts, setShowTrustedHosts] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [overlay, setOverlay] = useState<"palette" | "shortcuts" | null>(null);
   useApplyTheme();
   const [editing, setEditing] = useState<ConnectionDraft | null>(null);
   const [deleting, setDeleting] = useState<ConnectionProfile | null>(null);
@@ -100,6 +104,22 @@ export function App() {
       ),
     [],
   );
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const shortcut = matchShortcut(event);
+      if (shortcut !== "palette" && shortcut !== "settings" && shortcut !== "shortcuts") return;
+      event.preventDefault();
+      if (shortcut === "settings") {
+        setOverlay(null);
+        setShowSettings(true);
+      } else setOverlay((current) => (current === shortcut ? null : shortcut));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
 
   const openConnection = async (profile: ConnectionProfile) => {
     setActionError(null);
@@ -224,6 +244,34 @@ export function App() {
           onTrust={() => void trustAndOpen(hostKeyPrompt)}
           onCancel={() => {
             setHostKeyPrompt(null);
+          }}
+        />
+      )}
+      {overlay === "palette" && (
+        <AppCommands
+          profiles={profiles}
+          onClose={() => {
+            setOverlay(null);
+          }}
+          onNewConnection={() => {
+            if (firstDriver) setEditing(emptyDraft(firstDriver));
+          }}
+          onOpenConnection={(profile) => void openConnection(profile)}
+          onSettings={() => {
+            setShowSettings(true);
+          }}
+          onShortcuts={() => {
+            setOverlay("shortcuts");
+          }}
+          onError={(message) => {
+            setActionError({ code: "internal", message });
+          }}
+        />
+      )}
+      {overlay === "shortcuts" && (
+        <ShortcutsView
+          onClose={() => {
+            setOverlay(null);
           }}
         />
       )}

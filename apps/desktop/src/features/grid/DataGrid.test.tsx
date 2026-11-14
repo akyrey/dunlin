@@ -66,14 +66,14 @@ describe("DataGrid", () => {
     expect(cell(2, 0)).toHaveAttribute("aria-selected", "false");
 
     grid.focus();
-    fireEvent.keyDown(grid, { key: "c", metaKey: true, ctrlKey: true });
+    fireEvent.keyDown(grid, { key: "c", ctrlKey: true });
     expect(copyText).toHaveBeenCalledWith("1\t<img src=x onerror=alert(1)>\n2\t");
 
     fireEvent.keyDown(grid, { key: "ArrowDown" });
     expect(onFocusCell).toHaveBeenLastCalledWith({ row: 2, col: 1 });
     fireEvent.keyDown(grid, { key: "Enter" });
     expect(onActivate).toHaveBeenCalledWith({ row: 2, col: 1 });
-    fireEvent.keyDown(grid, { key: "a", metaKey: true, ctrlKey: true });
+    fireEvent.keyDown(grid, { key: "a", ctrlKey: true });
     expect(cell(2, 2)).toHaveAttribute("aria-selected", "true");
     fireEvent.keyDown(grid, { key: "Escape" });
     expect(cell(2, 2)).toHaveAttribute("aria-selected", "false");

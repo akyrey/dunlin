@@ -2,9 +2,7 @@ import { useState } from "react";
 
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { type SavedQuery, toAppError } from "../../ipc";
-import { useEditor } from "../editor/editorStore";
-import { useSessions } from "../sessions/sessionsStore";
-import { useWorkspace } from "../workspace/workspaceStore";
+import { openSavedQuery } from "./openSaved";
 import { queriesFor, useSavedQueries } from "./savedQueriesStore";
 
 type Props = { activeConnectionId: string | null };
@@ -19,26 +17,7 @@ export function SavedQueries({ activeConnectionId }: Props) {
 
   const open = async (query: SavedQuery) => {
     setError(null);
-    try {
-      const connectionId = query.connectionId ?? activeConnectionId;
-      if (!connectionId) {
-        setError("Open a connection to run this query in.");
-        return;
-      }
-      const session = await useSessions.getState().open(connectionId);
-      const existing = Object.values(useEditor.getState().tabs).find(
-        (t) => t.sessionId === session.sessionId && t.savedQueryId === query.id,
-      );
-      if (existing) {
-        useWorkspace.getState().activate(session.sessionId, existing.tabId);
-        return;
-      }
-      useEditor
-        .getState()
-        .openTab(session.sessionId, { title: query.name, text: query.sql, savedQueryId: query.id });
-    } catch (caught) {
-      setError(toAppError(caught).message);
-    }
+    setError(await openSavedQuery(query, activeConnectionId));
   };
 
   const rename = async (query: SavedQuery, name: string) => {

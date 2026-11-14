@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import type { EditorTab } from "../editor/editorStore";
 import { useEditor } from "../editor/editorStore";
-import { SHORTCUT_LABELS } from "./shortcuts";
+import { shortcutLabel } from "../shortcuts/registry";
 import { type View, useWorkspace } from "./workspaceStore";
 
 type Props = {
@@ -105,7 +105,7 @@ export function TabStrip({ sessionId, views, active, tabs, color, onClose }: Pro
       <button
         type="button"
         aria-label="New tab"
-        title={`New tab (${SHORTCUT_LABELS["new-tab"]})`}
+        title={`New tab (${shortcutLabel("new-tab")})`}
         className="px-3 text-zinc-400 hover:text-zinc-100"
         onClick={() => {
           useEditor.getState().openTab(sessionId);

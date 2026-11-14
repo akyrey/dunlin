@@ -15,6 +15,7 @@ import type { DriverKind } from "../../ipc";
 import { type Span, statementAt } from "../../lib/text";
 import { dialectFor } from "./dialects";
 import type { RunMode, Selection } from "./run";
+import { bindingOf } from "../shortcuts/registry";
 import { useEditorAppearance } from "./appearance";
 
 export type EditorHandle = {
@@ -123,10 +124,10 @@ export function SqlEditor(props: Props) {
     };
     const runKeys = Prec.highest(
       keymap.of([
-        { key: "Mod-Enter", run: run("statement") },
-        { key: "Mod-Shift-Enter", run: run("script") },
+        { key: bindingOf("run-statement"), run: run("statement") },
+        { key: bindingOf("run-script"), run: run("script") },
         {
-          key: "Mod-s",
+          key: bindingOf("save-query"),
           run: () => {
             callbacks.current.onSave();
             return true;
@@ -137,7 +138,7 @@ export function SqlEditor(props: Props) {
     // Default precedence, so Escape first closes an open autocomplete list.
     const cancelKey = keymap.of([
       {
-        key: "Escape",
+        key: bindingOf("cancel"),
         run: () => {
           if (!callbacks.current.running) return false;
           callbacks.current.onCancel();
