@@ -54,13 +54,17 @@ fn write_index(dir: &Path) {
         .filter(|name| name != "index")
         .collect();
     names.sort();
-    let exports: String =
-        names.iter().map(|name| format!("export type * from \"./{name}\";\n")).collect();
+    let exports: String = names
+        .iter()
+        .map(|name| format!("export type * from \"./{name}\";\n"))
+        .collect();
     fs::write(dir.join("index.ts"), format!("{HEADER}{exports}")).unwrap();
 }
 
 fn read_dir_contents(dir: &Path) -> BTreeMap<String, String> {
-    let Ok(entries) = fs::read_dir(dir) else { return BTreeMap::new() };
+    let Ok(entries) = fs::read_dir(dir) else {
+        return BTreeMap::new();
+    };
     entries
         .map(|entry| {
             let path = entry.unwrap().path();
@@ -102,5 +106,8 @@ fn value_is_generated_as_a_tagged_union() {
     let value = fs::read_to_string(fresh.path().join("Value.ts")).unwrap();
 
     assert!(value.contains("{ \"t\": \"int\", v: string, }"), "{value}");
-    assert!(value.contains("{ \"t\": \"bytes\" } & BytesPayload"), "{value}");
+    assert!(
+        value.contains("{ \"t\": \"bytes\" } & BytesPayload"),
+        "{value}"
+    );
 }

@@ -1,0 +1,40 @@
+/** One thin typed wrapper per backend command (docs/IPC.md). */
+import type {
+  ConnectionDraft,
+  ConnectionProfile,
+  ConnectionTestResult,
+  DriverInfo,
+  QueryExecuteArgs,
+  QueryResult,
+  SessionInfo,
+  StatementRange,
+} from "./generated";
+import { call } from "./invoke";
+
+export const driverList = (): Promise<DriverInfo[]> => call("driver_list");
+
+export const connectionList = (): Promise<ConnectionProfile[]> => call("connection_list");
+
+export const connectionSave = (profile: ConnectionDraft): Promise<ConnectionProfile> =>
+  call("connection_save", { profile });
+
+export const connectionDelete = (connectionId: string): Promise<void> =>
+  call("connection_delete", { connectionId });
+
+export const connectionTest = (profile: ConnectionDraft): Promise<ConnectionTestResult> =>
+  call("connection_test", { profile });
+
+export const sessionOpen = (connectionId: string): Promise<SessionInfo> =>
+  call("session_open", { connectionId });
+
+export const sessionClose = (sessionId: string): Promise<void> =>
+  call("session_close", { sessionId });
+
+export const sqlSplit = (sessionId: string, text: string): Promise<StatementRange[]> =>
+  call("sql_split", { sessionId, text });
+
+export const queryExecute = (args: QueryExecuteArgs): Promise<QueryResult> =>
+  call("query_execute", args);
+
+export const tabClose = (sessionId: string, tabId: string): Promise<void> =>
+  call("tab_close", { sessionId, tabId });

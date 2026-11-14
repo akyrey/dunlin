@@ -64,3 +64,13 @@ impl Default for ExecuteOptions {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_row_limit_is_one_thousand() {
+        assert_eq!(ExecuteOptions::default().row_limit, 1000);
+    }
+}

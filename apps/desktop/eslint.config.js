@@ -6,7 +6,14 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist", "coverage", "src-tauri", "src/ipc/generated", "playwright-report", "test-results"],
+    ignores: [
+      "dist",
+      "coverage",
+      "src-tauri",
+      "src/ipc/generated",
+      "playwright-report",
+      "test-results",
+    ],
   },
   {
     extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked],
@@ -14,7 +21,10 @@ export default tseslint.config(
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.browser,
-      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+      parserOptions: {
+        project: ["./tsconfig.json", "./tsconfig.node.json"],
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     plugins: { "react-hooks": reactHooks, "react-refresh": reactRefresh },
     rules: {
@@ -33,5 +43,13 @@ export default tseslint.config(
   {
     files: ["src/ipc/**/*.ts"],
     rules: { "no-restricted-imports": "off" },
+  },
+  {
+    // Mocked backends reject with plain `AppError` objects, as the real one does.
+    files: ["src/**/*.test.{ts,tsx}", "src/test/**/*.ts", "e2e/**/*.ts"],
+    rules: {
+      "@typescript-eslint/prefer-promise-reject-errors": "off",
+      "@typescript-eslint/only-throw-error": "off",
+    },
   },
 );

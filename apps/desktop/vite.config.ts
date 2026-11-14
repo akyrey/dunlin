@@ -20,8 +20,11 @@ export default defineConfig({
     hmr: host ? { protocol: "ws", host, port: 1421 } : undefined,
     watch: { ignored: ["**/src-tauri/**"] },
   },
+  // Loaded from disk by the desktop shell, so bundle size matters less than on the web.
+  build: { chunkSizeWarningLimit: 1024 },
   test: {
     environment: "jsdom",
+    globals: true,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
