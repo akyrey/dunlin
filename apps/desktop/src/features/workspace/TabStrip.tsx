@@ -21,7 +21,7 @@ const DRAG_TYPE = "application/x-dunlin-tab";
 export function TabStrip({ sessionId, views, active, tabs, color, onClose }: Props) {
   const [renaming, setRenaming] = useState<string | null>(null);
   const label = (view: View) =>
-    view.kind === "table" ? view.table.name : (tabs[view.key]?.title ?? "");
+    view.kind === "editor" ? (tabs[view.key]?.title ?? "") : view.table.name;
 
   return (
     <div className="flex shrink-0 items-stretch border-b border-zinc-800 bg-zinc-900">
@@ -79,7 +79,8 @@ export function TabStrip({ sessionId, views, active, tabs, color, onClose }: Pro
                   if (view.kind === "editor") setRenaming(view.key);
                 }}
               >
-                {view.kind === "table" && <span className="mr-1 text-zinc-500">▦</span>}
+                {view.kind === "table" && <span className="mr-1 text-zinc-500">ⓘ</span>}
+                {view.kind === "data" && <span className="mr-1 text-zinc-500">▦</span>}
                 {label(view)}
                 {view.kind === "editor" && tabs[view.key]?.running && (
                   <span aria-label="running" className="ml-1 text-sky-400">

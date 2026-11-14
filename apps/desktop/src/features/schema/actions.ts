@@ -5,9 +5,10 @@ import { useEditor } from "../editor/editorStore";
 import { useSessions } from "../sessions/sessionsStore";
 import { useWorkspace } from "../workspace/workspaceStore";
 
-export type ObjectAction = "details" | "copy-name" | "copy-qualified" | "select";
+export type ObjectAction = "data" | "details" | "copy-name" | "copy-qualified" | "select";
 
 export const OBJECT_ACTIONS: { action: ObjectAction; label: string }[] = [
+  { action: "data", label: "Open data" },
   { action: "details", label: "Open details" },
   { action: "copy-name", label: "Copy name" },
   { action: "copy-qualified", label: "Copy qualified name" },
@@ -24,6 +25,10 @@ function focus(target: ActionTarget): void {
 export async function runObjectAction(action: ObjectAction, target: ActionTarget): Promise<void> {
   const { sessionId, table } = target;
   switch (action) {
+    case "data":
+      focus(target);
+      useWorkspace.getState().openData(sessionId, table);
+      return;
     case "details":
       focus(target);
       useWorkspace.getState().openTable(sessionId, table);

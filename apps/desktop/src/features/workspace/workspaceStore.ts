@@ -1,10 +1,13 @@
 import { create } from "zustand";
 
-import type { TableRef } from "../../ipc";
+import type { KeyArg, TableRef } from "../../ipc";
 
 /** A tab in a session's main area: an SQL editor (keyed by its tab id) or a table's details. */
 export type View =
-  { kind: "editor"; key: string } | { kind: "table"; key: string; table: TableRef };
+  | { kind: "editor"; key: string }
+  | { kind: "table"; key: string; table: TableRef }
+  /** A table's rows; `match` limits them to one key (foreign key navigation). */
+  | { kind: "data"; key: string; table: TableRef; match: KeyArg[] };
 
 export type Workspace = { views: View[]; active: string | null };
 
@@ -15,6 +18,8 @@ type WorkspaceState = {
   openEditor: (sessionId: string, tabId: string) => void;
   /** Opens (or focuses) a table's detail tab. */
   openTable: (sessionId: string, table: TableRef) => void;
+  /** Opens (or focuses) a table's rows, optionally only those matching `match`. */
+  openData: (sessionId: string, table: TableRef, match?: KeyArg[]) => void;
   activate: (sessionId: string, key: string) => void;
   /** Focuses the next (`1`) or previous (`-1`) view, wrapping around. */
   cycle: (sessionId: string, step: 1 | -1) => void;
@@ -59,6 +64,11 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
 
     openTable: (sessionId, table) => {
       add(sessionId, { kind: "table", key: tableKey(table), table });
+    },
+
+    openData: (sessionId, table, match = []) => {
+      const key = `data:${tableKey(table)}:${JSON.stringify(match)}`;
+      add(sessionId, { kind: "data", key, table, match });
     },
 
     activate: (sessionId, key) => {

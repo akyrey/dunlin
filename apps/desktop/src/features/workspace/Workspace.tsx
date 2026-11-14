@@ -6,6 +6,7 @@ import { EditorPane } from "../editor/EditorPane";
 import { useCompletion } from "../editor/completionStore";
 import { useEditor } from "../editor/editorStore";
 import { loadTabs } from "../editor/persistence";
+import { TableData } from "../data/TableData";
 import { TableDetails } from "../schema/TableDetails";
 import { matchShortcut } from "./shortcuts";
 import { TabStrip } from "./TabStrip";
@@ -39,7 +40,7 @@ export function Workspace({ session, profile }: Props) {
   const active = workspace.views.find((v) => v.key === workspace.active) ?? null;
 
   const requestClose = (view: View) => {
-    if (view.kind === "table") {
+    if (view.kind !== "editor") {
       useWorkspace.getState().close(sessionId, view.key);
       return;
     }
@@ -101,6 +102,23 @@ export function Workspace({ session, profile }: Props) {
         )}
         {active?.kind === "editor" && (
           <EditorPane key={active.key} tabId={active.key} session={session} profile={profile} />
+        )}
+        {/* Data views stay mounted while hidden, so their page, filter and connection survive
+            switching tabs. */}
+        {workspace.views.map((view) =>
+          view.kind === "data" ? (
+            <div key={view.key} className="h-full" hidden={view.key !== workspace.active}>
+              <TableData
+                sessionId={sessionId}
+                connectionId={session.connectionId}
+                table={view.table}
+                match={view.match}
+                onFollow={(table, match) => {
+                  useWorkspace.getState().openData(sessionId, table, match);
+                }}
+              />
+            </div>
+          ) : null,
         )}
         {!active && <p className="p-6 text-sm text-zinc-500">Open a new tab with ⌘T.</p>}
       </div>

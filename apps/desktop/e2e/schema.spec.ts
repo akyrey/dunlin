@@ -7,7 +7,8 @@ test("expand the schema tree, open a table, see its columns and DDL", async ({ p
 
   const tree = page.getByRole("tree", { name: "Schema tree" });
   await expect(tree.getByRole("button", { name: /Tables/ })).toBeVisible();
-  await tree.getByRole("button", { name: "people", exact: true }).click();
+  await tree.getByRole("button", { name: "Actions for people" }).click();
+  await page.getByRole("menuitem", { name: "Open details" }).click();
 
   await expect(page.getByRole("heading", { name: "main.people" })).toBeVisible();
   await expect(page.getByRole("cell", { name: "balance" })).toBeVisible();

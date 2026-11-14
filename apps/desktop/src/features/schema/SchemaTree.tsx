@@ -206,7 +206,7 @@ function Row({ row, onToggle, onAction, onMenu }: RowProps) {
             className="flex-1 truncate text-left text-sm"
             title={row.object.comment ?? `${row.object.name} (${KIND_LABEL[row.object.kind]})`}
             onClick={() => {
-              onAction("details", row);
+              onAction("data", row);
             }}
           >
             {row.object.name}

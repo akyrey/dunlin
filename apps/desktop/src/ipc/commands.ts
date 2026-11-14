@@ -3,6 +3,7 @@ import type {
   ConnectionDraft,
   ConnectionProfile,
   ConnectionSecrets,
+  CellFullValueArgs,
   CompletionSchema,
   ConnectionTestResult,
   DriverInfo,
@@ -15,12 +16,17 @@ import type {
   SshKnownHostRemoveArgs,
   SshTrustHostArgs,
   QueryExecuteArgs,
+  RowCount,
   QueryResult,
   SessionInfo,
   StatementRange,
+  TableCountArgs,
   TableInfo,
+  TablePage,
+  TablePageArgs,
   TableRef,
   TableSnippets,
+  Value,
 } from "./generated";
 import { call } from "./invoke";
 
@@ -97,3 +103,10 @@ export const historyList = (args: HistoryListArgs): Promise<HistoryEntry[]> =>
 
 export const historyClear = (connectionId: string): Promise<void> =>
   call("history_clear", { connectionId });
+
+export const tablePage = (args: TablePageArgs): Promise<TablePage> => call("table_page", args);
+
+export const tableCount = (args: TableCountArgs): Promise<RowCount> => call("table_count", args);
+
+export const cellFullValue = (args: CellFullValueArgs): Promise<Value> =>
+  call("cell_full_value", args);

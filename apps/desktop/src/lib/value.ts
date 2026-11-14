@@ -65,3 +65,21 @@ export function formatSize(bytes: number): string {
   if (kib < BYTES_PER_KIB) return `${kib.toFixed(1)} KiB`;
   return `${(kib / BYTES_PER_KIB).toFixed(1)} MiB`;
 }
+
+/** The value's whole text, without preview cuts: what copying a cell puts on the clipboard. */
+export function rawText(value: Value): string {
+  switch (value.t) {
+    case "null":
+      return "";
+    case "text":
+    case "json":
+    case "xml":
+      return value.v;
+    case "bytes":
+      return `0x${Array.from(decodeBase64(value.v), (b) => b.toString(16).padStart(2, "0")).join("")}`;
+    case "array":
+      return JSON.stringify(value.v.map((item) => (item.t === "null" ? null : rawText(item))));
+    default:
+      return formatValue(value).text;
+  }
+}

@@ -10,7 +10,7 @@ import {
   schemaTableDdl,
   toAppError,
 } from "../../ipc";
-import { ReadOnlySql } from "../editor/ReadOnlySql";
+import { ReadOnlyCode } from "../editor/ReadOnlyCode";
 
 type SubTab = "columns" | "indexes" | "constraints" | "ddl";
 
@@ -114,7 +114,9 @@ export function TableDetails({ sessionId, table, onOpenTable }: Props) {
 function Ddl({ sessionId, table }: { sessionId: string; table: TableRef }) {
   const ddl = useLoaded(() => schemaTableDdl(sessionId, table));
   return (
-    <LoadState load={ddl}>{(text) => <ReadOnlySql text={text} label="Table DDL" />}</LoadState>
+    <LoadState load={ddl}>
+      {(text) => <ReadOnlyCode text={text} label="Table DDL" language="sql" />}
+    </LoadState>
   );
 }
 

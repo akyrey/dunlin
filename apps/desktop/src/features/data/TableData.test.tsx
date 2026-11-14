@@ -1,0 +1,156 @@
+import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
+import { createMockBackend } from "../../test/mockBackend";
+import { TableData } from "./TableData";
+
+const main = { catalog: null, schema: "main" };
+let calls: { cmd: string; args: Record<string, unknown> }[] = [];
+
+beforeEach(() => {
+  calls = [];
+  const backend = createMockBackend();
+  mockIPC((cmd, payload) => {
+    calls.push({
+      cmd,
+      args: (payload as { args?: Record<string, unknown> } | undefined)?.args ?? {},
+    });
+    return backend(cmd, payload);
+  });
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(400);
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
+});
+
+afterEach(() => {
+  clearMocks();
+  vi.restoreAllMocks();
+});
+
+function show(name: string, match: Parameters<typeof TableData>[0]["match"] = []) {
+  const onFollow = vi.fn();
+  const view = render(
+    <TableData
+      sessionId="s1"
+      connectionId="c1"
+      table={{ namespace: main, name }}
+      match={match}
+      onFollow={onFollow}
+    />,
+  );
+  return { onFollow, ...view };
+}
+
+const status = () => screen.getByRole("status", { name: "Rows shown" });
+
+describe("TableData", () => {
+  it("pages forward and back, changes the page size and counts exactly", async () => {
+    show("events");
+
+    expect(await screen.findByText(/Rows 1–200 of ~450 rows/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Next page" }));
+    await waitFor(() => {
+      expect(status()).toHaveTextContent("Rows 201–400");
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Next page" }));
+    await waitFor(() => {
+      expect(status()).toHaveTextContent("Rows 401–450");
+    });
+    expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Previous page" }));
+    await waitFor(() => {
+      expect(status()).toHaveTextContent("Rows 201–400");
+    });
+
+    await userEvent.selectOptions(screen.getByLabelText("Page size"), "500");
+    await waitFor(() => {
+      expect(status()).toHaveTextContent("Rows 1–450");
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Count exactly" }));
+    await waitFor(() => {
+      expect(status()).toHaveTextContent("of 450 rows");
+    });
+    expect(screen.queryByRole("button", { name: "Count exactly" })).toBeNull();
+  });
+
+  it("keeps the last page under a filter error, remembers filters, and clears", async () => {
+    show("events");
+    await screen.findByText(/Rows 1–200/);
+    const filter = screen.getByLabelText("Filter");
+
+    await userEvent.type(filter, "kind = 'login'{Enter}");
+    await waitFor(() => {
+      expect(status()).toHaveTextContent("Rows 1–150");
+    });
+    await userEvent.clear(filter);
+    await userEvent.type(filter, "kind FRM x{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent("syntax error");
+    expect(status()).toHaveTextContent("Rows 1–150");
+    expect(document.querySelectorAll("datalist option")).toHaveLength(2);
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+    await waitFor(() => {
+      expect(status()).toHaveTextContent("Rows 1–200");
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("sorts on the server, refreshes, and offers cancel while loading", async () => {
+    show("events");
+    await screen.findByText(/Rows 1–200/);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sort by id" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sort by id" }));
+    await waitFor(() => {
+      expect(screen.getByRole("columnheader", { name: "id" })).toHaveAttribute(
+        "aria-sort",
+        "descending",
+      );
+    });
+    expect(calls.filter((c) => c.cmd === "table_page").at(-1)?.args.sort).toEqual([
+      { column: "id", descending: true },
+    ]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await userEvent.type(screen.getByLabelText("Filter"), "pg_sleep(30) > 0{Enter}");
+    await userEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("canceling statement");
+    expect(calls.some((c) => c.cmd === "query_cancel")).toBe(true);
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+  });
+
+  it("shows a match as a removable chip and follows foreign keys", async () => {
+    const { onFollow } = show("people", [{ column: "id", value: { t: "int", v: "2" } }]);
+    expect(await screen.findByText("id = 2")).toBeInTheDocument();
+    expect(screen.getByRole("gridcell", { name: "Grace" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Show every row" }));
+    expect(await screen.findByRole("gridcell", { name: "Ada" })).toBeInTheDocument();
+    expect(onFollow).not.toHaveBeenCalled();
+  });
+
+  it("follows a foreign key to the referenced row", async () => {
+    const { onFollow } = show("orders");
+
+    const links = await screen.findAllByRole("button", { name: "Open the main.people row" });
+    await userEvent.click(links[0] as HTMLElement);
+
+    expect(onFollow).toHaveBeenCalledWith({ namespace: main, name: "people" }, [
+      { column: "id", value: { t: "int", v: "1" } },
+    ]);
+  });
+
+  it("loads a truncated cell in full in the viewer and closes its connections", async () => {
+    const { unmount } = show("documents");
+    const cell = await screen.findByRole("gridcell", { name: /Quarterly/ });
+
+    await userEvent.dblClick(cell);
+    const viewer = screen.getByRole("complementary", { name: "Cell viewer" });
+    await userEvent.click(within(viewer).getByRole("button", { name: "Load the whole value" }));
+    expect(await within(viewer).findByLabelText("Cell value")).toHaveTextContent('"items": [');
+    unmount();
+
+    await waitFor(() => {
+      expect(calls.filter((c) => c.cmd === "tab_close")).toHaveLength(2);
+    });
+  });
+});

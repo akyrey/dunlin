@@ -1,0 +1,213 @@
+import { useEffect, useMemo, useState } from "react";
+
+import { Button } from "../../components/Button";
+import { type AppError, type Value, toAppError } from "../../ipc";
+import { decodeBase64, hexDump, imageType } from "../../lib/binary";
+import { copyText } from "../../lib/clipboard";
+import { prettyJson } from "../../lib/json";
+import { formatSize, rawText } from "../../lib/value";
+import { prettyXml } from "../../lib/xml";
+import { type CodeLanguage, ReadOnlyCode } from "../editor/ReadOnlyCode";
+import type { GridColumn } from "./DataGrid";
+
+type Props = {
+  column: GridColumn;
+  value: Value;
+  /** Fetches the whole value of a truncated cell; `null` when the row cannot be addressed. */
+  loadFull: (() => Promise<Value>) | null;
+  /** Why `loadFull` is unavailable. */
+  noFullReason: string;
+  onClose: () => void;
+};
+
+function isTruncated(value: Value): boolean {
+  return (
+    (value.t === "text" || value.t === "json" || value.t === "xml" || value.t === "bytes") &&
+    value.truncated === true
+  );
+}
+
+/** The selected cell in full: JSON and XML pretty-printed, text with wrapping, binary as a hex
+ * dump or an image (task 6.10). Nothing is ever rendered as HTML. */
+export function CellViewer({ column, value, loadFull, noFullReason, onClose }: Props) {
+  const [full, setFull] = useState<{ value: Value; for: Value } | null>(null);
+  const [error, setError] = useState<AppError | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [wrap, setWrap] = useState(true);
+  const shown = full?.for === value ? full.value : value;
+  const truncated = isTruncated(shown);
+
+  const load = async () => {
+    if (!loadFull) return;
+    setLoading(true);
+    setError(null);
+    try {
+      setFull({ value: await loadFull(), for: value });
+    } catch (caught) {
+      setError(toAppError(caught));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <aside
+      aria-label="Cell viewer"
+      className="flex h-full w-96 shrink-0 flex-col border-l border-zinc-800 bg-zinc-900"
+    >
+      <header className="flex items-center gap-2 border-b border-zinc-800 px-2 py-1.5 text-xs">
+        <span className="min-w-0 flex-1 truncate">
+          <span className="font-semibold text-zinc-200">{column.name}</span>{" "}
+          <span className="text-zinc-500">{column.typeName}</span>
+        </span>
+        <label className="flex items-center gap-1 text-zinc-400">
+          <input
+            type="checkbox"
+            checked={wrap}
+            onChange={(e) => {
+              setWrap(e.target.checked);
+            }}
+          />
+          Wrap
+        </label>
+        <Button
+          variant="ghost"
+          className="px-1 text-xs"
+          onClick={() => void copyText(rawText(shown))}
+        >
+          Copy
+        </Button>
+        <Button
+          variant="ghost"
+          className="px-1 text-xs"
+          aria-label="Close cell viewer"
+          onClick={onClose}
+        >
+          ×
+        </Button>
+      </header>
+      {truncated && (
+        <p
+          role="status"
+          className="flex items-center gap-2 border-b border-zinc-800 px-2 py-1 text-[11px] text-amber-300"
+        >
+          {loadFull
+            ? "Showing the start of a long value."
+            : `Showing the start of a long value. ${noFullReason}`}
+          {loadFull && (
+            <Button
+              variant="ghost"
+              className="px-1 text-[11px]"
+              disabled={loading}
+              onClick={() => void load()}
+            >
+              {loading ? "Loading…" : "Load the whole value"}
+            </Button>
+          )}
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="border-b border-zinc-800 px-2 py-1 text-[11px] text-rose-300">
+          {error.message}
+        </p>
+      )}
+      <div className="min-h-0 flex-1">
+        <Body value={shown} category={column.category} wrap={wrap} />
+      </div>
+    </aside>
+  );
+}
+
+function Body({
+  value,
+  category,
+  wrap,
+}: {
+  value: Value;
+  category: GridColumn["category"];
+  wrap: boolean;
+}) {
+  const content = useMemo(() => describe(value, category), [value, category]);
+  if (content.kind === "binary") return <Binary base64={content.base64} size={content.size} />;
+  return (
+    <div className="flex h-full flex-col">
+      {content.note && <p className="px-2 py-1 text-[11px] text-zinc-500">{content.note}</p>}
+      <div className="min-h-0 flex-1">
+        <ReadOnlyCode
+          text={content.text}
+          label="Cell value"
+          language={content.language}
+          wrap={wrap}
+        />
+      </div>
+    </div>
+  );
+}
+
+type Content =
+  | { kind: "code"; text: string; language: CodeLanguage; note: string | null }
+  | { kind: "binary"; base64: string; size: number };
+
+function describe(value: Value, category: GridColumn["category"]): Content {
+  if (value.t === "bytes") return { kind: "binary", base64: value.v, size: value.len };
+  if (value.t === "null")
+    return { kind: "code", text: "NULL", language: "text", note: "The value is NULL." };
+  const text = rawText(value);
+  if (value.t === "json" || category === "json") {
+    const pretty = value.t === "json" && value.truncated ? null : prettyJson(text);
+    return pretty === null
+      ? {
+          kind: "code",
+          text,
+          language: "text",
+          note: "Not valid JSON (or cut short); shown as text.",
+        }
+      : { kind: "code", text: pretty, language: "json", note: null };
+  }
+  if (value.t === "xml" || category === "xml") {
+    const pretty = value.t === "xml" && value.truncated ? null : prettyXml(text);
+    return pretty === null
+      ? {
+          kind: "code",
+          text,
+          language: "text",
+          note: "Not well-formed XML (or cut short); shown as text.",
+        }
+      : { kind: "code", text: pretty, language: "xml", note: null };
+  }
+  return { kind: "code", text, language: "text", note: null };
+}
+
+function Binary({ base64, size }: { base64: string; size: number }) {
+  const bytes = useMemo(() => decodeBase64(base64), [base64]);
+  const type = imageType(bytes);
+  const url = useMemo(
+    () => (type ? URL.createObjectURL(new Blob([bytes.slice().buffer], { type })) : null),
+    [bytes, type],
+  );
+  useEffect(
+    () => () => {
+      if (url) URL.revokeObjectURL(url);
+    },
+    [url],
+  );
+  return (
+    <div className="flex h-full flex-col overflow-auto">
+      <p className="px-2 py-1 text-[11px] text-zinc-500">
+        {formatSize(size)}
+        {bytes.length < size && ` (first ${formatSize(bytes.length)} shown)`}
+        {type && ` · ${type}`}
+      </p>
+      {url && (
+        <img
+          src={url}
+          alt="Image preview of the cell"
+          className="max-h-64 self-start object-contain px-2"
+        />
+      )}
+      <pre aria-label="Hex dump" className="px-2 py-1 font-mono text-[11px] text-zinc-300">
+        {hexDump(bytes)}
+      </pre>
+    </div>
+  );
+}

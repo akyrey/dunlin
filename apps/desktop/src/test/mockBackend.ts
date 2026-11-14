@@ -12,6 +12,9 @@ import type {
   ConnectionSecrets,
   HistoryEntry,
   HistoryListArgs,
+  KeyArg,
+  SortKey,
+  TablePage,
   KnownHost,
   Namespace,
   ObjectSummary,
@@ -24,11 +27,44 @@ import type {
   Value,
 } from "../ipc/generated";
 import { SECRET_KINDS, type SecretField } from "../features/connections/draft";
+import { rawText } from "../lib/value";
 import { mysqlDriver, postgresDriver, sessionFor, sqliteDriver } from "./fixtures";
 
 export const MOCK_DATABASE_PATH = "/mock/people.db";
 export const MOCK_NEW_DATABASE_PATH = "/mock/new.db";
 const MOCK_ROW_LIMIT_TABLE = /^select \* from big/i;
+/** 1000 rows × 50 columns of mixed types, for the grid performance check (task 6.1). */
+const MOCK_WIDE_TABLE = /^select \* from wide/i;
+const WIDE_ROWS = 1000;
+const WIDE_COLUMNS = 50;
+
+function wideResult(): QueryResult {
+  const kinds = ["integer", "text", "decimal", "json", "bool"] as const;
+  const columns: ColumnMeta[] = Array.from({ length: WIDE_COLUMNS }, (_, c) => ({
+    name: `column_${c}`,
+    typeName: kinds[c % kinds.length] ?? "text",
+    category: kinds[c % kinds.length] ?? "text",
+    nullable: true,
+  }));
+  const cell = (r: number, c: number): Value => {
+    switch (c % kinds.length) {
+      case 0:
+        return { t: "int", v: String(r * WIDE_COLUMNS + c) };
+      case 1:
+        return { t: "text", v: `row ${r} column ${c} with some longer text to fill the cell` };
+      case 2:
+        return { t: "decimal", v: `${r}.${String(c).padStart(2, "0")}` };
+      case 3:
+        return { t: "json", v: `{"row": ${r}, "tags": ["a", "b"], "nested": {"c": ${c}}}` };
+      default:
+        return r % 7 === 0 ? { t: "null" } : { t: "bool", v: r % 2 === 0 };
+    }
+  };
+  const data = Array.from({ length: WIDE_ROWS }, (_, r) =>
+    Array.from({ length: WIDE_COLUMNS }, (_, c) => cell(r, c)),
+  );
+  return rows(columns, data);
+}
 
 type Args = Record<string, unknown>;
 
@@ -88,6 +124,8 @@ const MOCK_NAMESPACES: Namespace[] = [
   { namespace: { catalog: null, schema: "temp" }, name: "temp", system: true },
 ];
 const MOCK_OBJECTS: ObjectSummary[] = [
+  { name: "documents", kind: "table", comment: null },
+  { name: "events", kind: "table", comment: null },
   { name: "orders", kind: "table", comment: null },
   { name: "people", kind: "table", comment: "Everyone we know" },
   { name: "rich_people", kind: "view", comment: null },
@@ -156,9 +194,130 @@ function mockTable(table: TableRef): TableInfo {
         ],
         rowKey: ["id"],
       };
+    case "events":
+      return {
+        ...base,
+        columns: [column("id", "INTEGER", false, 1), column("kind", "TEXT", false, 2)],
+        primaryKey: { name: null, columns: ["id"] },
+        rowKey: ["id"],
+      };
+    case "documents":
+      return {
+        ...base,
+        columns: [
+          column("id", "INTEGER", false, 1),
+          { ...column("body", "JSON", true, 2), category: "json" },
+        ],
+        primaryKey: { name: null, columns: ["id"] },
+        rowKey: ["id"],
+      };
     default:
       return { ...base, kind: "view", columns: [column("name", "TEXT", true, 1)] };
   }
+}
+
+/** A JSON document longer than a grid cell shows; the page sends its start, truncated. */
+export const MOCK_LONG_JSON = JSON.stringify({
+  title: "Quarterly report",
+  items: Array.from({ length: 40 }, (_, i) => ({ line: i, amount: i * 10 })),
+});
+
+const TABLE_ROWS: Record<string, Value[][]> = {
+  people: peopleRows,
+  orders: [
+    [
+      { t: "int", v: "1" },
+      { t: "int", v: "1" },
+    ],
+    [
+      { t: "int", v: "2" },
+      { t: "int", v: "1" },
+    ],
+    [
+      { t: "int", v: "3" },
+      { t: "int", v: "2" },
+    ],
+  ],
+  events: Array.from({ length: 450 }, (_, i): Value[] => [
+    { t: "int", v: String(i + 1) },
+    { t: "text", v: i % 3 === 0 ? "login" : "click" },
+  ]),
+  documents: [
+    [
+      { t: "int", v: "1" },
+      { t: "json", v: MOCK_LONG_JSON.slice(0, 60), truncated: true },
+    ],
+    [
+      { t: "int", v: "2" },
+      { t: "json", v: '{"broken": ' },
+    ],
+  ],
+};
+
+const wireText = (value: Value | undefined) => (value && value.t !== "null" ? rawText(value) : "");
+
+/** Enough of a WHERE clause for tests: `col = 'text'`, `col > number`; `FRM` is a syntax error. */
+function filterRows(
+  columns: string[],
+  data: Value[][],
+  filter: string | undefined,
+): Value[][] | AppError {
+  if (!filter) return data;
+  if (/FRM|>>>/.test(filter))
+    return { code: "syntax", message: `syntax error at or near "${filter}"` };
+  const equals = /^(\w+)\s*=\s*'([^']*)'$/.exec(filter);
+  const greater = /^(\w+)\s*>\s*(\d+)$/.exec(filter);
+  const match = equals ?? greater;
+  if (!match) return data;
+  const index = columns.indexOf(match[1] ?? "");
+  return data.filter((row) =>
+    equals ? wireText(row[index]) === match[2] : Number(wireText(row[index])) > Number(match[2]),
+  );
+}
+
+function tableRows(args: Record<string, unknown>): Value[][] | AppError {
+  const table = args.table as TableRef;
+  const columns = mockTable(table).columns.map((c) => c.name);
+  const all = TABLE_ROWS[table.name] ?? [];
+  const keyed = ((args.key as KeyArg[] | undefined) ?? []).reduce(
+    (rows, k) =>
+      rows.filter((row) => wireText(row[columns.indexOf(k.column)]) === wireText(k.value)),
+    all,
+  );
+  return filterRows(columns, keyed, args.filter as string | undefined);
+}
+
+function page(args: Record<string, unknown>): Promise<TablePage> {
+  const table = args.table as TableRef;
+  const info = mockTable(table);
+  const found = tableRows(args);
+  if (!Array.isArray(found)) return Promise.reject(found);
+  const names = info.columns.map((c) => c.name);
+  const sorted = [...found];
+  for (const key of [...((args.sort as SortKey[] | undefined) ?? [])].reverse()) {
+    const i = names.indexOf(key.column);
+    sorted.sort((a, b) => {
+      const [x, y] = [wireText(a[i]), wireText(b[i])];
+      const order =
+        Number.isNaN(Number(x)) || Number.isNaN(Number(y))
+          ? x.localeCompare(y)
+          : Number(x) - Number(y);
+      return key.descending ? -order : order;
+    });
+  }
+  const offset = Number(args.offset);
+  const limit = Number(args.limit);
+  return Promise.resolve({
+    columns: info.columns.map((c) => ({
+      name: c.name,
+      typeName: c.typeName,
+      category: c.category,
+      nullable: c.nullable,
+    })),
+    rows: sorted.slice(offset, offset + limit),
+    hasMore: sorted.length > offset + limit,
+    elapsedMs: 2,
+  });
 }
 
 const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
@@ -300,6 +459,7 @@ export function createMockBackend() {
         statementClass: "write",
       });
     }
+    if (MOCK_WIDE_TABLE.test(sql)) return Promise.resolve(wideResult());
     if (MOCK_ROW_LIMIT_TABLE.test(sql)) {
       const data: Value[][] = Array.from({ length: args.rowLimit }, (_, i) => [
         { t: "int", v: String(i + 1) },
@@ -368,6 +528,35 @@ export function createMockBackend() {
       const keep = history.filter((e) => e.connectionId !== a.connectionId);
       history.splice(0, history.length, ...keep);
       return null;
+    },
+    table_page: (a) => {
+      if (typeof a.filter === "string" && SLEEP.test(a.filter)) {
+        return new Promise((_resolve, rejectSleep) => {
+          sleeping.set(a.viewId as string, () => {
+            rejectSleep({ code: "cancelled", message: "canceling statement due to user request" });
+          });
+        });
+      }
+      return page(a);
+    },
+    table_count: (a) => {
+      const found = tableRows(a);
+      if (!Array.isArray(found)) return Promise.reject(found);
+      const count = String(found.length);
+      if (a.exact === true) return { kind: "exact", rows: count };
+      return a.filter || (a.key as KeyArg[] | undefined)?.length
+        ? { kind: "unknown" }
+        : { kind: "estimate", rows: count };
+    },
+    cell_full_value: (a) => {
+      const table = a.table as TableRef;
+      const id = wireText((a.key as KeyArg[])[0]?.value);
+      if (table.name === "documents" && id === "1") return { t: "json", v: MOCK_LONG_JSON };
+      const names = mockTable(table).columns.map((c) => c.name);
+      const row = (TABLE_ROWS[table.name] ?? []).find((r) => wireText(r[0]) === id);
+      return (
+        row?.[names.indexOf(a.column as string)] ?? reject("not_found", "The row no longer exists")
+      );
     },
     schema_completion: () => ({
       tables: MOCK_OBJECTS.map((o) => ({

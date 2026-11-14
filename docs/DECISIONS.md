@@ -41,6 +41,7 @@ Format: context, decision, consequences. Keep entries short.
 **Context.** The grid needs row and column virtualisation, keyboard navigation, inline editing and custom cell rendering.
 **Decision.** Headless TanStack Table with TanStack Virtual, with our own cell rendering and editing.
 **Consequences.** More UI code than a batteries-included grid, full control over behaviour and styling, permissive licence. **Revisit at the start of Phase 6** with a one-day spike on a 1000 × 50 result; if scrolling or editing is not good enough, evaluate a canvas-based grid and record the outcome here.
+**Outcome of the Phase 6 spike (2026-11-14).** Kept, without TanStack Table. The grid (`features/grid/DataGrid.tsx`) virtualises rows and columns with TanStack Virtual and renders cells itself; TanStack Table added nothing once sorting moved to the server and was removed. Measured in Chromium (`e2e/grid-performance.spec.ts`) on a 1000 × 50 result of mixed types, scrolling to a new position every frame across the whole grid: p50 16.6 ms, p95 22.8 ms per frame, about 400 cells in the DOM. Keyboard navigation, range selection, column resizing and custom cell rendering all fit the headless approach; a canvas grid is not needed. Inline editing (Phase 7) is still to be proven.
 
 ## D-007 One database connection per editor tab (2026-11-14)
 

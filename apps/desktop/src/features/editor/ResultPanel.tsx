@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import type { AppError, QueryResult } from "../../ipc";
 import { lineAndColumn } from "../../lib/text";
-import { ResultGrid } from "../grid/ResultGrid";
+import { ResultView } from "../grid/ResultView";
 import type { EditorTab } from "./editorStore";
 import type { StatementRun, StatementStatus } from "./run";
 
@@ -149,11 +149,11 @@ function StatementBody({
         />
       ) : null;
     case "done":
-      return statement.result ? <ResultView result={statement.result} /> : null;
+      return statement.result ? <StatementResult result={statement.result} /> : null;
   }
 }
 
-function ResultView({ result }: { result: QueryResult }) {
+function StatementResult({ result }: { result: QueryResult }) {
   const { outcome } = result;
   if (outcome.kind === "affected") {
     const noun = outcome.rows === "1" ? "row" : "rows";
@@ -171,7 +171,12 @@ function ResultView({ result }: { result: QueryResult }) {
         </p>
       )}
       <div className="min-h-0 flex-1">
-        <ResultGrid columns={outcome.columns} rows={outcome.rows} />
+        <ResultView
+          columns={outcome.columns}
+          rows={outcome.rows}
+          loadFull={null}
+          noFullReason="Results of a statement in the editor cannot be fetched again by row; open the table from the tree to load whole values."
+        />
       </div>
     </div>
   );

@@ -105,7 +105,8 @@ describe("schema browser", () => {
     render(<App />);
     const tree = await openConnection();
 
-    await userEvent.click(await within(tree).findByRole("button", { name: "orders" }));
+    await userEvent.click(await within(tree).findByRole("button", { name: "Actions for orders" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Open details" }));
     expect(await screen.findByRole("heading", { name: "main.orders" })).toBeInTheDocument();
     expect(await screen.findByRole("cell", { name: "person_id" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: "Constraints" }));
@@ -166,7 +167,7 @@ describe("schema browser", () => {
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("menu")).toBeNull();
     await userEvent.click(within(tree).getByRole("button", { name: "people" }));
-    expect(await screen.findByRole("heading", { name: "main.people" })).toBeInTheDocument();
+    expect(await screen.findByRole("gridcell", { name: "Ada" })).toBeInTheDocument();
   });
 
   it("reports a failed action and refreshes through the backend", async () => {

@@ -19,6 +19,16 @@ describe("workspace store", () => {
     expect(current().active).toBe(tableKey(table("a")));
   });
 
+  it("opens a table's data once per match", () => {
+    const match = [{ column: "id", value: { t: "int" as const, v: "1" } }];
+    useWorkspace.getState().openData("s1", table("a"));
+    useWorkspace.getState().openData("s1", table("a"));
+    useWorkspace.getState().openData("s1", table("a"), match);
+
+    expect(current().views.map((v) => v.kind)).toEqual(["data", "data"]);
+    expect(current().views[1]).toMatchObject({ table: table("a"), match });
+  });
+
   it("closing the active view focuses its neighbour, then nothing", () => {
     for (const key of ["a", "b", "c"]) useWorkspace.getState().openEditor("s1", key);
     useWorkspace.getState().activate("s1", "b");
