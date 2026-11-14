@@ -4,11 +4,12 @@ import { DEFAULT_ROW_LIMIT, useEditor } from "./editorStore";
 
 vi.mock("../../ipc", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../ipc")>();
-  return { ...actual, queryExecute: vi.fn(), sqlSplit: vi.fn() };
+  return { ...actual, queryExecute: vi.fn(), sqlSplit: vi.fn(), queryCancel: vi.fn() };
 });
 
 const queryExecute = vi.mocked(ipc.queryExecute);
 const sqlSplit = vi.mocked(ipc.sqlSplit);
+const queryCancel = vi.mocked(ipc.queryCancel);
 
 const rowsResult: QueryResult = {
   outcome: { kind: "rows", columns: [], rows: [], truncated: false },
@@ -28,7 +29,47 @@ beforeEach(() => {
   useEditor.setState({ tabs: {} });
   queryExecute.mockReset();
   sqlSplit.mockReset();
+  queryCancel.mockReset();
   useEditor.getState().ensureTab(SESSION);
+});
+
+describe("editor store cancellation", () => {
+  it("records when a statement starts and clears it when it ends", async () => {
+    let finish: (result: QueryResult) => void = () => undefined;
+    queryExecute.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    useEditor.getState().setText(SESSION, "SELECT 1");
+
+    const running = useEditor.getState().run(SESSION, { from: 0, to: 8, head: 8 });
+    const startedAt = tab().startedAt;
+    finish(rowsResult);
+    await running;
+
+    expect(typeof startedAt).toBe("number");
+    expect(tab().startedAt).toBeNull();
+  });
+
+  it("cancels only a running statement", async () => {
+    await useEditor.getState().cancel(SESSION);
+    expect(queryCancel).not.toHaveBeenCalled();
+
+    useEditor.setState({ tabs: { [SESSION]: { ...tab(), running: true } } });
+    await useEditor.getState().cancel(SESSION);
+
+    expect(queryCancel).toHaveBeenCalledWith(SESSION, tab().tabId);
+  });
+
+  it("reports a failed cancel", async () => {
+    useEditor.setState({ tabs: { [SESSION]: { ...tab(), running: true } } });
+    queryCancel.mockRejectedValue({ code: "connect", message: "cannot reach server" });
+
+    await useEditor.getState().cancel(SESSION);
+
+    expect(tab().error?.error.message).toBe("cannot reach server");
+  });
 });
 
 describe("editor store", () => {

@@ -88,4 +88,23 @@ mod tests {
     fn quotes_with_backticks() {
         assert_eq!(MysqlDialect.quote_identifier("a`b"), "`a``b`");
     }
+
+    #[test]
+    fn info_offers_every_tls_mode_except_verify_ca() {
+        let info = MysqlDriver.info();
+
+        assert_eq!(info.kind, DriverKind::Mysql);
+        assert_eq!(info.default_port, Some(DEFAULT_PORT));
+        assert!(!info.tls_modes.contains(&TlsMode::VerifyCa), "D-018");
+        assert!(info.tls_modes.contains(&TlsMode::VerifyFull));
+        assert!(info.capabilities.multiple_databases && !info.capabilities.schemas);
+    }
+
+    #[test]
+    fn splitter_rules_follow_mysql_lexing() {
+        let rules = MysqlDriver.dialect().splitter_rules();
+
+        assert!(rules.backtick_identifiers && rules.hash_comments && rules.backslash_escapes);
+        assert!(!rules.dollar_quoting);
+    }
 }

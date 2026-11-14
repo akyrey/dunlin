@@ -1,20 +1,28 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
 import {
   type AppError,
   type ConnectionDraft,
+  type ConnectionSecrets,
   type DriverInfo,
   type OptionField,
   connectionTest,
-  pickDatabaseFile,
-  pickNewDatabaseFile,
   toAppError,
 } from "../../ipc";
-import { draftProblems } from "./draft";
-
-const CREATE_OPTION = "create_if_missing";
+import {
+  type PasswordChange,
+  defaultTlsMode,
+  draftProblems,
+  emptyDraft,
+  secretsFor,
+} from "./draft";
+import { Field } from "./fields/Field";
+import { FileFields } from "./fields/FileFields";
+import { NetworkFields } from "./fields/NetworkFields";
+import { PasswordField } from "./fields/PasswordField";
+import { TlsFields } from "./fields/TlsFields";
 
 type TestState =
   | { status: "idle" }
@@ -24,30 +32,55 @@ type TestState =
 
 type Props = {
   initial: ConnectionDraft;
-  driver: DriverInfo;
-  onSave: (draft: ConnectionDraft) => Promise<void>;
+  drivers: DriverInfo[];
+  /** The saved profile has a password in the keychain. */
+  storedPassword: boolean;
+  onSave: (draft: ConnectionDraft, secrets?: ConnectionSecrets) => Promise<void>;
   onCancel: () => void;
 };
 
-export function ConnectionForm({ initial, driver, onSave, onCancel }: Props) {
+/** The form is driven by `DriverInfo`; it never branches on the driver kind. */
+export function ConnectionForm({ initial, drivers, storedPassword, onSave, onCancel }: Props) {
+  const driverSelectId = useId();
   const [draft, setDraft] = useState(initial);
+  const [password, setPassword] = useState<PasswordChange>({ kind: "keep" });
+  const [tlsTouched, setTlsTouched] = useState(initial.id !== null);
   const [test, setTest] = useState<TestState>({ status: "idle" });
   const [saveError, setSaveError] = useState<AppError | null>(null);
   const [saving, setSaving] = useState(false);
+  const driver = drivers.find((d) => d.kind === draft.driver);
+  if (!driver) return null;
   const problems = draftProblems(draft, driver);
 
   const change = (patch: Partial<ConnectionDraft>) => {
-    setDraft((current) => ({ ...current, ...patch }));
+    setDraft((current) => {
+      const next = { ...current, ...patch };
+      // New connections follow the host: verify-full remotely, prefer on localhost.
+      if (!tlsTouched && patch.host !== undefined) {
+        return { ...next, tls: { ...next.tls, mode: defaultTlsMode(driver, next.host) } };
+      }
+      return next;
+    });
     setTest({ status: "idle" });
   };
-  const setOption = (key: string, value: string) => {
-    change({ options: { ...draft.options, [key]: value } });
+
+  const switchDriver = (kind: string) => {
+    const next = drivers.find((d) => d.kind === kind);
+    if (!next) return;
+    setDraft({
+      ...emptyDraft(next),
+      name: draft.name,
+      color: draft.color,
+      readOnly: draft.readOnly,
+    });
+    setTlsTouched(false);
+    setTest({ status: "idle" });
   };
 
   const runTest = async () => {
     setTest({ status: "testing" });
     try {
-      const result = await connectionTest(draft);
+      const result = await connectionTest(draft, secretsFor(password));
       setTest({ status: "ok", message: `${result.serverVersion} · ${result.latencyMs} ms` });
     } catch (error) {
       setTest({ status: "failed", error: toAppError(error) });
@@ -58,22 +91,14 @@ export function ConnectionForm({ initial, driver, onSave, onCancel }: Props) {
     setSaving(true);
     setSaveError(null);
     try {
-      await onSave(draft);
+      await onSave(draft, secretsFor(password));
     } catch (error) {
       setSaveError(toAppError(error));
       setSaving(false);
     }
   };
 
-  const chooseExisting = async () => {
-    const path = await pickDatabaseFile();
-    if (path) change({ filePath: path, options: { ...draft.options, [CREATE_OPTION]: "false" } });
-  };
-  const chooseNew = async () => {
-    const path = await pickNewDatabaseFile();
-    if (path) change({ filePath: path, options: { ...draft.options, [CREATE_OPTION]: "true" } });
-  };
-
+  const blocked = problems.length > 0;
   return (
     <Modal
       title={draft.id ? `Edit ${initial.name}` : `New ${driver.label} connection`}
@@ -83,48 +108,68 @@ export function ConnectionForm({ initial, driver, onSave, onCancel }: Props) {
           <Button variant="ghost" onClick={onCancel}>
             Cancel
           </Button>
-          <Button
-            disabled={problems.length > 0 || test.status === "testing"}
-            onClick={() => void runTest()}
-          >
+          <Button disabled={blocked || test.status === "testing"} onClick={() => void runTest()}>
             {test.status === "testing" ? "Testing…" : "Test connection"}
           </Button>
-          <Button
-            variant="primary"
-            disabled={problems.length > 0 || saving}
-            onClick={() => void save()}
-          >
+          <Button variant="primary" disabled={blocked || saving} onClick={() => void save()}>
             Save
           </Button>
         </>
       }
     >
-      <div className="flex flex-col gap-3 text-sm">
+      <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto text-sm">
+        {draft.id === null && drivers.length > 1 && (
+          <Field label="Database type" htmlFor={driverSelectId}>
+            <select
+              id={driverSelectId}
+              className="input"
+              value={draft.driver}
+              onChange={(e) => {
+                switchDriver(e.target.value);
+              }}
+            >
+              {drivers.map((d) => (
+                <option key={d.kind} value={d.kind}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
         <Field label="Name">
           <input
             className="input"
             value={draft.name}
+            autoFocus
             onChange={(e) => {
               change({ name: e.target.value });
             }}
-            autoFocus
           />
         </Field>
-        {driver.endpoint === "file" && (
-          <Field label="Database file">
-            <div className="flex gap-2">
-              <input
-                className="input flex-1 font-mono text-xs"
-                value={draft.filePath ?? ""}
-                placeholder="/path/to/database.db"
-                onChange={(e) => {
-                  change({ filePath: e.target.value });
-                }}
-              />
-              <Button onClick={() => void chooseExisting()}>Browse…</Button>
-              <Button onClick={() => void chooseNew()}>New file…</Button>
-            </div>
-          </Field>
+        {driver.endpoint === "file" ? (
+          <FileFields filePath={draft.filePath} options={draft.options} onChange={change} />
+        ) : (
+          <>
+            <NetworkFields draft={draft} onChange={change} />
+            <PasswordField
+              stored={storedPassword}
+              change={password}
+              onChange={(next) => {
+                setPassword(next);
+                setTest({ status: "idle" });
+              }}
+            />
+          </>
+        )}
+        {driver.tlsModes.length > 0 && (
+          <TlsFields
+            tls={draft.tls}
+            modes={driver.tlsModes}
+            onChange={(tls) => {
+              setTlsTouched(true);
+              change({ tls });
+            }}
+          />
         )}
         {driver.options.map((option) => (
           <OptionInput
@@ -132,7 +177,7 @@ export function ConnectionForm({ initial, driver, onSave, onCancel }: Props) {
             option={option}
             value={draft.options[option.key] ?? option.default ?? ""}
             onChange={(value) => {
-              setOption(option.key, value);
+              change({ options: { ...draft.options, [option.key]: value } });
             }}
           />
         ))}
@@ -162,15 +207,6 @@ export function ConnectionForm({ initial, driver, onSave, onCancel }: Props) {
         <Feedback problems={problems} test={test} saveError={saveError} />
       </div>
     </Modal>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1">
-      <span className="text-xs text-zinc-400">{label}</span>
-      {children}
-    </label>
   );
 }
 

@@ -1,6 +1,13 @@
 import { create } from "zustand";
 
-import { type AppError, type QueryResult, queryExecute, sqlSplit, toAppError } from "../../ipc";
+import {
+  type AppError,
+  type QueryResult,
+  queryCancel,
+  queryExecute,
+  sqlSplit,
+  toAppError,
+} from "../../ipc";
 import { statementAt } from "../../lib/text";
 
 export const DEFAULT_ROW_LIMIT = 1000;
@@ -17,6 +24,8 @@ export type TabState = {
   tabId: string;
   text: string;
   running: boolean;
+  /** `Date.now()` when the running statement started, for the elapsed timer. */
+  startedAt: number | null;
   result: QueryResult | null;
   error: QueryError | null;
   confirmation: PendingConfirmation | null;
@@ -31,6 +40,7 @@ type EditorState = {
   setText: (sessionId: string, text: string) => void;
   run: (sessionId: string, selection: Selection) => Promise<void>;
   confirm: (sessionId: string) => Promise<void>;
+  cancel: (sessionId: string) => Promise<void>;
   dismissConfirmation: (sessionId: string) => void;
   dropTab: (sessionId: string) => void;
 };
@@ -40,6 +50,7 @@ function newTab(): TabState {
     tabId: crypto.randomUUID(),
     text: "",
     running: false,
+    startedAt: null,
     result: null,
     error: null,
     confirmation: null,
@@ -70,7 +81,7 @@ export const useEditor = create<EditorState>()((set, get) => {
   const execute = async (sessionId: string, sql: string, start: number, confirmed: boolean) => {
     const tab = get().tabs[sessionId];
     if (!tab) return;
-    update(sessionId, { running: true, error: null, confirmation: null });
+    update(sessionId, { running: true, startedAt: Date.now(), error: null, confirmation: null });
     try {
       const result = await queryExecute({
         sessionId,
@@ -79,16 +90,21 @@ export const useEditor = create<EditorState>()((set, get) => {
         rowLimit: DEFAULT_ROW_LIMIT,
         confirmed,
       });
-      update(sessionId, { running: false, result });
+      update(sessionId, { running: false, startedAt: null, result });
     } catch (caught) {
       const error = toAppError(caught);
       if (error.code === "confirmation_required") {
-        update(sessionId, { running: false, confirmation: { reason: error.message, sql, start } });
+        update(sessionId, {
+          running: false,
+          startedAt: null,
+          confirmation: { reason: error.message, sql, start },
+        });
         return;
       }
       const position = positionOf(error);
       update(sessionId, {
         running: false,
+        startedAt: null,
         result: null,
         error: { error, offset: position === null ? null : start + position },
       });
@@ -135,6 +151,16 @@ export const useEditor = create<EditorState>()((set, get) => {
       const pending = get().tabs[sessionId]?.confirmation;
       if (!pending) return;
       await execute(sessionId, pending.sql, pending.start, true);
+    },
+
+    cancel: async (sessionId) => {
+      const tab = get().tabs[sessionId];
+      if (!tab?.running) return;
+      try {
+        await queryCancel(sessionId, tab.tabId);
+      } catch (caught) {
+        update(sessionId, { error: { error: toAppError(caught), offset: null } });
+      }
     },
 
     dismissConfirmation: (sessionId) => {

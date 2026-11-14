@@ -16,7 +16,7 @@ vi.mock("../../ipc", async (importOriginal) => {
 });
 
 function profile(id: string, name: string): ConnectionProfile {
-  return { ...emptyDraft(sqliteDriver), id, name, filePath: "/tmp/a.db" };
+  return { ...emptyDraft(sqliteDriver), id, name, filePath: "/tmp/a.db", hasDbPassword: false };
 }
 
 beforeEach(() => {
@@ -98,6 +98,8 @@ describe("drafts", () => {
   it("require a host for network drivers", () => {
     const tcp: DriverInfo = { ...sqliteDriver, endpoint: "tcp" };
 
-    expect(draftProblems({ ...emptyDraft(tcp), name: "x" }, tcp)).toEqual(["Enter a host"]);
+    expect(draftProblems({ ...emptyDraft(tcp), name: "x", host: null }, tcp)).toEqual([
+      "Enter a host",
+    ]);
   });
 });

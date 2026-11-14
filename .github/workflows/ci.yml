@@ -47,6 +47,11 @@ jobs:
             cargo llvm-cov --package "$crate" --all-features --fail-under-lines 80 --summary-only \
               --ignore-filename-regex 'conformance\.rs$'
           done
+          # Network drivers are mostly covered by their Docker tests.
+          for crate in dbc-driver-postgres dbc-driver-mysql; do
+            cargo llvm-cov --package "$crate" --all-features --fail-under-lines 80 --summary-only \
+              --ignore-filename-regex 'conformance\.rs$' -- --include-ignored
+          done
       - name: Generated TypeScript is committed
         run: |
           DUNLIN_UPDATE_BINDINGS=1 cargo test -p dunlin --lib bindings

@@ -512,3 +512,22 @@ async fn cancelling_stops_a_running_statement_and_is_a_no_op_when_idle() {
     assert_eq!(result.err().as_deref(), Some("cancelled"));
     assert!(fixture.run(&session, "SELECT 1").await.is_ok());
 }
+
+#[tokio::test]
+async fn read_only_sessions_reject_dml_and_ddl_before_sending() {
+    let fixture = Fixture::new();
+    let session = fixture.session(true).await;
+
+    // MySQL's read-only transaction mode does not stop DDL, so the classifier must.
+    for sql in [
+        "INSERT INTO event_log (message) VALUES ('x')",
+        "UPDATE orders SET paid = 1 WHERE id = 10",
+        "DELETE FROM event_log WHERE message IS NULL",
+        "CREATE TABLE t (a int)",
+        "DROP TABLE customers",
+        "SET default_transaction_read_only = off",
+    ] {
+        let result = fixture.run(&session, sql).await;
+        assert_eq!(result.err().as_deref(), Some("read_only"), "{sql}");
+    }
+}

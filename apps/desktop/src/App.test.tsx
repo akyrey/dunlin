@@ -25,6 +25,7 @@ afterEach(() => {
 async function addConnection(name: string, readOnly = false) {
   await userEvent.click(await screen.findByRole("button", { name: "New connection" }));
   const dialog = screen.getByRole("dialog");
+  await userEvent.selectOptions(within(dialog).getByLabelText("Database type"), "sqlite");
   await userEvent.type(within(dialog).getByLabelText("Name"), name);
   await userEvent.click(within(dialog).getByRole("button", { name: "Browse…" }));
   if (readOnly) await userEvent.click(within(dialog).getByLabelText("Read-only"));
@@ -130,5 +131,38 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: /^Broken/ }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("unable to open");
+  });
+
+  it("cancels a running statement and shows the elapsed time meanwhile", async () => {
+    render(<App />);
+    await addConnection("People");
+
+    await openAndRun("People", "SELECT pg_sleep(30)");
+    expect(await screen.findByRole("timer")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("canceling statement");
+    expect(screen.queryByRole("timer")).toBeNull();
+    expect(screen.getByRole("button", { name: "Run" })).toBeEnabled();
+  });
+
+  it("saves a network connection with its password and shows it as stored", async () => {
+    render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: "New connection" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText("Name"), "Staging");
+    await userEvent.type(within(dialog).getByLabelText("Password"), "s3cret");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Edit Staging" }));
+
+    expect(within(screen.getByRole("dialog")).getByLabelText("Password")).toHaveAttribute(
+      "placeholder",
+      "Stored in the keychain",
+    );
+    expect(useConnections.getState().profiles[0]?.hasDbPassword).toBe(true);
   });
 });

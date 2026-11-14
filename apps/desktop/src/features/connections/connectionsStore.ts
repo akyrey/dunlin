@@ -4,6 +4,7 @@ import {
   type AppError,
   type ConnectionDraft,
   type ConnectionProfile,
+  type ConnectionSecrets,
   type DriverInfo,
   connectionDelete,
   connectionList,
@@ -18,7 +19,7 @@ type ConnectionsState = {
   loaded: boolean;
   error: AppError | null;
   load: () => Promise<void>;
-  save: (draft: ConnectionDraft) => Promise<ConnectionProfile>;
+  save: (draft: ConnectionDraft, secrets?: ConnectionSecrets) => Promise<ConnectionProfile>;
   remove: (connectionId: string) => Promise<void>;
 };
 
@@ -40,8 +41,8 @@ export const useConnections = create<ConnectionsState>()((set, get) => ({
     }
   },
 
-  save: async (draft) => {
-    const saved = await connectionSave(draft);
+  save: async (draft, secrets) => {
+    const saved = await connectionSave(draft, secrets);
     const others = get().profiles.filter((p) => p.id !== saved.id);
     set({ profiles: [...others, saved].sort(byName) });
     return saved;

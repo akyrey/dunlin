@@ -1,4 +1,4 @@
-import type { Capabilities, ConnectionProfile, DriverInfo, SessionInfo } from "../ipc";
+import type { Capabilities, ConnectionProfile, DriverInfo, SessionInfo, TlsSettings } from "../ipc";
 
 export const sqliteCapabilities: Capabilities = {
   schemas: false,
@@ -11,10 +11,16 @@ export const sqliteCapabilities: Capabilities = {
   tunnel: false,
 };
 
+const networkCapabilities: Capabilities = { ...sqliteCapabilities, tls: true, tunnel: true };
+
+export const noTls: TlsSettings = { mode: "disable", caFile: null, certFile: null, keyFile: null };
+
 export const sqliteDriver: DriverInfo = {
   kind: "sqlite",
   label: "SQLite",
   endpoint: "file",
+  defaultPort: null,
+  tlsModes: [],
   capabilities: sqliteCapabilities,
   options: [
     {
@@ -25,6 +31,26 @@ export const sqliteDriver: DriverInfo = {
       help: null,
     },
   ],
+};
+
+export const postgresDriver: DriverInfo = {
+  kind: "postgres",
+  label: "PostgreSQL",
+  endpoint: "tcp",
+  defaultPort: 5432,
+  tlsModes: ["disable", "prefer", "require", "verify-ca", "verify-full"],
+  capabilities: { ...networkCapabilities, schemas: true },
+  options: [],
+};
+
+export const mysqlDriver: DriverInfo = {
+  kind: "mysql",
+  label: "MySQL / MariaDB",
+  endpoint: "tcp",
+  defaultPort: 3306,
+  tlsModes: ["disable", "prefer", "require", "verify-full"],
+  capabilities: { ...networkCapabilities, multipleDatabases: true },
+  options: [],
 };
 
 export function sqliteProfile(overrides: Partial<ConnectionProfile> = {}): ConnectionProfile {
@@ -40,8 +66,27 @@ export function sqliteProfile(overrides: Partial<ConnectionProfile> = {}): Conne
     user: null,
     filePath: "/tmp/local.db",
     options: { create_if_missing: "false" },
+    tls: noTls,
+    hasDbPassword: false,
     ...overrides,
   };
+}
+
+export function postgresProfile(overrides: Partial<ConnectionProfile> = {}): ConnectionProfile {
+  return sqliteProfile({
+    id: "pg1",
+    name: "Staging",
+    driver: "postgres",
+    host: "db.example.com",
+    port: 5432,
+    database: "app",
+    user: "app",
+    filePath: null,
+    options: {},
+    tls: { ...noTls, mode: "verify-full" },
+    hasDbPassword: true,
+    ...overrides,
+  });
 }
 
 export function sessionFor(profile: ConnectionProfile, sessionId = "s1"): SessionInfo {

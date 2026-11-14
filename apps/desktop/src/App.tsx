@@ -10,7 +10,13 @@ import { draftFromProfile, emptyDraft } from "./features/connections/draft";
 import { EditorPane } from "./features/editor/EditorPane";
 import { useEditor } from "./features/editor/editorStore";
 import { useSessions } from "./features/sessions/sessionsStore";
-import { type AppError, type ConnectionDraft, type ConnectionProfile, toAppError } from "./ipc";
+import {
+  type AppError,
+  type ConnectionDraft,
+  type ConnectionProfile,
+  type ConnectionSecrets,
+  toAppError,
+} from "./ipc";
 
 export function App() {
   const { drivers, profiles, error: loadError } = useConnections();
@@ -28,7 +34,7 @@ export function App() {
   const activeTab = useEditor((state) =>
     activeSession ? state.tabs[activeSession.sessionId] : undefined,
   );
-  const editingDriver = editing ? drivers.find((d) => d.kind === editing.driver) : undefined;
+  const editingStoredPassword = profiles.some((p) => p.id === editing?.id && p.hasDbPassword);
   const firstDriver = drivers[0];
 
   const openConnection = async (profile: ConnectionProfile) => {
@@ -40,8 +46,8 @@ export function App() {
     }
   };
 
-  const saveConnection = async (draft: ConnectionDraft) => {
-    await useConnections.getState().save(draft);
+  const saveConnection = async (draft: ConnectionDraft, secrets?: ConnectionSecrets) => {
+    await useConnections.getState().save(draft, secrets);
     setEditing(null);
   };
 
@@ -105,10 +111,11 @@ export function App() {
         session={activeSession}
         result={activeTab?.result ?? null}
       />
-      {editing && editingDriver && (
+      {editing && (
         <ConnectionForm
           initial={editing}
-          driver={editingDriver}
+          drivers={drivers}
+          storedPassword={editingStoredPassword}
           onSave={saveConnection}
           onCancel={() => {
             setEditing(null);

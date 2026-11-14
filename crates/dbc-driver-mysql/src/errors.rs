@@ -83,6 +83,39 @@ mod tests {
 
     use super::*;
 
+    fn io(error: std::io::Error) -> Error {
+        Error::Io(IoError::Io(error))
+    }
+
+    #[test]
+    fn io_failures_map_to_timeout_tls_or_lost_connection() {
+        let timeout = io(std::io::Error::from(std::io::ErrorKind::TimedOut));
+        let tls = io(std::io::Error::other(rustls::Error::InvalidCertificate(
+            rustls::CertificateError::NotValidForName,
+        )));
+        let reset = io(std::io::Error::from(std::io::ErrorKind::ConnectionReset));
+
+        assert_eq!(map_error(&timeout).code, DbErrorCode::Timeout);
+        assert_eq!(map_error(&tls).code, DbErrorCode::Tls);
+        assert_eq!(map_error(&reset).code, DbErrorCode::ConnectionLost);
+    }
+
+    #[test]
+    fn driver_errors_have_specific_codes() {
+        let closed = Error::Driver(DriverError::ConnectionClosed);
+        let no_tls = Error::Driver(DriverError::NoClientSslFlagFromServer);
+
+        assert_eq!(map_error(&closed).code, DbErrorCode::ConnectionLost);
+        assert_eq!(map_error(&no_tls).code, DbErrorCode::Tls);
+    }
+
+    #[test]
+    fn while_connecting_a_lost_connection_means_unreachable() {
+        let reset = io(std::io::Error::from(std::io::ErrorKind::ConnectionRefused));
+
+        assert_eq!(map_connect_error(&reset).code, DbErrorCode::Connect);
+    }
+
     #[rstest]
     #[case(1045, "28000", DbErrorCode::Auth)]
     #[case(1044, "42000", DbErrorCode::Permission)]

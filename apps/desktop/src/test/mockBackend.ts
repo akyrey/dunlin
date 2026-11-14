@@ -9,12 +9,13 @@ import type {
   ColumnMeta,
   ConnectionDraft,
   ConnectionProfile,
+  ConnectionSecrets,
   QueryExecuteArgs,
   QueryResult,
   StatementRange,
   Value,
 } from "../ipc/generated";
-import { sessionFor, sqliteDriver } from "./fixtures";
+import { mysqlDriver, postgresDriver, sessionFor, sqliteDriver } from "./fixtures";
 
 export const MOCK_DATABASE_PATH = "/mock/people.db";
 export const MOCK_NEW_DATABASE_PATH = "/mock/new.db";
@@ -67,16 +68,29 @@ function split(text: string): StatementRange[] {
   return ranges;
 }
 
+/** A statement that runs until it is cancelled, like `SELECT pg_sleep(30)`. */
+const SLEEP = /sleep\(/i;
+
 export function createMockBackend() {
   const profiles = new Map<string, ConnectionProfile>();
   const sessions = new Map<string, ConnectionProfile>();
+  /** Pending sleeps by tab, resolved by `query_cancel`. */
+  const sleeping = new Map<string, () => void>();
   let nextId = 1;
 
-  const save = (draft: ConnectionDraft): ConnectionProfile => {
+  const save = (draft: ConnectionDraft, secrets?: ConnectionSecrets): ConnectionProfile => {
     if (!draft.name.trim())
       throw { code: "invalid_argument", message: "The connection name is required" };
     const id = draft.id ?? `c${nextId++}`;
-    const profile: ConnectionProfile = { ...draft, id, name: draft.name.trim() };
+    const previous = profiles.get(id);
+    const password = secrets?.dbPassword;
+    const profile: ConnectionProfile = {
+      ...draft,
+      id,
+      name: draft.name.trim(),
+      hasDbPassword:
+        password === undefined ? (previous?.hasDbPassword ?? false) : password !== null,
+    };
     profiles.set(id, profile);
     return profile;
   };
@@ -85,6 +99,13 @@ export function createMockBackend() {
     const profile = sessions.get(args.sessionId);
     if (!profile) return reject("not_found", "The session was not found");
     const sql = args.sql.trim();
+    if (SLEEP.test(sql)) {
+      return new Promise((_resolve, rejectSleep) => {
+        sleeping.set(args.tabId, () => {
+          rejectSleep({ code: "cancelled", message: "canceling statement due to user request" });
+        });
+      });
+    }
     if (/FRM/.test(sql))
       return reject("syntax", 'near "FRM": syntax error', { position: sql.indexOf("FRM") });
     if (/^(insert|update|delete|create|drop)/i.test(sql) && profile.readOnly) {
@@ -119,9 +140,10 @@ export function createMockBackend() {
   };
 
   const handlers: Record<string, (args: Args) => unknown> = {
-    driver_list: () => [sqliteDriver],
+    driver_list: () => [postgresDriver, mysqlDriver, sqliteDriver],
     connection_list: () => [...profiles.values()],
-    connection_save: (a) => save(a.profile as ConnectionDraft),
+    connection_save: (a) =>
+      save(a.profile as ConnectionDraft, a.secrets as ConnectionSecrets | undefined),
     connection_delete: (a) => {
       profiles.delete(a.connectionId as string);
       return null;
@@ -130,7 +152,11 @@ export function createMockBackend() {
       const draft = a.profile as ConnectionDraft;
       if (draft.filePath?.includes("missing"))
         return reject("connect", "unable to open database file");
-      return { serverVersion: "SQLite 3 (mock)", latencyMs: 1 };
+      if (draft.driver === "sqlite") return { serverVersion: "SQLite 3 (mock)", latencyMs: 1 };
+      const typed = (a.secrets as ConnectionSecrets | undefined)?.dbPassword;
+      const stored = draft.id !== null && profiles.get(draft.id)?.hasDbPassword === true;
+      if (!typed && !stored) return reject("auth", "password authentication failed");
+      return { serverVersion: "PostgreSQL 18 (mock)", latencyMs: 2 };
     },
     session_open: (a) => {
       const profile = profiles.get(a.connectionId as string);
@@ -145,6 +171,11 @@ export function createMockBackend() {
     },
     sql_split: (a) => split(a.text as string),
     query_execute: (a) => execute(a as unknown as QueryExecuteArgs),
+    query_cancel: (a) => {
+      sleeping.get(a.tabId as string)?.();
+      sleeping.delete(a.tabId as string);
+      return null;
+    },
     tab_close: () => null,
     "plugin:dialog|open": () => MOCK_DATABASE_PATH,
     "plugin:dialog|save": () => MOCK_NEW_DATABASE_PATH,

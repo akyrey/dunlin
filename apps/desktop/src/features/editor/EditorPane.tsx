@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { Button } from "../../components/Button";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import type { SessionInfo } from "../../ipc";
+import { ElapsedTimer } from "./ElapsedTimer";
 import { ResultPanel } from "./ResultPanel";
 import { type EditorHandle, SqlEditor } from "./SqlEditor";
 import { useEditor } from "./editorStore";
@@ -10,7 +11,7 @@ import { useEditor } from "./editorStore";
 export function EditorPane({ session }: { session: SessionInfo }) {
   const { sessionId } = session;
   const tab = useEditor((state) => state.tabs[sessionId]);
-  const { ensureTab, setText, run, confirm, dismissConfirmation } = useEditor.getState();
+  const { ensureTab, setText, run, confirm, cancel, dismissConfirmation } = useEditor.getState();
   const editor = useRef<EditorHandle | null>(null);
 
   useEffect(() => {
@@ -30,6 +31,16 @@ export function EditorPane({ session }: { session: SessionInfo }) {
         <Button variant="primary" disabled={tab.running} onClick={runCurrent}>
           {tab.running ? "Running…" : "Run"}
         </Button>
+        {tab.running && (
+          <>
+            {session.capabilities.cancel && (
+              <Button variant="danger" onClick={() => void cancel(sessionId)}>
+                Cancel
+              </Button>
+            )}
+            {tab.startedAt !== null && <ElapsedTimer startedAt={tab.startedAt} />}
+          </>
+        )}
         <span className="text-xs text-zinc-500">
           ⌘↵ runs the selection or the statement under the cursor
         </span>

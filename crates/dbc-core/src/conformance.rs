@@ -100,7 +100,7 @@ pub trait Harness: Send + Sync {
 }
 
 /// How long a cancelled statement may take to stop (acceptance: within a second).
-const CANCEL_DEADLINE: std::time::Duration = std::time::Duration::from_secs(2);
+const CANCEL_DEADLINE: std::time::Duration = std::time::Duration::from_secs(1);
 const CANCEL_RETRY: std::time::Duration = std::time::Duration::from_millis(50);
 
 /// Runs every group, stopping at the first failure.

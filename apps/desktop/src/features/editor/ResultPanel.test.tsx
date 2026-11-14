@@ -9,6 +9,7 @@ function tab(patch: Partial<TabState>): TabState {
     tabId: "t",
     text: "",
     running: false,
+    startedAt: null,
     result: null,
     error: null,
     confirmation: null,

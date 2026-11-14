@@ -2,6 +2,7 @@
 import type {
   ConnectionDraft,
   ConnectionProfile,
+  ConnectionSecrets,
   ConnectionTestResult,
   DriverInfo,
   QueryExecuteArgs,
@@ -15,14 +16,18 @@ export const driverList = (): Promise<DriverInfo[]> => call("driver_list");
 
 export const connectionList = (): Promise<ConnectionProfile[]> => call("connection_list");
 
-export const connectionSave = (profile: ConnectionDraft): Promise<ConnectionProfile> =>
-  call("connection_save", { profile });
+export const connectionSave = (
+  profile: ConnectionDraft,
+  secrets?: ConnectionSecrets,
+): Promise<ConnectionProfile> => call("connection_save", { profile, secrets });
 
 export const connectionDelete = (connectionId: string): Promise<void> =>
   call("connection_delete", { connectionId });
 
-export const connectionTest = (profile: ConnectionDraft): Promise<ConnectionTestResult> =>
-  call("connection_test", { profile });
+export const connectionTest = (
+  profile: ConnectionDraft,
+  secrets?: ConnectionSecrets,
+): Promise<ConnectionTestResult> => call("connection_test", { profile, secrets });
 
 export const sessionOpen = (connectionId: string): Promise<SessionInfo> =>
   call("session_open", { connectionId });
@@ -35,6 +40,9 @@ export const sqlSplit = (sessionId: string, text: string): Promise<StatementRang
 
 export const queryExecute = (args: QueryExecuteArgs): Promise<QueryResult> =>
   call("query_execute", args);
+
+export const queryCancel = (sessionId: string, tabId: string): Promise<void> =>
+  call("query_cancel", { sessionId, tabId });
 
 export const tabClose = (sessionId: string, tabId: string): Promise<void> =>
   call("tab_close", { sessionId, tabId });

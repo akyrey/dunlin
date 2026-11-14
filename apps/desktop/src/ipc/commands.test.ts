@@ -6,6 +6,7 @@ import {
   connectionSave,
   connectionTest,
   driverList,
+  queryCancel,
   queryExecute,
   sessionClose,
   sessionOpen,
@@ -27,6 +28,7 @@ const draft: ConnectionDraft = {
   user: null,
   filePath: "/tmp/a.db",
   options: {},
+  tls: { mode: "disable", caFile: null, certFile: null, keyFile: null },
 };
 
 afterEach(() => {
@@ -38,6 +40,12 @@ describe("command wrappers", () => {
     ["driver_list", () => driverList(), undefined],
     ["connection_list", () => connectionList(), undefined],
     ["connection_save", () => connectionSave(draft), { args: { profile: draft } }],
+    [
+      "connection_save",
+      () => connectionSave(draft, { dbPassword: "p" }),
+      { args: { profile: draft, secrets: { dbPassword: "p" } } },
+    ],
+    ["query_cancel", () => queryCancel("s1", "t1"), { args: { sessionId: "s1", tabId: "t1" } }],
     ["connection_delete", () => connectionDelete("c1"), { args: { connectionId: "c1" } }],
     ["connection_test", () => connectionTest(draft), { args: { profile: draft } }],
     ["session_open", () => sessionOpen("c1"), { args: { connectionId: "c1" } }],

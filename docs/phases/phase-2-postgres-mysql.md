@@ -35,8 +35,8 @@ Introspection (Phase 4), table paging (Phase 6), `apply_changes` (Phase 7), SSH 
 - [x] 2.10 `connection_save`/`connection_test` accept secrets; `ConnectionProfile` exposes only `hasDbPassword`-style flags. Test that no command response contains a secret.
 - [x] 2.11 Read-only enforcement in `query_execute` using `sql::classify`, in addition to the server-side setting.
 - [x] 2.12 `query_cancel` command; session manager tracks the running statement per tab.
-- [ ] 2.13 Frontend: connection form for PostgreSQL and MySQL driven by `driver_list` option fields; TLS section with file pickers and a warning for non-verifying modes; colour tag and read-only toggle; cancel button with running state and elapsed timer.
-- [ ] 2.14 Status bar shows connection name, colour and read-only badge.
+- [x] 2.13 Frontend: connection form for PostgreSQL and MySQL driven by `driver_list` option fields; TLS section with file pickers and a warning for non-verifying modes; colour tag and read-only toggle; cancel button with running state and elapsed timer.
+- [x] 2.14 Status bar shows connection name, colour and read-only badge.
 - [x] 2.15 Connection loss: kill the server mid-session in a test and assert `connection_lost`, then a successful retry after restart.
 
 ## Acceptance criteria
