@@ -1,7 +1,8 @@
 import type { ConnectionProfile, DriverInfo } from "../../ipc";
 import { sqliteDriver } from "../../test/fixtures";
 import * as ipc from "../../ipc";
-import { useConnections } from "./connectionsStore";
+import { groupByFolder } from "./folders";
+import { movedOrder, useConnections } from "./connectionsStore";
 import { draftFromProfile, draftProblems, emptyDraft } from "./draft";
 
 vi.mock("../../ipc", async (importOriginal) => {
@@ -12,6 +13,8 @@ vi.mock("../../ipc", async (importOriginal) => {
     connectionList: vi.fn(),
     connectionSave: vi.fn(),
     connectionDelete: vi.fn(),
+    connectionReorder: vi.fn(),
+    connectionDuplicate: vi.fn(),
   };
 });
 
@@ -49,7 +52,7 @@ describe("connections store", () => {
     expect(useConnections.getState().error).toEqual({ code: "internal", message: "boom" });
   });
 
-  it("inserts or replaces saved profiles, sorted by name", async () => {
+  it("appends new profiles and replaces edited ones in place", async () => {
     useConnections.setState({ profiles: [profile("b", "beta")] });
     vi.mocked(ipc.connectionSave).mockResolvedValueOnce(profile("a", "Alpha"));
     vi.mocked(ipc.connectionSave).mockResolvedValueOnce(profile("b", "Zed"));
@@ -57,7 +60,51 @@ describe("connections store", () => {
     await useConnections.getState().save(emptyDraft(sqliteDriver));
     await useConnections.getState().save(emptyDraft(sqliteDriver));
 
-    expect(useConnections.getState().profiles.map((p) => p.name)).toEqual(["Alpha", "Zed"]);
+    expect(useConnections.getState().profiles.map((p) => p.name)).toEqual(["Zed", "Alpha"]);
+  });
+
+  it("moves a connection past its neighbour in the same folder only", () => {
+    const list = [
+      { ...profile("a", "A"), folder: "prod" },
+      profile("b", "B"),
+      { ...profile("c", "C"), folder: "prod" },
+    ];
+
+    expect(movedOrder(list, "c", -1)).toEqual(["c", "b", "a"]);
+    expect(movedOrder(list, "a", -1)).toBeNull();
+    expect(movedOrder(list, "b", 1)).toBeNull();
+    expect(movedOrder(list, "missing", 1)).toBeNull();
+  });
+
+  it("reorders and duplicates through the backend", async () => {
+    useConnections.setState({ profiles: [profile("a", "A"), profile("b", "B")] });
+    vi.mocked(ipc.connectionReorder).mockResolvedValue([profile("b", "B"), profile("a", "A")]);
+    vi.mocked(ipc.connectionDuplicate).mockResolvedValue(profile("c", "B copy"));
+    vi.mocked(ipc.connectionList).mockResolvedValue([
+      profile("b", "B"),
+      profile("c", "B copy"),
+      profile("a", "A"),
+    ]);
+
+    await useConnections.getState().move("b", -1);
+    expect(ipc.connectionReorder).toHaveBeenCalledWith(["b", "a"]);
+    await useConnections.getState().duplicate("b");
+
+    expect(useConnections.getState().profiles.map((p) => p.id)).toEqual(["b", "c", "a"]);
+  });
+
+  it("groups connections by folder, loose ones first", () => {
+    const list = [
+      { ...profile("a", "A"), folder: "staging" },
+      profile("b", "B"),
+      { ...profile("c", "C"), folder: "Prod" },
+    ];
+
+    expect(groupByFolder(list).map((g) => [g.folder, g.profiles.map((p) => p.id)])).toEqual([
+      [null, ["b"]],
+      ["Prod", ["c"]],
+      ["staging", ["a"]],
+    ]);
   });
 
   it("removes deleted profiles", async () => {

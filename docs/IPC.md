@@ -42,9 +42,11 @@ Errors from `session_open` and `connection_test` carry `detail.stage`: `ssh_conn
 | Command | Arguments | Returns | Phase |
 |---|---|---|---|
 | `driver_list` | none | `DriverInfo[]` (kind, label, capabilities, option fields) | 1 |
-| `connection_list` | none | `ConnectionProfile[]` (no secrets) | 1 |
+| `connection_list` | none | `ConnectionProfile[]` (no secrets), in the user's order; `folder` groups them in the sidebar | 1 |
 | `connection_save` | `{ profile, secrets? }` | `ConnectionProfile` | 1 (`secrets` from 2) |
 | `connection_delete` | `{ connectionId }` | none | 1 |
+| `connection_duplicate` | `{ connectionId }` | `ConnectionProfile`: a copy named "<name> copy", listed after the original, with its own copy of the keychain secrets | 8 |
+| `connection_reorder` | `{ order }`: every connection id once | `ConnectionProfile[]` in the new order; a partial or stale list is `invalid_argument` | 8 |
 | `connection_test` | `{ profile, secrets? }` | `{ serverVersion, latencyMs }` | 1 (`secrets` from 2) |
 | `session_open` | `{ connectionId }` | `SessionInfo` (sessionId, connectionId, driver, capabilities, readOnly, defaultNamespace) | 1 |
 | `session_close` | `{ sessionId }` | none | 1 |

@@ -75,6 +75,7 @@ fn export_all(dir: &Path) {
     SavedQuery::export_all(&config).unwrap();
     Settings::export_all(&config).unwrap();
     SettingsSetArgs::export_all(&config).unwrap();
+    crate::ipc::ConnectionReorderArgs::export_all(&config).unwrap();
     SavedQuerySaveArgs::export_all(&config).unwrap();
     SavedQueryIdArgs::export_all(&config).unwrap();
     SchemaObjectsArgs::export_all(&config).unwrap();

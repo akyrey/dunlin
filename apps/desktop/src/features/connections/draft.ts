@@ -57,6 +57,7 @@ export function emptyDraft(driver: DriverInfo): ConnectionDraft {
     },
     ssh: null,
     alwaysPreview: false,
+    folder: null,
   };
 }
 
@@ -77,6 +78,7 @@ export function draftFromProfile(profile: ConnectionProfile): ConnectionDraft {
     color: profile.color,
     readOnly: profile.readOnly,
     alwaysPreview: profile.alwaysPreview,
+    folder: profile.folder,
     host: profile.host,
     port: profile.port,
     database: profile.database,

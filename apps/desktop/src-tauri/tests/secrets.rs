@@ -178,6 +178,7 @@ fn draft() -> ConnectionDraft {
         tls: TlsSettings::default(),
         ssh: None,
         always_preview: false,
+        folder: None,
     }
 }
 
@@ -307,6 +308,79 @@ async fn testing_uses_the_given_password_or_else_the_stored_one() {
         *fixture.driver.passwords.lock().unwrap(),
         vec![Some("typed".to_owned()), Some(PASSWORD.to_owned()), None]
     );
+}
+
+#[tokio::test]
+async fn a_duplicate_has_its_own_copy_of_the_secrets() {
+    let fixture = Fixture::new();
+    let saved = fixture.save(draft(), Some(Some(PASSWORD))).await;
+    let other = fixture
+        .save(
+            ConnectionDraft {
+                name: "other".into(),
+                ..draft()
+            },
+            None,
+        )
+        .await;
+
+    let copy = commands::connection_duplicate(
+        &fixture.state,
+        ConnectionIdArgs {
+            connection_id: saved.id.clone(),
+        },
+    )
+    .await
+    .unwrap();
+    commands::connection_delete(
+        &fixture.state,
+        ConnectionIdArgs {
+            connection_id: saved.id.clone(),
+        },
+    )
+    .await
+    .unwrap();
+    let listed = commands::connection_list(&fixture.state).await.unwrap();
+
+    assert_eq!(copy.saved_secrets, vec![SecretKind::DbPassword]);
+    assert_eq!(fixture.stored(&copy.id).as_deref(), Some(PASSWORD));
+    let ids: Vec<&str> = listed.iter().map(|p| p.id.as_str()).collect();
+    assert_eq!(ids, vec![copy.id.as_str(), other.id.as_str()]);
+}
+
+#[tokio::test]
+async fn connections_are_reordered_as_a_whole() {
+    let fixture = Fixture::new();
+    let first = fixture.save(draft(), None).await;
+    let second = fixture
+        .save(
+            ConnectionDraft {
+                name: "second".into(),
+                ..draft()
+            },
+            None,
+        )
+        .await;
+
+    let listed = commands::connection_reorder(
+        &fixture.state,
+        dunlin_lib::ipc::ConnectionReorderArgs {
+            order: vec![second.id.clone(), first.id.clone()],
+        },
+    )
+    .await
+    .unwrap();
+    let partial = commands::connection_reorder(
+        &fixture.state,
+        dunlin_lib::ipc::ConnectionReorderArgs {
+            order: vec![first.id.clone()],
+        },
+    )
+    .await
+    .unwrap_err();
+
+    assert_eq!(listed[0].id, second.id);
+    assert_eq!(partial.code, "invalid_argument");
 }
 
 #[tokio::test]

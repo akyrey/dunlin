@@ -23,4 +23,8 @@ savedSecrets: Array<SecretKind>,
 /**
  * Show the SQL preview before every apply of edits, even after it was skipped once.
  */
-alwaysPreview: boolean, };
+alwaysPreview: boolean, 
+/**
+ * The sidebar folder the connection is listed in; `None` for the top level.
+ */
+folder: string | null, };

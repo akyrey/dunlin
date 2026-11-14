@@ -31,6 +31,8 @@ pub struct ConnectionProfile {
     pub saved_secrets: Vec<SecretKind>,
     /// Show the SQL preview before every apply of edits, even after it was skipped once.
     pub always_preview: bool,
+    /// The sidebar folder the connection is listed in; `None` for the top level.
+    pub folder: Option<String>,
 }
 
 impl ConnectionProfile {
@@ -105,6 +107,8 @@ pub struct ConnectionDraft {
     pub ssh: Option<SshSettings>,
     #[serde(default)]
     pub always_preview: bool,
+    #[serde(default)]
+    pub folder: Option<String>,
 }
 
 impl From<ConnectionProfile> for ConnectionDraft {
@@ -124,6 +128,7 @@ impl From<ConnectionProfile> for ConnectionDraft {
             tls: profile.tls,
             ssh: profile.ssh,
             always_preview: profile.always_preview,
+            folder: profile.folder,
         }
     }
 }

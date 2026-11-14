@@ -1,4 +1,7 @@
+import { type KeyboardEvent, useState } from "react";
+
 import type { ConnectionProfile } from "../../ipc";
+import { groupByFolder } from "./folders";
 
 type Props = {
   profiles: ConnectionProfile[];
@@ -9,86 +12,166 @@ type Props = {
   onOpen: (profile: ConnectionProfile) => void;
   onEdit: (profile: ConnectionProfile) => void;
   onDelete: (profile: ConnectionProfile) => void;
+  onDuplicate?: (profile: ConnectionProfile) => void;
+  onMove?: (profile: ConnectionProfile, step: -1 | 1) => void;
 };
 
-export function ConnectionList(props: Props) {
-  const {
-    profiles,
-    openIds,
-    rememberedIds = new Set(),
-    activeId,
-    onOpen,
-    onEdit,
-    onDelete,
-  } = props;
-  if (profiles.length === 0) {
-    return <p className="px-3 py-2 text-xs text-zinc-500">No connections yet.</p>;
-  }
+const ACTION = "text-xs text-zinc-400 hover:text-zinc-100";
+
+function Row(props: Props & { profile: ConnectionProfile }) {
+  const { profile, openIds, rememberedIds = new Set(), activeId } = props;
+  const { onOpen, onEdit, onDelete, onDuplicate, onMove } = props;
+  const isOpen = openIds.has(profile.id);
+  const remembered = rememberedIds.has(profile.id);
+  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const step = { ArrowUp: -1, ArrowDown: 1 }[event.key] as -1 | 1 | undefined;
+    if (!event.altKey || step === undefined || !onMove) return;
+    event.preventDefault();
+    onMove(profile, step);
+  };
   return (
-    <ul aria-label="Connections" className="flex flex-col">
-      {profiles.map((profile) => (
-        <li
-          key={profile.id}
-          className={`group flex items-center gap-2 px-3 py-1.5 text-sm ${
-            profile.id === activeId ? "bg-zinc-800" : "hover:bg-zinc-800/60"
-          }`}
-        >
-          <span
-            aria-hidden="true"
-            className="h-2.5 w-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: profile.color ?? "transparent" }}
-          />
+    <li
+      className={`group flex items-center gap-2 px-3 py-1.5 text-sm ${
+        profile.id === activeId ? "bg-zinc-800" : "hover:bg-zinc-800/60"
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className="h-2.5 w-2.5 shrink-0 rounded-full"
+        style={{ backgroundColor: profile.color ?? "transparent" }}
+      />
+      <button
+        type="button"
+        className="flex-1 truncate text-left"
+        onClick={() => {
+          onOpen(profile);
+        }}
+        onKeyDown={onKeyDown}
+        title={profile.filePath ?? profile.host ?? ""}
+      >
+        {profile.name}
+        {isOpen && <span className="sr-only"> (open)</span>}
+        {remembered && <span className="sr-only"> (open last time)</span>}
+      </button>
+      {remembered && (
+        <span
+          aria-hidden="true"
+          title="Open last time: reconnects when you open it"
+          className="h-1.5 w-1.5 rounded-full border border-emerald-400"
+        />
+      )}
+      {isOpen && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-emerald-400" />}
+      {profile.readOnly && (
+        <span className="rounded bg-amber-900/60 px-1 text-[10px] uppercase text-amber-300">
+          ro
+        </span>
+      )}
+      <span className="hidden gap-1 group-hover:flex group-focus-within:flex">
+        {onMove && (
+          <>
+            <button
+              type="button"
+              className={ACTION}
+              aria-label={`Move ${profile.name} up`}
+              title="Move up (⌥↑)"
+              onClick={() => {
+                onMove(profile, -1);
+              }}
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              className={ACTION}
+              aria-label={`Move ${profile.name} down`}
+              title="Move down (⌥↓)"
+              onClick={() => {
+                onMove(profile, 1);
+              }}
+            >
+              ↓
+            </button>
+          </>
+        )}
+        {onDuplicate && (
           <button
             type="button"
-            className="flex-1 truncate text-left"
+            className={ACTION}
+            aria-label={`Duplicate ${profile.name}`}
             onClick={() => {
-              onOpen(profile);
+              onDuplicate(profile);
             }}
-            title={profile.filePath ?? profile.host ?? ""}
           >
-            {profile.name}
-            {openIds.has(profile.id) && <span className="sr-only"> (open)</span>}
-            {rememberedIds.has(profile.id) && <span className="sr-only"> (open last time)</span>}
+            Copy
           </button>
-          {rememberedIds.has(profile.id) && (
-            <span
-              aria-hidden="true"
-              title="Open last time: reconnects when you open it"
-              className="h-1.5 w-1.5 rounded-full border border-emerald-400"
-            />
-          )}
-          {openIds.has(profile.id) && (
-            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          )}
-          {profile.readOnly && (
-            <span className="rounded bg-amber-900/60 px-1 text-[10px] uppercase text-amber-300">
-              ro
-            </span>
-          )}
-          <span className="hidden gap-1 group-hover:flex group-focus-within:flex">
+        )}
+        <button
+          type="button"
+          className={ACTION}
+          aria-label={`Edit ${profile.name}`}
+          onClick={() => {
+            onEdit(profile);
+          }}
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          className="text-xs text-zinc-400 hover:text-rose-300"
+          aria-label={`Delete ${profile.name}`}
+          onClick={() => {
+            onDelete(profile);
+          }}
+        >
+          Delete
+        </button>
+      </span>
+    </li>
+  );
+}
+
+/** Saved connections, grouped by folder (task 8.13). Folders collapse; the order is the user's. */
+export function ConnectionList(props: Props) {
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  if (props.profiles.length === 0) {
+    return <p className="px-3 py-2 text-xs text-zinc-500">No connections yet.</p>;
+  }
+  const toggle = (folder: string) => {
+    setCollapsed((current) => {
+      const next = new Set(current);
+      if (!next.delete(folder)) next.add(folder);
+      return next;
+    });
+  };
+  return (
+    <ul aria-label="Connections" className="flex flex-col">
+      {groupByFolder(props.profiles).map(({ folder, profiles }) => {
+        const rows = profiles.map((profile) => (
+          <Row key={profile.id} {...props} profile={profile} />
+        ));
+        if (folder === null) return rows;
+        const open = !collapsed.has(folder);
+        return (
+          <li key={`folder:${folder}`}>
             <button
               type="button"
-              className="text-xs text-zinc-400 hover:text-zinc-100"
-              aria-label={`Edit ${profile.name}`}
+              aria-expanded={open}
+              className="flex w-full items-center gap-1 px-3 py-1 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-300"
               onClick={() => {
-                onEdit(profile);
+                toggle(folder);
               }}
             >
-              Edit
+              <span aria-hidden="true">{open ? "▾" : "▸"}</span>
+              {folder}
             </button>
-            <button
-              type="button"
-              className="text-xs text-zinc-400 hover:text-rose-300"
-              aria-label={`Delete ${profile.name}`}
-              onClick={() => {
-                onDelete(profile);
-              }}
-            >
-              Delete
-            </button>
-          </span>
-        </li>
-      ))}
+            {open && (
+              <ul aria-label={folder} className="flex flex-col">
+                {rows}
+              </ul>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }

@@ -43,13 +43,17 @@ type Props = {
   drivers: DriverInfo[];
   /** Secrets the keychain already holds for the saved profile. */
   savedSecrets: SecretKind[];
+  /** Folders already in use, offered as suggestions. */
+  folders?: readonly string[];
   onSave: (draft: ConnectionDraft, secrets?: ConnectionSecrets) => Promise<void>;
   onCancel: () => void;
 };
 
 /** The form is driven by `DriverInfo`; it never branches on the driver kind. */
-export function ConnectionForm({ initial, drivers, savedSecrets, onSave, onCancel }: Props) {
+export function ConnectionForm(props: Props) {
+  const { initial, drivers, savedSecrets, folders = [], onSave, onCancel } = props;
   const driverSelectId = useId();
+  const foldersId = useId();
   const [draft, setDraft] = useState(initial);
   const [secrets, setSecrets] = useState<SecretChanges>({});
   const [tlsTouched, setTlsTouched] = useState(initial.id !== null);
@@ -81,6 +85,7 @@ export function ConnectionForm({ initial, drivers, savedSecrets, onSave, onCance
       color: draft.color,
       readOnly: draft.readOnly,
       alwaysPreview: draft.alwaysPreview,
+      folder: draft.folder,
     });
     setTlsTouched(false);
     setTest({ status: "idle" });
@@ -173,6 +178,22 @@ export function ConnectionForm({ initial, drivers, savedSecrets, onSave, onCance
               change({ name: e.target.value });
             }}
           />
+        </Field>
+        <Field label="Folder">
+          <input
+            className="input"
+            list={foldersId}
+            placeholder="None"
+            value={draft.folder ?? ""}
+            onChange={(e) => {
+              change({ folder: e.target.value === "" ? null : e.target.value });
+            }}
+          />
+          <datalist id={foldersId}>
+            {folders.map((folder) => (
+              <option key={folder} value={folder} />
+            ))}
+          </datalist>
         </Field>
         {driver.endpoint === "file" ? (
           <FileFields filePath={draft.filePath} options={draft.options} onChange={change} />

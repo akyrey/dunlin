@@ -112,6 +112,13 @@ pub struct ConnectionIdArgs {
     pub connection_id: String,
 }
 
+/// Every connection id, in the new order.
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionReorderArgs {
+    pub order: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionTestResult {

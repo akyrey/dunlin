@@ -195,6 +195,22 @@ export function App() {
               setEditing(draftFromProfile(profile));
             }}
             onDelete={setDeleting}
+            onDuplicate={(profile) => {
+              useConnections
+                .getState()
+                .duplicate(profile.id)
+                .catch((caught: unknown) => {
+                  setActionError(toAppError(caught));
+                });
+            }}
+            onMove={(profile, step) => {
+              useConnections
+                .getState()
+                .move(profile.id, step)
+                .catch((caught: unknown) => {
+                  setActionError(toAppError(caught));
+                });
+            }}
           />
           {(loadError ?? actionError) && (
             <p
@@ -240,6 +256,7 @@ export function App() {
           initial={editing}
           drivers={drivers}
           savedSecrets={editingSavedSecrets}
+          folders={[...new Set(profiles.flatMap((p) => (p.folder ? [p.folder] : [])))]}
           onSave={saveConnection}
           onCancel={() => {
             setEditing(null);

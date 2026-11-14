@@ -16,7 +16,8 @@ mod table_data;
 
 pub use changes::{changes_apply, changes_preview};
 pub use connections::{
-    connection_delete, connection_list, connection_save, connection_test, driver_list,
+    connection_delete, connection_duplicate, connection_list, connection_reorder, connection_save,
+    connection_test, driver_list,
 };
 pub use export::{export_result, export_table, export_text};
 pub use history::{history_clear, history_list};

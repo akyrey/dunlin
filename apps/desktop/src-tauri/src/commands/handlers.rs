@@ -56,6 +56,30 @@ pub async fn connection_delete(
 }
 
 #[tauri::command]
+pub async fn connection_duplicate(
+    state: State<'_, AppState>,
+    args: ConnectionIdArgs,
+) -> Result<ConnectionProfile, AppError> {
+    logged(
+        "connection_duplicate",
+        commands::connection_duplicate(&state, args),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn connection_reorder(
+    state: State<'_, AppState>,
+    args: crate::ipc::ConnectionReorderArgs,
+) -> Result<Vec<ConnectionProfile>, AppError> {
+    logged(
+        "connection_reorder",
+        commands::connection_reorder(&state, args),
+    )
+    .await
+}
+
+#[tauri::command]
 pub async fn connection_test(
     state: State<'_, AppState>,
     args: ConnectionTestArgs,

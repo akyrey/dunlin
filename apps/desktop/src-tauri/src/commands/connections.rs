@@ -6,7 +6,10 @@ use secrecy::SecretString;
 
 use crate::connect::{self, connect_error};
 use crate::error::AppError;
-use crate::ipc::{ConnectionIdArgs, ConnectionSaveArgs, ConnectionTestArgs, ConnectionTestResult};
+use crate::ipc::{
+    ConnectionIdArgs, ConnectionReorderArgs, ConnectionSaveArgs, ConnectionTestArgs,
+    ConnectionTestResult,
+};
 use crate::profile;
 use crate::state::AppState;
 
@@ -69,6 +72,55 @@ async fn apply_secrets(
                 store.set_secret_saved(&owned, kind, saved)?;
             }
             Ok(store.get_connection(&owned)?)
+        })
+        .await
+}
+
+/// Copies the profile and its keychain secrets; the copy is listed after the original.
+pub async fn connection_duplicate(
+    state: &AppState,
+    args: ConnectionIdArgs,
+) -> Result<ConnectionProfile, AppError> {
+    let id = args.connection_id.clone();
+    let (original, copy) = state
+        .with_store(move |store| Ok((store.get_connection(&id)?, store.duplicate_connection(&id)?)))
+        .await?;
+    let kinds = original.saved_secrets.clone();
+    if kinds.is_empty() {
+        return Ok(copy);
+    }
+    let (from, to) = (original.id.clone(), copy.id.clone());
+    let copied: Vec<SecretKind> = state
+        .with_secrets(move |secrets| {
+            let mut copied = Vec::new();
+            for kind in kinds {
+                if let Some(value) = secrets.get(&from, kind)? {
+                    secrets.set(&to, kind, &value)?;
+                    copied.push(kind);
+                }
+            }
+            Ok(copied)
+        })
+        .await?;
+    let owned = copy.id.clone();
+    state
+        .with_store(move |store| {
+            for kind in copied {
+                store.set_secret_saved(&owned, kind, true)?;
+            }
+            Ok(store.get_connection(&owned)?)
+        })
+        .await
+}
+
+pub async fn connection_reorder(
+    state: &AppState,
+    args: ConnectionReorderArgs,
+) -> Result<Vec<ConnectionProfile>, AppError> {
+    state
+        .with_store(move |store| {
+            store.reorder_connections(&args.order)?;
+            Ok(store.list_connections()?)
         })
         .await
 }

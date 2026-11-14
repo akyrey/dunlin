@@ -195,6 +195,7 @@ mod tests {
                 tls: TlsSettings::default(),
                 ssh: None,
                 always_preview: false,
+                folder: None,
             })
             .unwrap();
         (dir, store, profile.id)

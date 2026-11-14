@@ -106,5 +106,6 @@ pub fn draft(path: &Path) -> ConnectionDraft {
         tls: TlsSettings::default(),
         ssh: None,
         always_preview: false,
+        folder: None,
     }
 }

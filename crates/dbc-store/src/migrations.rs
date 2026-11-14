@@ -66,6 +66,15 @@ const MIGRATIONS: &[&str] = &[
      );",
     // 7: application settings, one JSON document per key (task 8.8).
     "CREATE TABLE settings (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);",
+    // 8: folders and a user-chosen order (task 8.13), starting from the old name order.
+    "ALTER TABLE connections ADD COLUMN folder TEXT;
+     ALTER TABLE connections ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
+     UPDATE connections SET position = (
+       SELECT COUNT(*) FROM connections AS other
+       WHERE other.name COLLATE NOCASE < connections.name COLLATE NOCASE
+          OR (other.name COLLATE NOCASE = connections.name COLLATE NOCASE
+              AND other.id < connections.id)
+     );",
 ];
 
 pub(crate) fn latest_version() -> u32 {

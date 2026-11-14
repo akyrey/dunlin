@@ -54,6 +54,14 @@ export const connectionSave = (
 export const connectionDelete = (connectionId: string): Promise<void> =>
   call("connection_delete", { connectionId });
 
+/** A copy listed after the original, with its own copy of the stored secrets. */
+export const connectionDuplicate = (connectionId: string): Promise<ConnectionProfile> =>
+  call("connection_duplicate", { connectionId });
+
+/** `order` names every connection once; resolves with the reordered list. */
+export const connectionReorder = (order: string[]): Promise<ConnectionProfile[]> =>
+  call("connection_reorder", { order });
+
 export const connectionTest = (
   profile: ConnectionDraft,
   secrets?: ConnectionSecrets,

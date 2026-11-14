@@ -13,6 +13,7 @@ export type * from "./CompletionTable";
 export type * from "./ConnectionDraft";
 export type * from "./ConnectionIdArgs";
 export type * from "./ConnectionProfile";
+export type * from "./ConnectionReorderArgs";
 export type * from "./ConnectionSaveArgs";
 export type * from "./ConnectionSecrets";
 export type * from "./ConnectionTestArgs";

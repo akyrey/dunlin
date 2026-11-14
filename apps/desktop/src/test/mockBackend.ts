@@ -477,6 +477,7 @@ export function createMockBackend() {
       ...draft,
       id,
       name: draft.name.trim(),
+      folder: draft.folder?.trim() ? draft.folder.trim() : null,
       savedSecrets: [...saved].sort(),
     };
     profiles.set(id, profile);
@@ -569,6 +570,26 @@ export function createMockBackend() {
     connection_delete: (a) => {
       profiles.delete(a.connectionId as string);
       return null;
+    },
+    connection_duplicate: (a) => {
+      const original = profiles.get(a.connectionId as string);
+      if (!original) return reject("not_found", "No such connection");
+      const copy = { ...original, id: `c${nextId++}`, name: `${original.name} copy` };
+      const entries = [...profiles.entries()];
+      const at = entries.findIndex(([id]) => id === original.id) + 1;
+      entries.splice(at, 0, [copy.id, copy]);
+      profiles.clear();
+      for (const [id, profile] of entries) profiles.set(id, profile);
+      return copy;
+    },
+    connection_reorder: (a) => {
+      const order = a.order as string[];
+      if (order.length !== profiles.size || !order.every((id) => profiles.has(id)))
+        return reject("invalid_argument", "The new order must list every connection once");
+      const reordered = order.map((id) => [id, profiles.get(id)] as [string, ConnectionProfile]);
+      profiles.clear();
+      for (const [id, profile] of reordered) profiles.set(id, profile);
+      return [...profiles.values()];
     },
     connection_test: (a) => {
       const draft = a.profile as ConnectionDraft;

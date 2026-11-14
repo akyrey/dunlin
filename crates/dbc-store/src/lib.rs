@@ -1,5 +1,6 @@
 //! Local application state in one SQLite file. Secrets never go here (see SECURITY.md).
 
+mod connection_order;
 mod connections;
 mod history;
 mod known_hosts;

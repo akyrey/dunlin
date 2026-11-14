@@ -28,6 +28,7 @@ fn sqlite_draft(name: &str) -> ConnectionDraft {
         tls: TlsSettings::default(),
         ssh: None,
         always_preview: false,
+        folder: None,
     }
 }
 
@@ -134,21 +135,117 @@ fn saving_with_an_unknown_id_is_not_found() {
 }
 
 #[test]
-fn connections_are_listed_by_name_case_insensitively() {
+fn connections_are_listed_in_the_order_they_were_added() {
     let (_dir, path) = temp_path();
     let store = Store::open(&path).unwrap();
     for name in ["beta", "Alpha", "gamma"] {
         store.save_connection(sqlite_draft(name)).unwrap();
     }
 
-    let names: Vec<String> = store
+    assert_eq!(names(&store), ["beta", "Alpha", "gamma"]);
+}
+
+fn names(store: &Store) -> Vec<String> {
+    store
         .list_connections()
         .unwrap()
         .into_iter()
         .map(|p| p.name)
+        .collect()
+}
+
+#[test]
+fn an_older_store_lists_its_connections_by_name_after_the_upgrade() {
+    let (_dir, path) = temp_path();
+    {
+        let store = Store::open(&path).unwrap();
+        for name in ["beta", "Alpha", "gamma"] {
+            store.save_connection(sqlite_draft(name)).unwrap();
+        }
+    }
+    let raw = rusqlite::Connection::open(&path).unwrap();
+    raw.execute_batch(
+        "ALTER TABLE connections DROP COLUMN folder;
+         ALTER TABLE connections DROP COLUMN position;
+         PRAGMA user_version = 7;",
+    )
+    .unwrap();
+    drop(raw);
+
+    let store = Store::open(&path).unwrap();
+
+    assert_eq!(names(&store), ["Alpha", "beta", "gamma"]);
+}
+
+#[test]
+fn connections_can_be_reordered_only_as_a_whole() {
+    let (_dir, path) = temp_path();
+    let store = Store::open(&path).unwrap();
+    let ids: Vec<String> = ["a", "b", "c"]
+        .into_iter()
+        .map(|n| store.save_connection(sqlite_draft(n)).unwrap().id)
         .collect();
 
-    assert_eq!(names, ["Alpha", "beta", "gamma"]);
+    store
+        .reorder_connections(&[ids[2].clone(), ids[0].clone(), ids[1].clone()])
+        .unwrap();
+    let missing = store.reorder_connections(&[ids[0].clone(), ids[1].clone()]);
+    let twice = store.reorder_connections(&[ids[0].clone(), ids[0].clone(), ids[1].clone()]);
+    let unknown = store.reorder_connections(&[
+        ids[0].clone(),
+        ids[1].clone(),
+        uuid::Uuid::new_v4().to_string(),
+    ]);
+
+    assert_eq!(names(&store), ["c", "a", "b"]);
+    assert!(matches!(missing, Err(StoreError::Invalid(_))));
+    assert!(matches!(twice, Err(StoreError::Invalid(_))));
+    assert!(matches!(unknown, Err(StoreError::NotFound(_))));
+}
+
+#[test]
+fn a_duplicate_follows_its_original_without_its_secrets() {
+    let (_dir, path) = temp_path();
+    let store = Store::open(&path).unwrap();
+    let first = store.save_connection(sqlite_draft("first")).unwrap();
+    store.save_connection(sqlite_draft("second")).unwrap();
+    store
+        .set_secret_saved(&first.id, SecretKind::DbPassword, true)
+        .unwrap();
+
+    let copy = store.duplicate_connection(&first.id).unwrap();
+
+    assert_eq!(names(&store), ["first", "first copy", "second"]);
+    assert_ne!(copy.id, first.id);
+    assert_eq!(copy.file_path, first.file_path);
+    assert!(copy.saved_secrets.is_empty());
+}
+
+#[test]
+fn folders_are_trimmed_and_empty_means_none() {
+    let (_dir, path) = temp_path();
+    let store = Store::open(&path).unwrap();
+
+    let filed = store
+        .save_connection(ConnectionDraft {
+            folder: Some("  Production ".into()),
+            ..sqlite_draft("prod")
+        })
+        .unwrap();
+    let blank = store
+        .save_connection(ConnectionDraft {
+            folder: Some("   ".into()),
+            ..sqlite_draft("local")
+        })
+        .unwrap();
+    let too_long = store.save_connection(ConnectionDraft {
+        folder: Some("f".repeat(201)),
+        ..sqlite_draft("x")
+    });
+
+    assert_eq!(filed.folder.as_deref(), Some("Production"));
+    assert_eq!(blank.folder, None);
+    assert!(matches!(too_long, Err(StoreError::Invalid(_))));
 }
 
 #[test]
@@ -434,12 +531,14 @@ fn always_preview_is_saved_and_updated() {
     let saved = store
         .save_connection(ConnectionDraft {
             always_preview: true,
+            folder: None,
             ..sqlite_draft("prod")
         })
         .unwrap();
     let updated = store
         .save_connection(ConnectionDraft {
             always_preview: false,
+            folder: None,
             ..ConnectionDraft::from(saved.clone())
         })
         .unwrap();

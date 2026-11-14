@@ -59,6 +59,8 @@ pub fn run() -> Result<(), tauri::Error> {
             handlers::connection_list,
             handlers::connection_save,
             handlers::connection_delete,
+            handlers::connection_duplicate,
+            handlers::connection_reorder,
             handlers::connection_test,
             handlers::session_open,
             handlers::session_close,
