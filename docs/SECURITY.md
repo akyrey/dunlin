@@ -22,7 +22,7 @@ Out of scope: a compromised local user account or OS, and the SQL the user delib
 - Never returned to the frontend. Edit forms show "stored" and accept a replacement.
 - Private keys are referenced by path and read at connect time; the app does not copy them.
 - Deleting a connection deletes its keychain entries.
-- **Verify (Phase 2):** `keyring` needs platform backends enabled through feature flags; confirm against its current docs.
+- Keychain access goes through `keyring-core` with a store per platform, chosen at startup (the `keyring` crate itself is only a sample CLI since v4). macOS uses `apple-native-keyring-store` with the `keychain` feature; Linux and Windows stores are added with packaging (Phase 8). The store database records only *whether* a secret is saved (`has_db_password`), so listing connections never touches the keychain.
 
 ## SSH
 

@@ -18,6 +18,8 @@ publish = false
 
 [workspace.dependencies]
 dbc-core = { path = "crates/dbc-core" }
+dbc-driver-mysql = { path = "crates/dbc-driver-mysql" }
+dbc-driver-postgres = { path = "crates/dbc-driver-postgres" }
 dbc-driver-sqlite = { path = "crates/dbc-driver-sqlite" }
 dbc-store = { path = "crates/dbc-store" }
 

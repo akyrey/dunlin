@@ -2,12 +2,13 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use dbc_core::WireValue;
 use dbc_core::conformance::SQLITE_FIXTURE;
 use dbc_core::driver::DriverKind;
 use dbc_core::sql::StatementClass;
-use dbc_store::{ConnectionDraft, ConnectionProfile};
+use dbc_store::{ConnectionDraft, ConnectionProfile, MemorySecretStore, TlsSettings};
 use dunlin_lib::commands::{self, MAX_ROW_LIMIT};
 use dunlin_lib::ipc::{
     ConnectionIdArgs, ConnectionSaveArgs, ConnectionTestArgs, QueryExecuteArgs, QueryOutcome,
@@ -19,13 +20,19 @@ use tempfile::TempDir;
 struct Fixture {
     dir: TempDir,
     state: AppState,
+    secrets: Arc<MemorySecretStore>,
 }
 
 impl Fixture {
     fn new() -> Self {
         let dir = tempfile::tempdir().unwrap();
-        let state = AppState::open(&dir.path().join("store.db")).unwrap();
-        Self { dir, state }
+        let secrets = Arc::new(MemorySecretStore::default());
+        let state = AppState::open(&dir.path().join("store.db"), secrets.clone()).unwrap();
+        Self {
+            dir,
+            state,
+            secrets,
+        }
     }
 
     fn database(&self) -> PathBuf {
@@ -42,9 +49,15 @@ impl Fixture {
             read_only,
             ..draft(path)
         };
-        commands::connection_save(&self.state, ConnectionSaveArgs { profile })
-            .await
-            .unwrap()
+        commands::connection_save(
+            &self.state,
+            ConnectionSaveArgs {
+                profile,
+                secrets: None,
+            },
+        )
+        .await
+        .unwrap()
     }
 
     async fn session(&self, read_only: bool) -> SessionInfo {
@@ -92,6 +105,7 @@ fn draft(path: &Path) -> ConnectionDraft {
         user: None,
         file_path: Some(path.to_string_lossy().into_owned()),
         options: BTreeMap::new(),
+        tls: TlsSettings::default(),
     }
 }
 
@@ -105,14 +119,14 @@ fn rows(result: QueryResult) -> (Vec<Vec<WireValue>>, bool) {
 }
 
 #[test]
-fn driver_list_contains_sqlite() {
+fn driver_list_contains_every_driver() {
     let fixture = Fixture::new();
 
     let drivers = commands::driver_list(&fixture.state);
 
     assert_eq!(
         drivers.iter().map(|d| d.kind).collect::<Vec<_>>(),
-        vec![DriverKind::Sqlite]
+        vec![DriverKind::Postgres, DriverKind::Mysql, DriverKind::Sqlite]
     );
 }
 
@@ -146,28 +160,41 @@ async fn saving_without_a_file_path_is_invalid() {
         ..draft(Path::new("x"))
     };
 
-    let error = commands::connection_save(&fixture.state, ConnectionSaveArgs { profile })
-        .await
-        .err()
-        .unwrap();
+    let error = commands::connection_save(
+        &fixture.state,
+        ConnectionSaveArgs {
+            profile,
+            secrets: None,
+        },
+    )
+    .await
+    .err()
+    .unwrap();
 
     assert_eq!(error.code, "invalid_argument");
 }
 
 #[tokio::test]
-async fn saving_for_a_missing_driver_is_unsupported() {
+async fn saving_a_network_profile_without_a_host_is_invalid() {
     let fixture = Fixture::new();
     let profile = ConnectionDraft {
         driver: DriverKind::Postgres,
+        file_path: None,
         ..draft(Path::new("x"))
     };
 
-    let error = commands::connection_save(&fixture.state, ConnectionSaveArgs { profile })
-        .await
-        .err()
-        .unwrap();
+    let error = commands::connection_save(
+        &fixture.state,
+        ConnectionSaveArgs {
+            profile,
+            secrets: None,
+        },
+    )
+    .await
+    .err()
+    .unwrap();
 
-    assert_eq!(error.code, "unsupported");
+    assert_eq!(error.code, "invalid_argument");
 }
 
 #[tokio::test]
@@ -175,9 +202,15 @@ async fn testing_a_connection_reports_the_server_version() {
     let fixture = Fixture::new();
     let profile = draft(&fixture.database());
 
-    let result = commands::connection_test(&fixture.state, ConnectionTestArgs { profile })
-        .await
-        .unwrap();
+    let result = commands::connection_test(
+        &fixture.state,
+        ConnectionTestArgs {
+            profile,
+            secrets: None,
+        },
+    )
+    .await
+    .unwrap();
 
     assert!(result.server_version.starts_with("SQLite 3."));
 }
@@ -187,10 +220,16 @@ async fn testing_a_missing_file_fails_with_connect() {
     let fixture = Fixture::new();
     let profile = draft(&fixture.dir.path().join("absent.db"));
 
-    let error = commands::connection_test(&fixture.state, ConnectionTestArgs { profile })
-        .await
-        .err()
-        .unwrap();
+    let error = commands::connection_test(
+        &fixture.state,
+        ConnectionTestArgs {
+            profile,
+            secrets: None,
+        },
+    )
+    .await
+    .err()
+    .unwrap();
 
     assert_eq!(error.code, "connect");
 }
@@ -436,4 +475,45 @@ async fn deleting_a_connection_closes_its_sessions() {
         .unwrap();
 
     assert_eq!(fixture.state.sessions.count().await, 0);
+}
+
+#[tokio::test]
+async fn several_statements_at_once_are_refused() {
+    let fixture = Fixture::new();
+    let session = fixture.session(false).await;
+
+    let result = fixture
+        .run(&session, "SELECT 1; DROP TABLE customers")
+        .await;
+
+    assert_eq!(result.err().as_deref(), Some("invalid_argument"));
+}
+
+#[tokio::test]
+async fn cancelling_stops_a_running_statement_and_is_a_no_op_when_idle() {
+    let fixture = Fixture::new();
+    let session = fixture.session(false).await;
+    let tab = TabArgs {
+        session_id: session.session_id.clone(),
+        tab_id: "tab-1".into(),
+    };
+    commands::query_cancel(&fixture.state, tab.clone())
+        .await
+        .unwrap();
+    let infinite =
+        "WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c) SELECT count(*) FROM c";
+
+    let run = fixture.run(&session, infinite);
+    let cancel = async {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            commands::query_cancel(&fixture.state, tab.clone())
+                .await
+                .unwrap();
+        }
+    };
+    let result = tokio::select! { r = run => r, () = cancel => unreachable!() };
+
+    assert_eq!(result.err().as_deref(), Some("cancelled"));
+    assert!(fixture.run(&session, "SELECT 1").await.is_ok());
 }

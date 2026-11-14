@@ -17,8 +17,11 @@ tauri-build = { version = "2.7", features = [] }
 
 [dependencies]
 dbc-core = { workspace = true, features = ["ts"] }
+dbc-driver-mysql.workspace = true
+dbc-driver-postgres.workspace = true
 dbc-driver-sqlite.workspace = true
 dbc-store = { workspace = true, features = ["ts"] }
+secrecy = "0.10"
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2.12", features = [] }
@@ -29,6 +32,8 @@ ts-rs.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+async-trait.workspace = true
+secrecy = "0.10"
 dbc-core = { workspace = true, features = ["ts", "test-support"] }
 rusqlite.workspace = true
 tempfile.workspace = true

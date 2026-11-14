@@ -46,6 +46,8 @@ pub struct DriverInfo {
     pub kind: DriverKind,
     pub label: String,
     pub endpoint: EndpointKind,          // Tcp | File: decides the connection form fields
+    pub default_port: Option<u16>,       // pre-filled for Tcp drivers
+    pub tls_modes: Vec<TlsMode>,         // offered on the form; empty = no TLS (D-018)
     pub capabilities: Capabilities,
     pub options: Vec<OptionField>,       // key, label, kind (Bool | Text), default, help
 }
@@ -61,7 +63,7 @@ pub struct ConnectionConfig {
     pub database: Option<String>,
     pub user: Option<String>,
     pub password: Option<SecretString>,
-    pub tls: TlsConfig,              // mode: Disable | Prefer | Require | VerifyCa | VerifyFull; ca, client cert/key
+    pub tls: TlsConfig,              // mode: Disable | Prefer | Require | VerifyCa | VerifyFull; ca_file, client_cert_file, client_key_file
     pub read_only: bool,
     pub options: BTreeMap<String, String>,   // driver-specific extras
 }
@@ -265,7 +267,7 @@ pub struct DbError {
 
 ### PostgreSQL (`tokio-postgres`)
 
-- **Decoding.** The extended protocol returns binary values and `tokio-postgres` only decodes types it knows. Plan: a `RawValue` type implementing `FromSql` that accepts every type and keeps the raw bytes, then our own decoding by type OID and `Kind` (enum labels and domains decode as their base representation; arrays recurse). Types we cannot decode become `Value::Unknown` with hex. **Verify in Phase 2** with a spike covering `numeric`, `jsonb`, `timestamptz`, `interval`, enum, domain, array, `uuid`, `bytea`, `inet`, range. Fallback if this proves too costly: the simple query protocol, which returns everything as text.
+- **Decoding (D-016, verified).** The extended protocol returns binary values and `tokio-postgres` only decodes types it knows. Plan: a `RawValue` type implementing `FromSql` that accepts every type and keeps the raw bytes, then our own decoding by type OID and `Kind` (enum labels and domains decode as their base representation; arrays recurse). Types we cannot decode become `Value::Unknown` with hex. **Verify in Phase 2** with a spike covering `numeric`, `jsonb`, `timestamptz`, `interval`, enum, domain, array, `uuid`, `bytea`, `inet`, range. Fallback if this proves too costly: the simple query protocol, which returns everything as text.
 - **Editing.** Parameters are bound as text and cast in SQL (`$1::text::int4`), so the driver does not need a typed encoder per column type.
 - **Read-only.** `SET default_transaction_read_only = on` after connecting.
 - **DDL.** PostgreSQL has no `SHOW CREATE TABLE`; DDL is reconstructed from the catalogs and labelled as reconstructed.
@@ -275,7 +277,10 @@ pub struct DbError {
 
 - Text protocol for ad-hoc queries gives values as text plus column type metadata; map by column type and flags (unsigned, binary).
 - `TINYINT(1)` is shown as an integer, not a boolean.
-- Read-only: `SET SESSION TRANSACTION READ ONLY`.
+- Read-only: `SET SESSION TRANSACTION READ ONLY`. This does not stop DDL (it commits implicitly); the backend classifier rejects DDL on read-only sessions.
+- `CLIENT_FOUND_ROWS` is set, so affected rows mean *matched* rows, as in PostgreSQL and SQLite.
+- The client always enables multi-statements; the driver refuses text that splits into more than one statement.
+- A user-cancelled `SELECT SLEEP()` returns a row instead of an error; such results are reported as `Cancelled`.
 - DDL: `SHOW CREATE TABLE`.
 - Cancellation needs the connection id (`CONNECTION_ID()`), captured at connect time.
 

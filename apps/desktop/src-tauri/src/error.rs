@@ -103,6 +103,7 @@ impl From<StoreError> for AppError {
             StoreError::NotFound(_) => Self::not_found("The connection"),
             StoreError::Invalid(message) => Self::invalid(message),
             StoreError::TooNew { .. } => Self::new("store_too_new", error.to_string()),
+            StoreError::Keychain(message) => Self::new("keychain", message),
             StoreError::Database(_) | StoreError::Json(_) => {
                 Self::internal(format!("Local storage error: {error}"))
             }

@@ -3,8 +3,17 @@ import type { Capabilities } from "./Capabilities";
 import type { DriverKind } from "./DriverKind";
 import type { EndpointKind } from "./EndpointKind";
 import type { OptionField } from "./OptionField";
+import type { TlsMode } from "./TlsMode";
 
 /**
  * Static description of a driver.
  */
-export type DriverInfo = { kind: DriverKind, label: string, endpoint: EndpointKind, capabilities: Capabilities, options: Array<OptionField>, };
+export type DriverInfo = { kind: DriverKind, label: string, endpoint: EndpointKind, 
+/**
+ * Pre-filled on the connection form for TCP drivers.
+ */
+defaultPort: number | null, 
+/**
+ * TLS modes the driver supports; empty when it has no TLS.
+ */
+tlsModes: Array<TlsMode>, capabilities: Capabilities, options: Array<OptionField>, };

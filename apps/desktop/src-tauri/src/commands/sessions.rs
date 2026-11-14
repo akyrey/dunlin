@@ -1,5 +1,6 @@
 use dbc_store::ConnectionDraft;
 
+use crate::commands::connections::stored_password;
 use crate::error::AppError;
 use crate::ipc::{ConnectionIdArgs, SessionIdArgs, SessionInfo, TabArgs};
 use crate::profile;
@@ -14,7 +15,12 @@ pub async fn session_open(
         .with_store(move |store| Ok(store.get_connection(&id)?))
         .await?;
     let driver = state.registry.get(saved.driver)?;
-    let config = profile::config(&ConnectionDraft::from(saved), &driver.info())?;
+    let password = if saved.has_db_password {
+        stored_password(state, &saved.id).await?
+    } else {
+        None
+    };
+    let config = profile::config(&ConnectionDraft::from(saved), &driver.info(), password)?;
     let session = state
         .sessions
         .open(&args.connection_id, driver, config)

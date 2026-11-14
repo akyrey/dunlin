@@ -48,6 +48,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
+name = "apple-native-keyring-store"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b350bfd03649e07aa05c0a81b3e15934374e585c98204a57e20b9d49f49bb9a"
+dependencies = [
+ "keyring-core",
+ "log",
+ "security-framework",
+]
+
+[[package]]
 name = "arc-swap"
 version = "1.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -893,9 +904,12 @@ dependencies = [
 name = "dbc-store"
 version = "0.1.0"
 dependencies = [
+ "apple-native-keyring-store",
  "dbc-core",
+ "keyring-core",
  "rstest",
  "rusqlite",
+ "secrecy",
  "serde",
  "serde_json",
  "tempfile",
@@ -1147,10 +1161,14 @@ checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 name = "dunlin"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "dbc-core",
+ "dbc-driver-mysql",
+ "dbc-driver-postgres",
  "dbc-driver-sqlite",
  "dbc-store",
  "rusqlite",
+ "secrecy",
  "serde",
  "serde_json",
  "tauri",
@@ -2321,6 +2339,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ee7893dab2e44ae5f9d0173f26ff4aa327c10b01b06a72b52dd9405b628640d"
 dependencies = [
  "indexmap 2.14.2",
+]
+
+[[package]]
+name = "keyring-core"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29fbf4b551298c67925f38cf341a1ada797a75f1837bdf8ae1fc8e2ebc6efb59"
+dependencies = [
+ "log",
 ]
 
 [[package]]

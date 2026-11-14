@@ -82,6 +82,11 @@ pub async fn query_execute(
 }
 
 #[tauri::command]
+pub async fn query_cancel(state: State<'_, AppState>, args: TabArgs) -> Result<(), AppError> {
+    commands::query_cancel(&state, args).await
+}
+
+#[tauri::command]
 pub async fn tab_close(state: State<'_, AppState>, args: TabArgs) -> Result<(), AppError> {
     commands::tab_close(&state, args).await
 }

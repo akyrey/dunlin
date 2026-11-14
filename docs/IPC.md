@@ -10,6 +10,8 @@ The frontend talks to the backend only through Tauri commands. This document is 
 - `apps/desktop/src/ipc/` holds one thin typed wrapper per command. Components and stores import from there and never call `invoke` directly.
 - IDs (`ConnectionId`, `SessionId`, `TabId`) are UUID strings.
 - Database values use the wire format in [DRIVER_API.md](DRIVER_API.md#wire-format).
+- `query_execute` refuses text containing more than one statement (`invalid_argument`): safeguards classify one statement, and MySQL would otherwise run a whole script sent at once.
+- A tab connection that reports `connection_lost` is dropped; the next `query_execute` on that tab reconnects. Statements are never re-run automatically.
 - Text offsets (`StatementRange`, error `position`) are UTF-16 code units, as JavaScript and CodeMirror count. An error position is relative to the statement that was sent.
 - Regenerate types with `pnpm --dir apps/desktop gen:types`; `cargo test -p dunlin bindings` fails if they are stale.
 
@@ -44,7 +46,7 @@ Two codes drive UI flows rather than error toasts:
 | `session_close` | `{ sessionId }` | none | 1 |
 | `sql_split` | `{ sessionId, text }` | `StatementRange[]` | 1 |
 | `query_execute` | `{ sessionId, tabId, sql, rowLimit (1..=100000), confirmed? }` | `QueryResult` | 1 |
-| `query_cancel` | `{ sessionId, tabId }` | none | 2 |
+| `query_cancel` | `{ sessionId, tabId }` | none (no-op when the tab is idle) | 2 |
 | `tab_close` | `{ sessionId, tabId }` | none | 1 |
 | `ssh_trust_host` | `{ host, port, fingerprint }` | none | 3 |
 | `schema_namespaces` | `{ sessionId }` | `Namespace[]` | 4 |
@@ -77,7 +79,7 @@ type QueryResult = {
 
 ## Secrets over IPC
 
-Secrets travel only **from** the frontend to the backend, in `connection_save` and `connection_test`. No command returns a secret. `ConnectionProfile` reports only which secrets are stored (`hasDbPassword: true`). Leaving a secret out of `connection_save` keeps the stored one.
+Secrets travel only **from** the frontend to the backend, in `connection_save` and `connection_test` (`secrets: { dbPassword?: string | null }`). No command returns a secret. `ConnectionProfile` reports only which secrets are stored (`hasDbPassword: true`). Leaving a secret out of `connection_save` keeps the stored one; `null` deletes it; a string replaces it. `connection_test` uses the given password, else the stored one when the profile has an `id`.
 
 ## Tauri permissions
 

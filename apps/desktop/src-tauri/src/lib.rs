@@ -25,7 +25,8 @@ pub fn run() -> Result<(), tauri::Error> {
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&dir)?;
-            let state = AppState::open(&dir.join(STORE_FILE))?;
+            let secrets = std::sync::Arc::new(dbc_store::KeychainSecretStore::open()?);
+            let state = AppState::open(&dir.join(STORE_FILE), secrets)?;
             app.manage(state);
             Ok(())
         })
@@ -39,6 +40,7 @@ pub fn run() -> Result<(), tauri::Error> {
             handlers::session_close,
             handlers::sql_split,
             handlers::query_execute,
+            handlers::query_cancel,
             handlers::tab_close,
         ])
         .run(tauri::generate_context!())

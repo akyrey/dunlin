@@ -2,10 +2,14 @@
 
 mod connections;
 mod migrations;
+mod secrets;
 
 use std::path::Path;
 
-pub use connections::{ConnectionDraft, ConnectionProfile};
+pub use connections::{ConnectionDraft, ConnectionProfile, TlsSettings};
+pub use secrets::{
+    KEYCHAIN_SERVICE, KeychainSecretStore, MemorySecretStore, SecretKind, SecretStore,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
@@ -17,6 +21,9 @@ pub enum StoreError {
     NotFound(String),
     #[error("{0}")]
     Invalid(String),
+    /// Never contains secret material.
+    #[error("{0}")]
+    Keychain(String),
     #[error(
         "the store was written by a newer version (schema {found}, this version supports {supported})"
     )]

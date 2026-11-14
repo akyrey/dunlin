@@ -25,6 +25,7 @@ fn sqlite_draft(name: &str) -> ConnectionDraft {
         user: None,
         file_path: Some("/tmp/app.db".to_owned()),
         options: BTreeMap::from([("create_if_missing".to_owned(), "true".to_owned())]),
+        tls: TlsSettings::default(),
     }
 }
 
@@ -207,4 +208,72 @@ fn a_profile_converts_back_into_an_equivalent_draft() {
         .unwrap();
 
     assert_eq!(resaved, profile);
+}
+
+#[test]
+fn tls_settings_round_trip() {
+    let (_dir, path) = temp_path();
+    let store = Store::open(&path).unwrap();
+    let tls = TlsSettings {
+        mode: dbc_core::driver::TlsMode::VerifyFull,
+        ca_file: Some("/etc/ca.pem".into()),
+        cert_file: Some("/etc/client.pem".into()),
+        key_file: Some("/etc/client.key".into()),
+    };
+
+    let profile = store
+        .save_connection(ConnectionDraft {
+            tls: tls.clone(),
+            ..sqlite_draft("x")
+        })
+        .unwrap();
+
+    assert_eq!(profile.tls, tls);
+}
+
+#[test]
+fn the_password_flag_is_recorded_and_kept_across_edits() {
+    let (_dir, path) = temp_path();
+    let store = Store::open(&path).unwrap();
+    let profile = store.save_connection(sqlite_draft("x")).unwrap();
+
+    store.set_has_db_password(&profile.id, true).unwrap();
+    let edited = store
+        .save_connection(ConnectionDraft {
+            name: "renamed".into(),
+            ..ConnectionDraft::from(profile.clone())
+        })
+        .unwrap();
+
+    assert!(!profile.has_db_password);
+    assert!(edited.has_db_password);
+    assert!(matches!(
+        store.set_has_db_password("missing", true),
+        Err(StoreError::NotFound(_))
+    ));
+}
+
+#[test]
+fn a_version_one_store_is_upgraded_in_place() {
+    let (_dir, path) = temp_path();
+    let old = rusqlite::Connection::open(&path).unwrap();
+    old.execute_batch(
+        "CREATE TABLE connections (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL,
+           driver TEXT NOT NULL, color TEXT, read_only INTEGER NOT NULL DEFAULT 0, host TEXT,
+           port INTEGER, database TEXT, username TEXT, file_path TEXT,
+           options TEXT NOT NULL DEFAULT '{}', created_at INTEGER NOT NULL,
+           updated_at INTEGER NOT NULL);
+         INSERT INTO connections VALUES ('11111111-1111-4111-8111-111111111111', 'old', 'sqlite',
+           NULL, 0, NULL, NULL, NULL, NULL, '/tmp/a.db', '{}', 0, 0);
+         PRAGMA user_version = 1;",
+    )
+    .unwrap();
+    drop(old);
+
+    let store = Store::open(&path).unwrap();
+
+    let profiles = store.list_connections().unwrap();
+    assert_eq!(profiles.len(), 1);
+    assert_eq!(profiles[0].tls, TlsSettings::default());
+    assert!(!profiles[0].has_db_password);
 }

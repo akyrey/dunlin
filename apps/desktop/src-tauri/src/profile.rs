@@ -3,13 +3,21 @@
 
 use std::path::PathBuf;
 
-use dbc_core::driver::{ConnectionConfig, DriverInfo, Endpoint, EndpointKind, TlsConfig};
-use dbc_store::ConnectionDraft;
+use dbc_core::driver::{ConnectionConfig, DriverInfo, Endpoint, EndpointKind, TlsConfig, TlsMode};
+use dbc_store::{ConnectionDraft, TlsSettings};
+use secrecy::SecretString;
 
 use crate::error::AppError;
 
 pub fn validate(draft: &ConnectionDraft, info: &DriverInfo) -> Result<(), AppError> {
     endpoint(draft, info).map(|_| ())?;
+    let mode = draft.tls.mode;
+    if mode != TlsMode::Disable && !info.tls_modes.contains(&mode) {
+        return Err(AppError::invalid(format!(
+            "{} does not support this TLS mode",
+            info.label
+        )));
+    }
     if let Some(key) = draft
         .options
         .keys()
@@ -23,17 +31,31 @@ pub fn validate(draft: &ConnectionDraft, info: &DriverInfo) -> Result<(), AppErr
     Ok(())
 }
 
-pub fn config(draft: &ConnectionDraft, info: &DriverInfo) -> Result<ConnectionConfig, AppError> {
+pub fn config(
+    draft: &ConnectionDraft,
+    info: &DriverInfo,
+    password: Option<SecretString>,
+) -> Result<ConnectionConfig, AppError> {
     validate(draft, info)?;
     Ok(ConnectionConfig {
         endpoint: endpoint(draft, info)?,
         database: non_empty(draft.database.as_deref()),
         user: non_empty(draft.user.as_deref()),
-        password: None,
-        tls: TlsConfig::default(),
+        password,
+        tls: tls(&draft.tls),
         read_only: draft.read_only,
         options: draft.options.clone(),
     })
+}
+
+fn tls(settings: &TlsSettings) -> TlsConfig {
+    let path = |p: &Option<String>| non_empty(p.as_deref()).map(PathBuf::from);
+    TlsConfig {
+        mode: settings.mode,
+        ca_file: path(&settings.ca_file),
+        client_cert_file: path(&settings.cert_file),
+        client_key_file: path(&settings.key_file),
+    }
 }
 
 fn endpoint(draft: &ConnectionDraft, info: &DriverInfo) -> Result<Endpoint, AppError> {
@@ -50,6 +72,7 @@ fn endpoint(draft: &ConnectionDraft, info: &DriverInfo) -> Result<Endpoint, AppE
                 .ok_or_else(|| AppError::invalid("The host is required"))?;
             let port = draft
                 .port
+                .or(info.default_port)
                 .ok_or_else(|| AppError::invalid("The port is required"))?;
             Ok(Endpoint::Tcp {
                 dial_host: host.clone(),
@@ -72,6 +95,8 @@ mod tests {
     use std::collections::BTreeMap;
 
     use dbc_core::driver::{Driver, DriverKind};
+    use dbc_driver_mysql::MysqlDriver;
+    use dbc_driver_postgres::PostgresDriver;
     use dbc_driver_sqlite::SqliteDriver;
 
     use super::*;
@@ -89,12 +114,13 @@ mod tests {
             user: None,
             file_path: file_path.map(str::to_owned),
             options: BTreeMap::new(),
+            tls: TlsSettings::default(),
         }
     }
 
     #[test]
     fn file_driver_needs_a_path() {
-        let error = config(&draft(Some("  ")), &SqliteDriver.info())
+        let error = config(&draft(Some("  ")), &SqliteDriver.info(), None)
             .err()
             .unwrap();
 
@@ -103,7 +129,7 @@ mod tests {
 
     #[test]
     fn file_config_carries_path_and_read_only() {
-        let config = config(&draft(Some("/tmp/a.db")), &SqliteDriver.info()).unwrap();
+        let config = config(&draft(Some("/tmp/a.db")), &SqliteDriver.info(), None).unwrap();
 
         assert_eq!(
             config.endpoint,
@@ -112,6 +138,39 @@ mod tests {
             }
         );
         assert!(config.read_only);
+    }
+
+    #[test]
+    fn tls_settings_become_paths_and_unsupported_modes_are_rejected() {
+        let mut draft = draft(None);
+        draft.host = Some("db".into());
+        draft.tls = TlsSettings {
+            mode: TlsMode::VerifyCa,
+            ca_file: Some("/etc/ca.pem".into()),
+            cert_file: Some("  ".into()),
+            key_file: None,
+        };
+
+        let pg = config(&draft, &PostgresDriver.info(), None).unwrap();
+        let mysql = validate(&draft, &MysqlDriver.info());
+        let sqlite = validate(
+            &ConnectionDraft {
+                tls: draft.tls.clone(),
+                ..self::draft(Some("/a.db"))
+            },
+            &SqliteDriver.info(),
+        );
+
+        assert_eq!(pg.tls.ca_file, Some(PathBuf::from("/etc/ca.pem")));
+        assert_eq!(pg.tls.client_cert_file, None);
+        assert_eq!(
+            mysql.err().map(|e| e.code).as_deref(),
+            Some("invalid_argument")
+        );
+        assert_eq!(
+            sqlite.err().map(|e| e.code).as_deref(),
+            Some("invalid_argument")
+        );
     }
 
     #[test]
@@ -125,16 +184,15 @@ mod tests {
     }
 
     #[test]
-    fn tcp_endpoint_requires_host_and_port() {
-        let mut info = SqliteDriver.info();
-        info.endpoint = EndpointKind::Tcp;
+    fn tcp_endpoint_requires_a_host_and_uses_the_default_port() {
+        let info = PostgresDriver.info();
         let mut draft = draft(None);
+        draft.driver = DriverKind::Postgres;
+
+        assert!(config(&draft, &info, None).is_err());
+
         draft.host = Some("db.example.com".into());
-
-        assert!(config(&draft, &info).is_err());
-
-        draft.port = Some(5432);
-        let config = config(&draft, &info).unwrap();
+        let config = config(&draft, &info, None).unwrap();
         assert_eq!(
             config.endpoint,
             Endpoint::Tcp {

@@ -20,6 +20,12 @@ const MIGRATIONS: &[&str] = &[
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
     );",
+    // 2: TLS settings, and whether a database password is in the keychain (never the value).
+    "ALTER TABLE connections ADD COLUMN tls_mode TEXT NOT NULL DEFAULT 'disable';
+     ALTER TABLE connections ADD COLUMN tls_ca_file TEXT;
+     ALTER TABLE connections ADD COLUMN tls_cert_file TEXT;
+     ALTER TABLE connections ADD COLUMN tls_key_file TEXT;
+     ALTER TABLE connections ADD COLUMN has_db_password INTEGER NOT NULL DEFAULT 0;",
 ];
 
 pub(crate) fn latest_version() -> u32 {

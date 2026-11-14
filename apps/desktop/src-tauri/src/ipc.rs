@@ -12,12 +12,50 @@ use ts_rs::TS;
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionSaveArgs {
     pub profile: ConnectionDraft,
+    #[serde(default)]
+    #[ts(optional)]
+    pub secrets: Option<ConnectionSecrets>,
 }
 
 #[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionTestArgs {
     pub profile: ConnectionDraft,
+    #[serde(default)]
+    #[ts(optional)]
+    pub secrets: Option<ConnectionSecrets>,
+}
+
+/// Secrets only ever travel from the frontend to the backend (docs/IPC.md#secrets-over-ipc).
+/// For each field: absent keeps the stored secret, `null` deletes it, a string replaces it.
+#[derive(Clone, Default, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionSecrets {
+    #[serde(default, deserialize_with = "present")]
+    #[ts(optional, type = "string | null")]
+    pub db_password: Option<Option<String>>,
+}
+
+impl std::fmt::Debug for ConnectionSecrets {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let state = match &self.db_password {
+            None => "unchanged",
+            Some(None) => "cleared",
+            Some(Some(_)) => "[redacted]",
+        };
+        f.debug_struct("ConnectionSecrets")
+            .field("db_password", &state)
+            .finish()
+    }
+}
+
+/// Distinguishes a field set to `null` (`Some(None)`) from an absent one (`None`, via default).
+fn present<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Some)
 }
 
 #[derive(Debug, Clone, Deserialize, TS)]
@@ -103,4 +141,30 @@ pub enum QueryOutcome {
     },
     /// The count as a decimal string, like every database number (DECISIONS D-003).
     Affected { rows: String },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn secrets(json: &str) -> ConnectionSecrets {
+        serde_json::from_str(json).unwrap()
+    }
+
+    #[test]
+    fn secrets_distinguish_absent_null_and_value() {
+        assert!(secrets("{}").db_password.is_none());
+        assert_eq!(secrets(r#"{"dbPassword": null}"#).db_password, Some(None));
+        assert_eq!(
+            secrets(r#"{"dbPassword": "p"}"#).db_password,
+            Some(Some("p".into()))
+        );
+    }
+
+    #[test]
+    fn secrets_debug_output_is_redacted() {
+        let debug = format!("{:?}", secrets(r#"{"dbPassword": "hunter2"}"#));
+
+        assert!(!debug.contains("hunter2"), "{debug}");
+    }
 }

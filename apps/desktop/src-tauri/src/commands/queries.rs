@@ -5,7 +5,9 @@ use dbc_core::result::{ExecuteOptions, StatementOutcome};
 use dbc_core::sql::{self, byte_to_utf16};
 
 use crate::error::AppError;
-use crate::ipc::{QueryExecuteArgs, QueryOutcome, QueryResult, SqlSplitArgs, StatementRange};
+use crate::ipc::{
+    QueryExecuteArgs, QueryOutcome, QueryResult, SqlSplitArgs, StatementRange, TabArgs,
+};
 use crate::state::AppState;
 
 /// Upper bound for `rowLimit`; results are returned in one response.
@@ -41,7 +43,12 @@ pub async fn query_execute(
         )));
     }
     let session = state.sessions.get(&args.session_id).await?;
-    let classification = sql::classify(&args.sql, session.dialect.splitter_rules());
+    let rules = session.dialect.splitter_rules();
+    // Safeguards classify one statement; MySQL would run a whole script sent at once.
+    if sql::split(&args.sql, rules).len() > 1 {
+        return Err(AppError::invalid("Run one statement at a time"));
+    }
+    let classification = sql::classify(&args.sql, rules);
     if session.read_only && !classification.class.allowed_on_read_only() {
         return Err(AppError::read_only());
     }
@@ -50,15 +57,12 @@ pub async fn query_execute(
     {
         return Err(AppError::confirmation_required(danger));
     }
-    let connection = session.tab_connection(&args.tab_id).await?;
     let started = Instant::now();
-    let outcome = connection
-        .execute(
-            &args.sql,
-            &ExecuteOptions {
-                row_limit: args.row_limit,
-            },
-        )
+    let options = ExecuteOptions {
+        row_limit: args.row_limit,
+    };
+    let outcome = session
+        .execute(&args.tab_id, &args.sql, &options)
         .await
         .map_err(|e| AppError::from_db(e, &args.sql))?;
     let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
@@ -67,6 +71,12 @@ pub async fn query_execute(
         elapsed_ms,
         statement_class: classification.class,
     })
+}
+
+/// Cancels the statement running in a tab, if any.
+pub async fn query_cancel(state: &AppState, args: TabArgs) -> Result<(), AppError> {
+    let session = state.sessions.get(&args.session_id).await?;
+    session.cancel(&args.tab_id).await.map_err(AppError::from)
 }
 
 fn to_ipc(outcome: StatementOutcome) -> QueryOutcome {

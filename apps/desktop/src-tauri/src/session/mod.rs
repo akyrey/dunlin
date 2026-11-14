@@ -1,11 +1,12 @@
 //! Open sessions. `SessionManager` is the only shared mutable state in the backend.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use dbc_core::DbError;
 use dbc_core::dialect::Dialect;
 use dbc_core::driver::{Capabilities, Connection, ConnectionConfig, Driver, DriverKind};
+use dbc_core::result::{ExecuteOptions, StatementOutcome};
+use dbc_core::{DbError, DbErrorCode};
 use tokio::sync::{Mutex, RwLock};
 
 use crate::error::AppError;
@@ -22,9 +23,91 @@ pub struct Session {
     config: ConnectionConfig,
     metadata: Arc<dyn Connection>,
     tabs: Mutex<HashMap<String, Arc<dyn Connection>>>,
+    /// Tabs with a statement in flight; only these can be cancelled.
+    running: std::sync::Mutex<HashSet<String>>,
+}
+
+/// Removes a tab from the running set when the statement finishes, however it finishes.
+struct Running<'a> {
+    session: &'a Session,
+    tab_id: String,
+}
+
+impl Drop for Running<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut running) = self.session.running.lock() {
+            running.remove(&self.tab_id);
+        }
+    }
 }
 
 impl Session {
+    /// Runs one statement on the tab's connection. A connection found to be lost is dropped,
+    /// so the next run reconnects; the statement itself is never re-run (ARCHITECTURE.md).
+    pub async fn execute(
+        &self,
+        tab_id: &str,
+        sql: &str,
+        options: &ExecuteOptions,
+    ) -> Result<StatementOutcome, DbError> {
+        let connection = self.tab_connection(tab_id).await?;
+        let outcome = {
+            let _running = self.mark_running(tab_id)?;
+            connection.execute(sql, options).await
+        };
+        if let Err(error) = &outcome
+            && error.code == DbErrorCode::ConnectionLost
+        {
+            self.forget_tab(tab_id, &connection).await;
+        }
+        outcome
+    }
+
+    fn mark_running(&self, tab_id: &str) -> Result<Running<'_>, DbError> {
+        let mut running = self.running.lock().map_err(|_| poisoned())?;
+        if !running.insert(tab_id.to_owned()) {
+            return Err(DbError::new(
+                DbErrorCode::Internal,
+                "A statement is already running in this tab",
+            ));
+        }
+        Ok(Running {
+            session: self,
+            tab_id: tab_id.to_owned(),
+        })
+    }
+
+    /// Cancels the tab's running statement. Without one, this does nothing.
+    pub async fn cancel(&self, tab_id: &str) -> Result<(), DbError> {
+        let is_running = self
+            .running
+            .lock()
+            .map_err(|_| poisoned())?
+            .contains(tab_id);
+        if !is_running {
+            return Ok(());
+        }
+        let connection = self.tabs.lock().await.get(tab_id).cloned();
+        match connection {
+            Some(connection) => connection.cancel_handle().cancel().await,
+            None => Ok(()),
+        }
+    }
+
+    /// Drops a lost connection, unless the tab already has a newer one.
+    async fn forget_tab(&self, tab_id: &str, lost: &Arc<dyn Connection>) {
+        let mut tabs = self.tabs.lock().await;
+        if tabs
+            .get(tab_id)
+            .is_some_and(|current| Arc::ptr_eq(current, lost))
+        {
+            tabs.remove(tab_id);
+        }
+        drop(tabs);
+        // Closing a lost connection only releases local resources; its error carries nothing.
+        let _ = lost.close().await;
+    }
+
     /// The tab's own connection, opened on first use (DECISIONS D-007).
     pub async fn tab_connection(&self, tab_id: &str) -> Result<Arc<dyn Connection>, DbError> {
         let mut tabs = self.tabs.lock().await;
@@ -90,6 +173,7 @@ impl SessionManager {
             config,
             metadata,
             tabs: Mutex::new(HashMap::new()),
+            running: std::sync::Mutex::new(HashSet::new()),
         });
         self.sessions
             .write()
@@ -139,4 +223,11 @@ impl SessionManager {
     pub async fn count(&self) -> usize {
         self.sessions.read().await.len()
     }
+}
+
+fn poisoned() -> DbError {
+    DbError::new(
+        DbErrorCode::Internal,
+        "Session state is unavailable after a panic",
+    )
 }
