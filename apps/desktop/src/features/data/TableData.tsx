@@ -24,15 +24,8 @@ import { ChangesBar, EditToolbar } from "../edit/EditBars";
 import { type EditingProfile, useTableEditing } from "../edit/useTableEditing";
 import { tableKey } from "../workspace/workspaceStore";
 import { loadFilters, rememberFilter } from "./filterHistory";
-import {
-  DEFAULT_PAGE_SIZE,
-  PAGE_SIZES,
-  describeMatch,
-  followTarget,
-  gridColumns,
-  nextSort,
-  rowKeyOf,
-} from "./model";
+import { pageSizes, describeMatch, followTarget, gridColumns, nextSort, rowKeyOf } from "./model";
+import { currentSettings } from "../settings/settingsStore";
 
 type Props = {
   sessionId: string;
@@ -76,7 +69,7 @@ export function TableData({
     filter: "",
     sort: [],
     offset: 0,
-    pageSize: DEFAULT_PAGE_SIZE,
+    pageSize: currentSettings().defaultPageSize,
     match: initialMatch,
   });
   const [draft, setDraft] = useState("");
@@ -452,7 +445,7 @@ export function TableData({
                     change({ pageSize: Number(e.target.value) }, "change the page size");
                   }}
                 >
-                  {PAGE_SIZES.map((size) => (
+                  {pageSizes(query.pageSize).map((size) => (
                     <option key={size} value={size}>
                       {size} / page
                     </option>

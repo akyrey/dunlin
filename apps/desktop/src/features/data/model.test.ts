@@ -1,6 +1,6 @@
 import type { ColumnMeta, TableInfo, Value } from "../../ipc";
 import { loadFilters, rememberFilter } from "./filterHistory";
-import { describeMatch, followTarget, gridColumns, nextSort, rowKeyOf } from "./model";
+import { describeMatch, followTarget, gridColumns, nextSort, pageSizes, rowKeyOf } from "./model";
 
 const main = { catalog: null, schema: "main" };
 const info: TableInfo = {
@@ -69,6 +69,11 @@ const row: Value[] = [
 ];
 
 describe("table data model", () => {
+  it("offers the presets plus the page size from the settings, in order", () => {
+    expect(pageSizes(200)).toEqual([100, 200, 500, 1000]);
+    expect(pageSizes(300)).toEqual([100, 200, 300, 500, 1000]);
+  });
+
   it("marks keys and uses the table's types", () => {
     expect(
       gridColumns(page, info).map((c) => [c.name, c.typeName, c.primaryKey, c.references]),

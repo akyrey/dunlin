@@ -39,7 +39,7 @@ Everything in the roadmap's deferred list, auto-update, Linux and Windows builds
 
 ### Settings
 
-- [ ] 8.8 `settings_get`/`settings_set`; settings view: theme (light, dark, system), editor font and size, default row limit, default page size, history cap, preview-before-apply policy, trusted SSH hosts list, `NULL` display text.
+- [x] 8.8 `settings_get`/`settings_set`; settings view: theme (light, dark, system), editor font and size, default row limit, default page size, history cap, preview-before-apply policy, trusted SSH hosts list, `NULL` display text.
 
 ### Usability
 

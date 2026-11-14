@@ -16,6 +16,7 @@ import type {
   OperationArg,
   SavedQuery,
   SavedQueryDraft,
+  Settings,
   SortKey,
   TablePage,
   KnownHost,
@@ -29,6 +30,7 @@ import type {
   TableRef,
   Value,
 } from "../ipc/generated";
+import { BOUNDS, DEFAULT_SETTINGS } from "../features/settings/defaults";
 import { SECRET_KINDS, type SecretField } from "../features/connections/draft";
 import { rawText } from "../lib/value";
 import { mysqlDriver, postgresDriver, sessionFor, sqliteDriver } from "./fixtures";
@@ -338,6 +340,7 @@ const SLEEP = /sleep\(/i;
 const VIEW_STATEMENT_MS = 5;
 
 export function createMockBackend() {
+  let settings: Settings = { ...DEFAULT_SETTINGS };
   const profiles = new Map<string, ConnectionProfile>();
   const sessions = new Map<string, ConnectionProfile>();
   /** Pending sleeps by tab, resolved by `query_cancel`. */
@@ -611,6 +614,22 @@ export function createMockBackend() {
       history.splice(0, history.length, ...keep);
       return null;
     },
+    settings_get: () => ({ ...settings }),
+    settings_set: (a) => {
+      const next = a.settings as Settings;
+      const { editorFontSize: font, defaultRowLimit: rows, defaultPageSize: page } = next;
+      const inside = (n: number, b: { min: number; max: number }) => n >= b.min && n <= b.max;
+      if (
+        !inside(font, BOUNDS.editorFontSize) ||
+        !inside(rows, BOUNDS.defaultRowLimit) ||
+        !inside(page, BOUNDS.defaultPageSize) ||
+        !inside(next.historyCap, BOUNDS.historyCap)
+      )
+        return reject("invalid_argument", "A setting is out of range");
+      settings = { ...next };
+      return { ...settings };
+    },
+    logs_dir: () => "/mock/logs",
     saved_query_list: () => [...savedQueries],
     saved_query_save: (a) => {
       const draft = a.query as SavedQueryDraft;

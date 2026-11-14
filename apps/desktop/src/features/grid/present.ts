@@ -26,11 +26,12 @@ function preview(text: string, truncated: boolean): { text: string; cut: boolean
   return { text: cut ? `${short}…` : short, cut };
 }
 
-export function present(value: Value, category: TypeCategory): Presentation {
+/** `nullText` is the user's `NULL` display text (Settings). */
+export function present(value: Value, category: TypeCategory, nullText = "NULL"): Presentation {
   const base = { cut: false, alignRight: false };
   switch (value.t) {
     case "null":
-      return { ...base, kind: "null", text: "NULL" };
+      return { ...base, kind: "null", text: nullText };
     case "bool":
       return { ...base, kind: value.v ? "true" : "false", text: String(value.v) };
     case "bytes":

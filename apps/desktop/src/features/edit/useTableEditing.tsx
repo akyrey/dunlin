@@ -11,6 +11,7 @@ import {
 } from "../../ipc";
 import type { GridColumn, GridEditing } from "../grid/DataGrid";
 import type { CellPos, Range } from "../grid/selection";
+import { useSettings } from "../settings/settingsStore";
 import { useEdits } from "./editStore";
 import { editText, editorKind, formatHint, parseInput, toggled } from "./editors";
 import { EMPTY, type Source, counts, reduce, toOperations } from "./pending";
@@ -70,6 +71,9 @@ export function useTableEditing(options: Options) {
   const [applying, setApplying] = useState(false);
   const [guard, setGuard] = useState<{ action: string; run: () => void } | null>(null);
   const reason = readOnlyReason(info, readOnly);
+  const policy = useSettings((s) => s.settings.previewPolicy);
+  // The profile or the settings can insist on the preview; then it cannot be skipped.
+  const alwaysPreview = profile.alwaysPreview || policy === "always";
   const editable = reason === null;
   const names = useMemo(() => columns.map((c) => c.name), [columns]);
   const rows = useMemo(
@@ -260,7 +264,7 @@ export function useTableEditing(options: Options) {
 
   const requestApply = async () => {
     setNotice(null);
-    const mustPreview = profile.alwaysPreview || !useEdits.getState().previewSkipped[sessionId];
+    const mustPreview = alwaysPreview || !useEdits.getState().previewSkipped[sessionId];
     if (!mustPreview) {
       await apply();
       return;
@@ -292,7 +296,7 @@ export function useTableEditing(options: Options) {
           statements={preview}
           connectionName={profile.name}
           connectionColor={profile.color}
-          alwaysPreview={profile.alwaysPreview}
+          alwaysPreview={alwaysPreview}
           applying={applying}
           onApply={(skip) => {
             if (skip) useEdits.getState().skipPreview(sessionId);

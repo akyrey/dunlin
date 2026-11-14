@@ -15,7 +15,7 @@ import type { DriverKind } from "../../ipc";
 import { type Span, statementAt } from "../../lib/text";
 import { dialectFor } from "./dialects";
 import type { RunMode, Selection } from "./run";
-import { themeExtension } from "./theme";
+import { useEditorAppearance } from "./appearance";
 
 export type EditorHandle = {
   selection: () => Selection;
@@ -94,6 +94,9 @@ export function SqlEditor(props: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const languageSlot = useRef(new Compartment());
+  const themeSlot = useRef(new Compartment());
+  const appearance = useEditorAppearance();
+  const initialAppearance = useRef(appearance);
   const callbacks = useRef(props);
 
   useEffect(() => {
@@ -150,7 +153,7 @@ export function SqlEditor(props: Props) {
           basicSetup,
           runKeys,
           cancelKey,
-          themeExtension("dark"),
+          themeSlot.current.of(initialAppearance.current),
           languageSlot.current.of(language(callbacks.current.driver, callbacks.current.completion)),
           marksField,
           marksDecorations,
@@ -175,6 +178,10 @@ export function SqlEditor(props: Props) {
     // The editor owns its document after mount; remount (via `key`) to replace it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    view.current?.dispatch({ effects: themeSlot.current.reconfigure(appearance) });
+  }, [appearance]);
 
   // A refreshed schema (after DDL or a refresh) reconfigures completion in place.
   useEffect(() => {

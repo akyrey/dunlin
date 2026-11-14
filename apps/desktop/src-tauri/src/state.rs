@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use dbc_store::{SecretStore, Store};
+use dbc_store::{SecretStore, Settings, Store};
 
 use crate::error::AppError;
 use crate::registry::DriverRegistry;
@@ -11,6 +11,8 @@ use crate::session::SessionManager;
 
 pub struct AppState {
     store: Arc<Mutex<Store>>,
+    /// Read on every statement (history cap), so kept here rather than read from the store.
+    settings: std::sync::RwLock<Settings>,
     secrets: Arc<dyn SecretStore>,
     pub registry: DriverRegistry,
     pub sessions: SessionManager,
@@ -27,12 +29,28 @@ impl AppState {
         registry: DriverRegistry,
     ) -> Result<Self, AppError> {
         let store = Store::open(store_path)?;
+        let settings = store.settings()?;
         Ok(Self {
             store: Arc::new(Mutex::new(store)),
+            settings: std::sync::RwLock::new(settings),
             secrets,
             registry,
             sessions: SessionManager::default(),
         })
+    }
+
+    pub fn settings(&self) -> Settings {
+        // A poisoned lock still holds the last settings written, which are valid.
+        self.settings
+            .read()
+            .map_or_else(|e| e.into_inner().clone(), |s| s.clone())
+    }
+
+    pub(crate) fn replace_settings(&self, settings: Settings) {
+        match self.settings.write() {
+            Ok(mut current) => *current = settings,
+            Err(e) => *e.into_inner() = settings,
+        }
     }
 
     /// Runs `f` against the secret store on a blocking thread (keychain calls block).

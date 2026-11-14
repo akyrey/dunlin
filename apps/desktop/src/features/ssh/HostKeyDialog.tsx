@@ -39,8 +39,8 @@ export function HostKeyDialog({ hostKey, changed, onTrust, onCancel }: Props) {
           <p role="alert" className="text-rose-300">
             The key presented by {where} is not the one trusted before. Someone may be intercepting
             the connection, or the server was reinstalled. Dunlin will not connect. If you are sure
-            the change is legitimate, remove the old key under Trusted SSH hosts (or from your
-            ~/.ssh/known_hosts) and connect again.
+            the change is legitimate, remove the old key under Settings › Trusted SSH hosts (or from
+            your ~/.ssh/known_hosts) and connect again.
           </p>
         ) : (
           <p className="text-zinc-300">

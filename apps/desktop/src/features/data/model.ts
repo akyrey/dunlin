@@ -12,8 +12,12 @@ import type {
 import { rawText } from "../../lib/value";
 import type { GridColumn } from "../grid/DataGrid";
 
-export const PAGE_SIZES = [100, 200, 500, 1000];
-export const DEFAULT_PAGE_SIZE = 200;
+const PAGE_SIZES = [100, 200, 500, 1000];
+
+/** The page sizes offered: the presets plus the current one (from Settings, any of 10..=10000). */
+export function pageSizes(current: number): number[] {
+  return [...new Set([...PAGE_SIZES, current])].sort((a, b) => a - b);
+}
 
 const qualified = (table: TableRef) =>
   [table.namespace.schema, table.name].filter(Boolean).join(".");

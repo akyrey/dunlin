@@ -4,7 +4,11 @@ import { useSchema } from "../schema/schemaStore";
 import { useSessions } from "../sessions/sessionsStore";
 import { useWorkspace, workspaceOf } from "../workspace/workspaceStore";
 import { useCompletion } from "./completionStore";
-import { DEFAULT_ROW_LIMIT, shownResult, tabsOf, useEditor } from "./editorStore";
+import { DEFAULT_SETTINGS } from "../settings/defaults";
+import { useSettings } from "../settings/settingsStore";
+import { shownResult, tabsOf, useEditor } from "./editorStore";
+
+const DEFAULT_ROW_LIMIT = DEFAULT_SETTINGS.defaultRowLimit;
 
 vi.mock("../../ipc", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../ipc")>();
@@ -87,6 +91,14 @@ describe("editor tabs", () => {
       named,
     ]);
     expect(tab().rowLimit).toBe(DEFAULT_ROW_LIMIT);
+  });
+
+  it("gives a new tab the row limit from the settings", () => {
+    useSettings.setState({ settings: { ...DEFAULT_SETTINGS, defaultRowLimit: 250 } });
+    const opened = useEditor.getState().openTab(SESSION);
+    useSettings.setState({ settings: DEFAULT_SETTINGS });
+
+    expect(useEditor.getState().tabs[opened]?.rowLimit).toBe(250);
   });
 
   it("renames, sets valid row limits only, and inserts text with a remount", () => {

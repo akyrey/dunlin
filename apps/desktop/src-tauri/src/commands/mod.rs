@@ -10,6 +10,7 @@ mod queries;
 mod saved_queries;
 mod schema;
 mod sessions;
+mod settings;
 mod ssh;
 mod table_data;
 
@@ -26,5 +27,6 @@ pub use schema::{
     schema_table, schema_table_ddl,
 };
 pub use sessions::{session_close, session_open, tab_close};
+pub use settings::{settings_get, settings_set};
 pub use ssh::{ssh_known_host_remove, ssh_known_hosts_list, ssh_trust_host};
 pub use table_data::{PAGE_DISPLAY_LIMIT, cell_full_value, table_count, table_page};

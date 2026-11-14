@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 
 import { createMockBackend } from "../../test/mockBackend";
 import { TableData } from "../data/TableData";
+import { DEFAULT_SETTINGS } from "../settings/defaults";
+import { useSettings } from "../settings/settingsStore";
 import { pendingViews, useEdits } from "./editStore";
 import { readOnlyReason } from "./useTableEditing";
 
@@ -13,6 +15,7 @@ let calls: { cmd: string; args: Record<string, unknown> }[] = [];
 beforeEach(() => {
   calls = [];
   useEdits.setState({ pending: {}, previewSkipped: {} });
+  useSettings.setState({ settings: DEFAULT_SETTINGS });
   const backend = createMockBackend();
   mockIPC((cmd, payload) => {
     calls.push({
@@ -105,6 +108,18 @@ describe("table editing", () => {
     );
     await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(pendingStatus()).toHaveTextContent("1 edited");
+  });
+
+  it("always previews when the settings ask for it, whatever the profile says", async () => {
+    useEdits.getState().skipPreview("s1");
+    useSettings.setState({ settings: { ...DEFAULT_SETTINGS, previewPolicy: "always" } });
+    show("people");
+    await rename("Grace", "G");
+
+    await userEvent.click(screen.getByRole("button", { name: "Apply changes" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Apply changes?" });
+    expect(within(dialog).queryByRole("checkbox")).toBeNull();
   });
 
   it("duplicates a row without its key, sets NULL and reverts from the toolbar", async () => {

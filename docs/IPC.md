@@ -75,7 +75,9 @@ Errors from `session_open` and `connection_test` carry `detail.stage`: `ssh_conn
 | `export_result` | `{ sessionId, columns, rows, format, path }` | `ExportDone` (rowsWritten, path); refuses rows cut short for display | 8 |
 | `export_table` | `{ sessionId, viewId, table, filter?, key?, sort, format, path }` plus an `onProgress` channel of `ExportProgress` | `ExportDone`; streams on the view connection `viewId`, cancel with `query_cancel` | 8 |
 | `export_text` | `{ sessionId, columns, rows, format }` | `string`: the rows as CSV, JSON or `INSERT`, for copying | 8 |
-| `settings_get` / `settings_set` | | | 8 |
+| `settings_get` | none | `Settings` (theme, editorFontFamily, editorFontSize, defaultRowLimit, defaultPageSize, historyCap, previewPolicy, nullText); defaults until saved | 8 |
+| `settings_set` | `{ settings }` | `Settings`; out-of-range values are refused with `invalid_argument` | 8 |
+| `logs_dir` | none | `string`: the folder the log files are written to | 8 |
 
 ```ts
 type QueryResult = {

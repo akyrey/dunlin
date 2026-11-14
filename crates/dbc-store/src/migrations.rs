@@ -64,6 +64,8 @@ const MIGRATIONS: &[&str] = &[
         created_at    INTEGER NOT NULL,
         updated_at    INTEGER NOT NULL
      );",
+    // 7: application settings, one JSON document per key (task 8.8).
+    "CREATE TABLE settings (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);",
 ];
 
 pub(crate) fn latest_version() -> u32 {

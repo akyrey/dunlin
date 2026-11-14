@@ -16,6 +16,9 @@ import { useSavedQueries } from "./features/saved/savedQueriesStore";
 import { SchemaTree } from "./features/schema/SchemaTree";
 import { useSessions } from "./features/sessions/sessionsStore";
 import { HostKeyDialog } from "./features/ssh/HostKeyDialog";
+import { SettingsView } from "./features/settings/SettingsView";
+import { useSettings } from "./features/settings/settingsStore";
+import { useApplyTheme } from "./features/settings/theme";
 import { TrustedHosts } from "./features/ssh/TrustedHosts";
 import { describeConnectError, hostKeyFrom } from "./features/ssh/hostKey";
 import { Workspace } from "./features/workspace/Workspace";
@@ -48,6 +51,8 @@ export function App() {
   const { sessions, activeConnectionId, notice } = useSessions();
   const [hostKeyPrompt, setHostKeyPrompt] = useState<HostKeyPrompt | null>(null);
   const [showTrustedHosts, setShowTrustedHosts] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  useApplyTheme();
   const [editing, setEditing] = useState<ConnectionDraft | null>(null);
   const [deleting, setDeleting] = useState<ConnectionProfile | null>(null);
   const [actionError, setActionError] = useState<AppError | null>(null);
@@ -55,6 +60,7 @@ export function App() {
   useEffect(() => {
     void useConnections.getState().load();
     void useSavedQueries.getState().load();
+    void useSettings.getState().load();
   }, []);
 
   const activeProfile = profiles.find((p) => p.id === activeConnectionId) ?? null;
@@ -184,10 +190,10 @@ export function App() {
             <Button
               variant="ghost"
               onClick={() => {
-                setShowTrustedHosts(true);
+                setShowSettings(true);
               }}
             >
-              Trusted SSH hosts
+              Settings
             </Button>
           </div>
         </aside>
@@ -218,6 +224,17 @@ export function App() {
           onTrust={() => void trustAndOpen(hostKeyPrompt)}
           onCancel={() => {
             setHostKeyPrompt(null);
+          }}
+        />
+      )}
+      {showSettings && (
+        <SettingsView
+          onClose={() => {
+            setShowSettings(false);
+          }}
+          onShowTrustedHosts={() => {
+            setShowSettings(false);
+            setShowTrustedHosts(true);
           }}
         />
       )}

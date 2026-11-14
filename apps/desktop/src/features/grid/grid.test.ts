@@ -121,6 +121,7 @@ describe("cell presentation", () => {
 
   it("right-aligns numbers and cuts long text", () => {
     expect(present({ t: "int", v: "1" }, "integer").alignRight).toBe(true);
+    expect(present({ t: "null" }, "text", "∅")).toMatchObject({ kind: "null", text: "∅" });
     expect(present({ t: "uuid", v: "x" }, "decimal").alignRight).toBe(true);
     expect(present({ t: "text", v: "y".repeat(300) }, "text")).toMatchObject({
       cut: true,

@@ -19,7 +19,7 @@ use crate::ipc::{
     StatementRange, TabArgs, TableSnippets,
 };
 use crate::ipc::{ExportDone, ExportProgress, ExportResultArgs, ExportTableArgs, ExportTextArgs};
-use crate::ipc::{SavedQueryIdArgs, SavedQuerySaveArgs};
+use crate::ipc::{SavedQueryIdArgs, SavedQuerySaveArgs, SettingsSetArgs};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -248,6 +248,29 @@ pub async fn saved_query_delete(
     args: SavedQueryIdArgs,
 ) -> Result<(), AppError> {
     commands::saved_query_delete(&state, args).await
+}
+
+#[tauri::command]
+pub fn settings_get(state: State<'_, AppState>) -> dbc_store::Settings {
+    commands::settings_get(&state)
+}
+
+#[tauri::command]
+pub async fn settings_set(
+    state: State<'_, AppState>,
+    args: SettingsSetArgs,
+) -> Result<dbc_store::Settings, AppError> {
+    commands::settings_set(&state, args).await
+}
+
+/// The folder the log files are written to (task 8.18).
+#[tauri::command]
+pub fn logs_dir(app: tauri::AppHandle) -> Result<String, AppError> {
+    use tauri::Manager;
+    app.path()
+        .app_log_dir()
+        .map(|dir| dir.to_string_lossy().into_owned())
+        .map_err(|e| AppError::internal(format!("The log folder is unknown: {e}")))
 }
 
 #[tauri::command]

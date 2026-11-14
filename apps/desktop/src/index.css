@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./theme-light.css";
 
 @layer base {
   html,

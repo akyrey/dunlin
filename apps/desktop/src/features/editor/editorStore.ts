@@ -24,8 +24,8 @@ import {
   plan,
   positionOf,
 } from "./run";
+import { currentSettings } from "../settings/settingsStore";
 
-export const DEFAULT_ROW_LIMIT = 1000;
 export const MAX_ROW_LIMIT = 100_000;
 
 export type EditorTab = {
@@ -252,7 +252,7 @@ export const useEditor = create<EditorState>()((set, get) => {
         title: init.title ?? nextTitle(tabsOf(get(), sessionId)),
         text: init.text ?? "",
         revision: 0,
-        rowLimit: init.rowLimit ?? DEFAULT_ROW_LIMIT,
+        rowLimit: init.rowLimit ?? currentSettings().defaultRowLimit,
         running: false,
         startedAt: null,
         run: null,

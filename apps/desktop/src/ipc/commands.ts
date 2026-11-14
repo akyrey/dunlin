@@ -1,5 +1,6 @@
 /** One thin typed wrapper per backend command (docs/IPC.md). */
 import type {
+  Settings,
   SavedQuery,
   SavedQueryDraft,
   ExportDone,
@@ -151,3 +152,11 @@ export const savedQuerySave = (query: SavedQueryDraft): Promise<SavedQuery> =>
   call("saved_query_save", { query });
 
 export const savedQueryDelete = (id: string): Promise<void> => call("saved_query_delete", { id });
+
+export const settingsGet = (): Promise<Settings> => call("settings_get");
+
+export const settingsSet = (settings: Settings): Promise<Settings> =>
+  call("settings_set", { settings });
+
+/** The folder the backend writes its log files to. */
+export const logsDir = (): Promise<string> => call("logs_dir");

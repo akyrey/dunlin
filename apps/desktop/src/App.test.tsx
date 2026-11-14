@@ -196,7 +196,8 @@ describe("App", () => {
     await userEvent.click(within(prompt).getByRole("button", { name: "Trust and connect" }));
 
     expect(await screen.findByRole("button", { name: "Run" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Trusted SSH hosts" }));
+    await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Trusted SSH hosts…" }));
     const trusted = await screen.findByRole("list", { name: "Trusted hosts" });
     expect(trusted).toHaveTextContent("bastion.example.com:22");
     await userEvent.click(
@@ -212,7 +213,8 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: /^Behind bastion/ }));
     const prompt = await screen.findByRole("dialog", { name: "Trust this SSH server?" });
     await userEvent.click(within(prompt).getByRole("button", { name: "Cancel" }));
-    await userEvent.click(screen.getByRole("button", { name: "Trusted SSH hosts" }));
+    await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Trusted SSH hosts…" }));
 
     expect(await screen.findByText("No hosts trusted yet.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Run" })).toBeNull();

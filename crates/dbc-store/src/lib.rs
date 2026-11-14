@@ -7,6 +7,7 @@ mod migrations;
 mod profile;
 mod saved_queries;
 mod secrets;
+mod settings;
 
 use std::path::Path;
 
@@ -22,6 +23,7 @@ pub use saved_queries::{SavedQuery, SavedQueryDraft};
 pub use secrets::{
     KEYCHAIN_SERVICE, KeychainSecretStore, MemorySecretStore, SecretKind, SecretStore,
 };
+pub use settings::{PreviewPolicy, Settings, Theme};
 
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {

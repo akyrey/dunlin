@@ -5,7 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use dbc_core::DbError;
 use dbc_core::result::StatementOutcome;
-use dbc_store::{DEFAULT_HISTORY_CAP, HistoryEntry, HistoryOutcome, HistoryQuery, NewHistoryEntry};
+use dbc_store::{HistoryEntry, HistoryOutcome, HistoryQuery, NewHistoryEntry};
 
 use crate::error::AppError;
 use crate::ipc::{ConnectionIdArgs, HistoryListArgs};
@@ -61,12 +61,12 @@ fn entry(ran: &Ran<'_>) -> NewHistoryEntry {
 /// logged without the SQL.
 pub(crate) async fn record(state: &AppState, ran: Ran<'_>) {
     let entry = entry(&ran);
+    let cap = state.settings().history_cap;
+    if cap == 0 {
+        return;
+    }
     let result = state
-        .with_store(move |store| {
-            store
-                .record_history(&entry, DEFAULT_HISTORY_CAP)
-                .map_err(AppError::from)
-        })
+        .with_store(move |store| store.record_history(&entry, cap).map_err(AppError::from))
         .await;
     if let Err(error) = result {
         tracing::warn!(code = %error.code, "query history was not recorded");
