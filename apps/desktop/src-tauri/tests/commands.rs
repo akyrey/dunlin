@@ -20,19 +20,14 @@ use tempfile::TempDir;
 struct Fixture {
     dir: TempDir,
     state: AppState,
-    secrets: Arc<MemorySecretStore>,
 }
 
 impl Fixture {
     fn new() -> Self {
         let dir = tempfile::tempdir().unwrap();
         let secrets = Arc::new(MemorySecretStore::default());
-        let state = AppState::open(&dir.path().join("store.db"), secrets.clone()).unwrap();
-        Self {
-            dir,
-            state,
-            secrets,
-        }
+        let state = AppState::open(&dir.path().join("store.db"), secrets).unwrap();
+        Self { dir, state }
     }
 
     fn database(&self) -> PathBuf {
