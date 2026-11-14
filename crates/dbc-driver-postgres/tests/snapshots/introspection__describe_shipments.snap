@@ -1,0 +1,92 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: info
+---
+{
+  "table": {
+    "namespace": {
+      "catalog": null,
+      "schema": "public"
+    },
+    "name": "shipments"
+  },
+  "kind": "table",
+  "comment": null,
+  "columns": [
+    {
+      "name": "id",
+      "typeName": "integer",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 1,
+      "generated": false
+    },
+    {
+      "name": "order_id",
+      "typeName": "integer",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 2,
+      "generated": false
+    },
+    {
+      "name": "line",
+      "typeName": "integer",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 3,
+      "generated": false
+    }
+  ],
+  "primaryKey": {
+    "name": "shipments_pkey",
+    "columns": [
+      "id"
+    ]
+  },
+  "indexes": [
+    {
+      "name": "shipments_item_idx",
+      "columns": [
+        "order_id",
+        "line"
+      ],
+      "unique": false,
+      "method": "btree",
+      "predicate": null
+    }
+  ],
+  "foreignKeys": [
+    {
+      "name": "shipments_item_fk",
+      "columns": [
+        "order_id",
+        "line"
+      ],
+      "referencedTable": {
+        "namespace": {
+          "catalog": null,
+          "schema": "public"
+        },
+        "name": "order_items"
+      },
+      "referencedColumns": [
+        "order_id",
+        "line"
+      ],
+      "onUpdate": "cascade",
+      "onDelete": "cascade"
+    }
+  ],
+  "uniqueConstraints": [],
+  "checkConstraints": [],
+  "rowKey": [
+    "id"
+  ]
+}

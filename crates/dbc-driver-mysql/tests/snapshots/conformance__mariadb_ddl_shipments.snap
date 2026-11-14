@@ -1,0 +1,12 @@
+---
+source: crates/dbc-driver-mysql/tests/conformance.rs
+expression: ddl
+---
+CREATE TABLE `shipments` (
+  `id` int(11) NOT NULL,
+  `order_id` int(11) NOT NULL,
+  `line` int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `shipments_item_idx` (`order_id`,`line`),
+  CONSTRAINT `shipments_item_fk` FOREIGN KEY (`order_id`, `line`) REFERENCES `order_items` (`order_id`, `line`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;

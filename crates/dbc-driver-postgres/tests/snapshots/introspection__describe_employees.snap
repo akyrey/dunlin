@@ -1,0 +1,151 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: info
+---
+{
+  "table": {
+    "namespace": {
+      "catalog": null,
+      "schema": "public"
+    },
+    "name": "employees"
+  },
+  "kind": "table",
+  "comment": "Staff, managed by other staff",
+  "columns": [
+    {
+      "name": "id",
+      "typeName": "integer",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 1,
+      "generated": false
+    },
+    {
+      "name": "manager_id",
+      "typeName": "integer",
+      "category": "integer",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 2,
+      "generated": false
+    },
+    {
+      "name": "first_name",
+      "typeName": "text",
+      "category": "text",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 3,
+      "generated": false
+    },
+    {
+      "name": "last_name",
+      "typeName": "text",
+      "category": "text",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 4,
+      "generated": false
+    },
+    {
+      "name": "full_name",
+      "typeName": "text",
+      "category": "text",
+      "nullable": true,
+      "default": "((first_name || ' '::text) || last_name)",
+      "comment": null,
+      "ordinal": 5,
+      "generated": true
+    },
+    {
+      "name": "salary",
+      "typeName": "numeric(10,2)",
+      "category": "decimal",
+      "nullable": true,
+      "default": null,
+      "comment": "Yearly, before tax",
+      "ordinal": 6,
+      "generated": false
+    }
+  ],
+  "primaryKey": {
+    "name": "employees_pkey",
+    "columns": [
+      "id"
+    ]
+  },
+  "indexes": [
+    {
+      "name": "employees_high_paid_idx",
+      "columns": [
+        "salary"
+      ],
+      "unique": false,
+      "method": "btree",
+      "predicate": "salary > 100000::numeric"
+    },
+    {
+      "name": "employees_lower_last_idx",
+      "columns": [
+        "lower(last_name)"
+      ],
+      "unique": false,
+      "method": "btree",
+      "predicate": null
+    },
+    {
+      "name": "employees_manager_name_idx",
+      "columns": [
+        "manager_id",
+        "last_name"
+      ],
+      "unique": false,
+      "method": "btree",
+      "predicate": null
+    }
+  ],
+  "foreignKeys": [
+    {
+      "name": "employees_manager_id_fkey",
+      "columns": [
+        "manager_id"
+      ],
+      "referencedTable": {
+        "namespace": {
+          "catalog": null,
+          "schema": "public"
+        },
+        "name": "employees"
+      },
+      "referencedColumns": [
+        "id"
+      ],
+      "onUpdate": null,
+      "onDelete": "set_null"
+    }
+  ],
+  "uniqueConstraints": [
+    {
+      "name": "employees_name_key",
+      "columns": [
+        "last_name",
+        "first_name"
+      ]
+    }
+  ],
+  "checkConstraints": [
+    {
+      "name": "salary_positive",
+      "expression": "salary > 0::numeric"
+    }
+  ],
+  "rowKey": [
+    "id"
+  ]
+}

@@ -1,0 +1,14 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: ddl
+---
+-- Reconstructed from the system catalogs; it may differ from the original statement.
+CREATE TABLE "public"."shipments" (
+    "id" integer NOT NULL,
+    "order_id" integer NOT NULL,
+    "line" integer NOT NULL,
+    CONSTRAINT "shipments_pkey" PRIMARY KEY (id),
+    CONSTRAINT "shipments_item_fk" FOREIGN KEY (order_id, line) REFERENCES order_items(order_id, line) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE INDEX shipments_item_idx ON public.shipments USING btree (order_id, line);

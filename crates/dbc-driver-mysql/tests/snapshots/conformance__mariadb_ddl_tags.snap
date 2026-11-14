@@ -1,0 +1,9 @@
+---
+source: crates/dbc-driver-mysql/tests/conformance.rs
+expression: ddl
+---
+CREATE TABLE `tags` (
+  `code` varchar(50) NOT NULL,
+  `label` text DEFAULT NULL,
+  UNIQUE KEY `code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;

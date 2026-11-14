@@ -1,0 +1,27 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: ddl
+---
+-- Reconstructed from the system catalogs; it may differ from the original statement.
+CREATE TABLE "public"."employees" (
+    "id" integer NOT NULL,
+    "manager_id" integer,
+    "first_name" text NOT NULL,
+    "last_name" text NOT NULL,
+    "full_name" text GENERATED ALWAYS AS (((first_name || ' '::text) || last_name)) STORED,
+    "salary" numeric(10,2),
+    CONSTRAINT "employees_pkey" PRIMARY KEY (id),
+    CONSTRAINT "employees_name_key" UNIQUE (last_name, first_name),
+    CONSTRAINT "salary_positive" CHECK (salary > 0::numeric),
+    CONSTRAINT "employees_manager_id_fkey" FOREIGN KEY (manager_id) REFERENCES employees(id) ON DELETE SET NULL
+);
+
+COMMENT ON TABLE "public"."employees" IS 'Staff, managed by other staff';
+
+COMMENT ON COLUMN "public"."employees"."salary" IS 'Yearly, before tax';
+
+CREATE INDEX employees_high_paid_idx ON public.employees USING btree (salary) WHERE (salary > (100000)::numeric);
+
+CREATE INDEX employees_lower_last_idx ON public.employees USING btree (lower(last_name));
+
+CREATE INDEX employees_manager_name_idx ON public.employees USING btree (manager_id, last_name);

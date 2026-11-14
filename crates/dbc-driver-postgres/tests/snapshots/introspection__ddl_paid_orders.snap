@@ -1,0 +1,11 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: ddl
+---
+-- Reconstructed from the system catalogs; it may differ from the original statement.
+CREATE VIEW "public"."paid_orders" AS
+SELECT id,
+    customer_id,
+    total
+   FROM orders
+  WHERE paid;

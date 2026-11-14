@@ -1,0 +1,77 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: info
+---
+{
+  "table": {
+    "namespace": {
+      "catalog": null,
+      "schema": "public"
+    },
+    "name": "customers"
+  },
+  "kind": "table",
+  "comment": null,
+  "columns": [
+    {
+      "name": "id",
+      "typeName": "integer",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 1,
+      "generated": false
+    },
+    {
+      "name": "name",
+      "typeName": "text",
+      "category": "text",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 2,
+      "generated": false
+    },
+    {
+      "name": "email",
+      "typeName": "text",
+      "category": "text",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 3,
+      "generated": false
+    },
+    {
+      "name": "created_at",
+      "typeName": "timestamp with time zone",
+      "category": "temporal",
+      "nullable": true,
+      "default": "now()",
+      "comment": null,
+      "ordinal": 4,
+      "generated": false
+    }
+  ],
+  "primaryKey": {
+    "name": "customers_pkey",
+    "columns": [
+      "id"
+    ]
+  },
+  "indexes": [],
+  "foreignKeys": [],
+  "uniqueConstraints": [
+    {
+      "name": "customers_email_key",
+      "columns": [
+        "email"
+      ]
+    }
+  ],
+  "checkConstraints": [],
+  "rowKey": [
+    "id"
+  ]
+}

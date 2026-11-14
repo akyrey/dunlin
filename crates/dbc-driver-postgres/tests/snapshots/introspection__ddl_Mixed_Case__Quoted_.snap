@@ -1,0 +1,13 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: ddl
+---
+-- Reconstructed from the system catalogs; it may differ from the original statement.
+CREATE TABLE "public"."Mixed Case ""Quoted""" (
+    "select" integer NOT NULL,
+    "spaced name" text,
+    "naïve" text,
+    CONSTRAINT "Mixed Case ""Quoted""_pkey" PRIMARY KEY ("select")
+);
+
+CREATE INDEX "Mixed ""idx""" ON public."Mixed Case ""Quoted""" USING btree ("spaced name");

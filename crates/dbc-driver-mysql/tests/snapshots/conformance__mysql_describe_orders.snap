@@ -1,0 +1,114 @@
+---
+source: crates/dbc-driver-mysql/tests/conformance.rs
+expression: info
+---
+{
+  "table": {
+    "namespace": {
+      "catalog": null,
+      "schema": "[database]"
+    },
+    "name": "orders"
+  },
+  "kind": "table",
+  "comment": null,
+  "columns": [
+    {
+      "name": "id",
+      "typeName": "int",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 1,
+      "generated": false
+    },
+    {
+      "name": "customer_id",
+      "typeName": "int",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 2,
+      "generated": false
+    },
+    {
+      "name": "total",
+      "typeName": "decimal(12,2)",
+      "category": "decimal",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 3,
+      "generated": false
+    },
+    {
+      "name": "placed_on",
+      "typeName": "date",
+      "category": "temporal",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 4,
+      "generated": false
+    },
+    {
+      "name": "paid",
+      "typeName": "tinyint(1)",
+      "category": "bool",
+      "nullable": false,
+      "default": "0",
+      "comment": null,
+      "ordinal": 5,
+      "generated": false
+    }
+  ],
+  "primaryKey": {
+    "name": "PRIMARY",
+    "columns": [
+      "id"
+    ]
+  },
+  "indexes": [
+    {
+      "name": "orders_customer_idx",
+      "columns": [
+        "customer_id"
+      ],
+      "unique": false,
+      "method": "btree",
+      "predicate": null
+    }
+  ],
+  "foreignKeys": [
+    {
+      "name": "orders_ibfk_1",
+      "columns": [
+        "customer_id"
+      ],
+      "referencedTable": {
+        "namespace": {
+          "catalog": null,
+          "schema": "[database]"
+        },
+        "name": "customers"
+      },
+      "referencedColumns": [
+        "id"
+      ],
+      "onUpdate": null,
+      "onDelete": "cascade"
+    }
+  ],
+  "uniqueConstraints": [],
+  "checkConstraints": [
+    {
+      "name": "orders_chk_1",
+      "expression": "(`total` >= 0)"
+    }
+  ],
+  "rowKey": [
+    "id"
+  ]
+}

@@ -1,0 +1,13 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: ddl
+---
+-- Reconstructed from the system catalogs; it may differ from the original statement.
+CREATE TABLE "public"."customers" (
+    "id" integer NOT NULL,
+    "name" text NOT NULL,
+    "email" text,
+    "created_at" timestamp with time zone DEFAULT now(),
+    CONSTRAINT "customers_pkey" PRIMARY KEY (id),
+    CONSTRAINT "customers_email_key" UNIQUE (email)
+);

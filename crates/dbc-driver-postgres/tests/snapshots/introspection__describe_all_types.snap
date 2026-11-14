@@ -1,0 +1,160 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: info
+---
+{
+  "table": {
+    "namespace": {
+      "catalog": null,
+      "schema": "public"
+    },
+    "name": "all_types"
+  },
+  "kind": "table",
+  "comment": null,
+  "columns": [
+    {
+      "name": "id",
+      "typeName": "integer",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 1,
+      "generated": false
+    },
+    {
+      "name": "c_bool",
+      "typeName": "boolean",
+      "category": "bool",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 2,
+      "generated": false
+    },
+    {
+      "name": "c_int",
+      "typeName": "integer",
+      "category": "integer",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 3,
+      "generated": false
+    },
+    {
+      "name": "c_bigint",
+      "typeName": "bigint",
+      "category": "integer",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 4,
+      "generated": false
+    },
+    {
+      "name": "c_real",
+      "typeName": "double precision",
+      "category": "float",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 5,
+      "generated": false
+    },
+    {
+      "name": "c_decimal",
+      "typeName": "numeric",
+      "category": "decimal",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 6,
+      "generated": false
+    },
+    {
+      "name": "c_text",
+      "typeName": "text",
+      "category": "text",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 7,
+      "generated": false
+    },
+    {
+      "name": "c_blob",
+      "typeName": "bytea",
+      "category": "binary",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 8,
+      "generated": false
+    },
+    {
+      "name": "c_json",
+      "typeName": "jsonb",
+      "category": "json",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 9,
+      "generated": false
+    },
+    {
+      "name": "c_xml",
+      "typeName": "xml",
+      "category": "xml",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 10,
+      "generated": false
+    },
+    {
+      "name": "c_uuid",
+      "typeName": "uuid",
+      "category": "uuid",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 11,
+      "generated": false
+    },
+    {
+      "name": "c_date",
+      "typeName": "date",
+      "category": "temporal",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 12,
+      "generated": false
+    },
+    {
+      "name": "c_ts",
+      "typeName": "timestamp without time zone",
+      "category": "temporal",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 13,
+      "generated": false
+    }
+  ],
+  "primaryKey": {
+    "name": "all_types_pkey",
+    "columns": [
+      "id"
+    ]
+  },
+  "indexes": [],
+  "foreignKeys": [],
+  "uniqueConstraints": [],
+  "checkConstraints": [],
+  "rowKey": [
+    "id"
+  ]
+}

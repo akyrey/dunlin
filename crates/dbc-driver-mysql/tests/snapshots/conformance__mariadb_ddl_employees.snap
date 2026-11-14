@@ -1,0 +1,17 @@
+---
+source: crates/dbc-driver-mysql/tests/conformance.rs
+expression: ddl
+---
+CREATE TABLE `employees` (
+  `id` int(11) NOT NULL,
+  `manager_id` int(11) DEFAULT NULL,
+  `first_name` varchar(100) NOT NULL,
+  `last_name` varchar(100) NOT NULL,
+  `full_name` varchar(201) GENERATED ALWAYS AS (concat(`first_name`,' ',`last_name`)) STORED,
+  `salary` decimal(10,2) DEFAULT NULL COMMENT 'Yearly, before tax',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `employees_name_key` (`last_name`,`first_name`),
+  KEY `employees_manager_name_idx` (`manager_id`,`last_name`),
+  CONSTRAINT `employees_ibfk_1` FOREIGN KEY (`manager_id`) REFERENCES `employees` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `salary_positive` CHECK (`salary` > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Staff, managed by other staff';

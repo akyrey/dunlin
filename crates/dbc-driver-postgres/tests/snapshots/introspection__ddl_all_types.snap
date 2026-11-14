@@ -1,0 +1,21 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: ddl
+---
+-- Reconstructed from the system catalogs; it may differ from the original statement.
+CREATE TABLE "public"."all_types" (
+    "id" integer NOT NULL,
+    "c_bool" boolean,
+    "c_int" integer,
+    "c_bigint" bigint,
+    "c_real" double precision,
+    "c_decimal" numeric,
+    "c_text" text,
+    "c_blob" bytea,
+    "c_json" jsonb,
+    "c_xml" xml,
+    "c_uuid" uuid,
+    "c_date" date,
+    "c_ts" timestamp without time zone,
+    CONSTRAINT "all_types_pkey" PRIMARY KEY (id)
+);

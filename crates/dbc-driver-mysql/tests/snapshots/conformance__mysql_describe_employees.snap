@@ -1,0 +1,133 @@
+---
+source: crates/dbc-driver-mysql/tests/conformance.rs
+expression: info
+---
+{
+  "table": {
+    "namespace": {
+      "catalog": null,
+      "schema": "[database]"
+    },
+    "name": "employees"
+  },
+  "kind": "table",
+  "comment": "Staff, managed by other staff",
+  "columns": [
+    {
+      "name": "id",
+      "typeName": "int",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 1,
+      "generated": false
+    },
+    {
+      "name": "manager_id",
+      "typeName": "int",
+      "category": "integer",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 2,
+      "generated": false
+    },
+    {
+      "name": "first_name",
+      "typeName": "varchar(100)",
+      "category": "text",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 3,
+      "generated": false
+    },
+    {
+      "name": "last_name",
+      "typeName": "varchar(100)",
+      "category": "text",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 4,
+      "generated": false
+    },
+    {
+      "name": "full_name",
+      "typeName": "varchar(201)",
+      "category": "text",
+      "nullable": true,
+      "default": "concat(`first_name`,_utf8mb4' ',`last_name`)",
+      "comment": null,
+      "ordinal": 5,
+      "generated": true
+    },
+    {
+      "name": "salary",
+      "typeName": "decimal(10,2)",
+      "category": "decimal",
+      "nullable": true,
+      "default": null,
+      "comment": "Yearly, before tax",
+      "ordinal": 6,
+      "generated": false
+    }
+  ],
+  "primaryKey": {
+    "name": "PRIMARY",
+    "columns": [
+      "id"
+    ]
+  },
+  "indexes": [
+    {
+      "name": "employees_manager_name_idx",
+      "columns": [
+        "manager_id",
+        "last_name"
+      ],
+      "unique": false,
+      "method": "btree",
+      "predicate": null
+    }
+  ],
+  "foreignKeys": [
+    {
+      "name": "employees_ibfk_1",
+      "columns": [
+        "manager_id"
+      ],
+      "referencedTable": {
+        "namespace": {
+          "catalog": null,
+          "schema": "[database]"
+        },
+        "name": "employees"
+      },
+      "referencedColumns": [
+        "id"
+      ],
+      "onUpdate": null,
+      "onDelete": "set_null"
+    }
+  ],
+  "uniqueConstraints": [
+    {
+      "name": "employees_name_key",
+      "columns": [
+        "last_name",
+        "first_name"
+      ]
+    }
+  ],
+  "checkConstraints": [
+    {
+      "name": "salary_positive",
+      "expression": "(`salary` > 0)"
+    }
+  ],
+  "rowKey": [
+    "id"
+  ]
+}

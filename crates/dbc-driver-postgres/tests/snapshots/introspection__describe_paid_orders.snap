@@ -1,0 +1,53 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: info
+---
+{
+  "table": {
+    "namespace": {
+      "catalog": null,
+      "schema": "public"
+    },
+    "name": "paid_orders"
+  },
+  "kind": "view",
+  "comment": null,
+  "columns": [
+    {
+      "name": "id",
+      "typeName": "integer",
+      "category": "integer",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 1,
+      "generated": false
+    },
+    {
+      "name": "customer_id",
+      "typeName": "integer",
+      "category": "integer",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 2,
+      "generated": false
+    },
+    {
+      "name": "total",
+      "typeName": "numeric(12,2)",
+      "category": "decimal",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 3,
+      "generated": false
+    }
+  ],
+  "primaryKey": null,
+  "indexes": [],
+  "foreignKeys": [],
+  "uniqueConstraints": [],
+  "checkConstraints": [],
+  "rowKey": null
+}

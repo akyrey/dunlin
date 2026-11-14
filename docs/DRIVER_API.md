@@ -174,11 +174,13 @@ pub struct ExecuteOptions {
 pub struct NamespaceRef { pub catalog: Option<String>, pub schema: Option<String> }
 pub struct TableRef     { pub namespace: NamespaceRef, pub name: String }
 
+pub struct Namespace     { pub namespace: NamespaceRef, pub name: String, pub system: bool }
 pub struct ObjectSummary { pub name: String, pub kind: ObjectKind /* Table | View | MaterializedView */, pub comment: Option<String> }
 
 pub struct TableInfo {
     pub table: TableRef,
     pub kind: ObjectKind,
+    pub comment: Option<String>,
     pub columns: Vec<Column>,            // name, type_name, category, nullable, default, comment, ordinal, generated
     pub primary_key: Option<Key>,        // name, ordered column names
     pub indexes: Vec<Index>,             // name, columns, unique, method, predicate
@@ -189,13 +191,24 @@ pub struct TableInfo {
 }
 ```
 
-`row_key` is the primary key, or else the first unique constraint whose columns are all `NOT NULL`.
+`row_key` is the primary key, else the first unique constraint whose columns are all `NOT NULL`, else the first such unique index without a predicate (`TableInfo::choose_row_key`, shared by every driver).
+
+Rules every driver follows (checked by the introspection conformance group, D-020):
+
+- `system` marks catalog namespaces (`pg_catalog`, `information_schema`, `mysql`, SQLite's `temp`); the tree hides them unless "show system objects" is on.
+- `indexes` lists only indexes that do not back the primary key or a unique constraint; those appear once, as keys.
+- An expression key part is reported as its expression text in `Index::columns`.
+- A generated column has `generated = true` and its expression in `default`. An identity column's `default` reads `GENERATED ALWAYS AS IDENTITY` (or `BY DEFAULT`).
+- `on_update`/`on_delete` are `None` for `NO ACTION`. MySQL's `RESTRICT` is reported as `None` too: InnoDB treats them alike and the servers disagree on which one they report.
+- A table, view or namespace that does not exist is `DbErrorCode::NotFound`; one the user may not read is `Permission`.
+- Names the database invents are reported as it reports them (`orders_total_check`, `employees_ibfk_1`); SQLite does not name constraints, so its names are `None` unless the `CREATE TABLE` text names them.
+- `table_ddl` is the server's own text where one exists (MySQL `SHOW CREATE`, SQLite `sqlite_master.sql` plus its indexes and triggers). PostgreSQL has none, so its DDL is rebuilt from the catalogs and starts with a comment saying so.
 
 How the three databases map onto namespaces:
 
 | Database | catalog | schema | v1 tree |
 |---|---|---|---|
-| PostgreSQL | connected database | schema | schemas of the connected database only |
+| PostgreSQL | (none: always the connected database) | schema | schemas of the connected database only |
 | MySQL | (none) | database | all databases the user can see |
 | SQLite | (none) | `main` / attached name | `main` and attached databases |
 

@@ -1,11 +1,13 @@
 //! A PostgreSQL connection: connect, execute with the row limit (D-017), cancel, close.
 
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
 use dbc_core::driver::{CancelHandle, Connection, ConnectionConfig, Endpoint, TlsMode};
 use dbc_core::result::{ColumnMeta, ExecuteOptions, ResultSet, StatementOutcome};
+use dbc_core::schema::{Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef};
 use dbc_core::{DbError, DbErrorCode, Value};
 use futures_util::{StreamExt, pin_mut};
 use rustls::ClientConfig;
@@ -13,7 +15,7 @@ use secrecy::ExposeSecret;
 use tokio::net::TcpStream;
 use tokio_postgres::config::SslMode;
 use tokio_postgres::tls::MakeTlsConnect;
-use tokio_postgres::{CancelToken, Client, NoTls, Statement};
+use tokio_postgres::{CancelToken, Client, NoTls, RowStream, Statement};
 use tokio_postgres_rustls::MakeRustlsConnect;
 
 use crate::decode_row;
@@ -26,6 +28,11 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const APPLICATION_NAME: &str = "Dunlin";
 const DEFAULT_USER: &str = "postgres";
 const SQLSTATE_CANCELLED: &str = "57014";
+/// After the row limit, rows still read before deciding to cancel (D-017).
+const GRACE_ROWS: usize = 10_000;
+const GRACE_TIME: Duration = Duration::from_millis(50);
+/// Long enough for a cancel already sent to arrive.
+const LATE_CANCEL_GUARD: &str = "SELECT pg_sleep(0.1)";
 
 /// Where and how to open a socket; shared by the connection and its cancel handle.
 #[derive(Clone)]
@@ -142,16 +149,7 @@ impl PostgresConnection {
             rows.push(decode_row(&row));
         }
         if truncated {
-            // D-017: wait for the cancel, then drain what the server already sent.
-            let cancelled = self.cancel.cancel().await;
-            while let Some(rest) = stream.next().await {
-                match rest {
-                    Ok(_) => {}
-                    Err(e) if is_cancel(&e) => break,
-                    Err(e) => return Err(map_error(&e, sql)),
-                }
-            }
-            cancelled?;
+            self.stop_early(client, stream.as_mut(), sql).await?;
         }
         let columns = statement.columns().iter().map(column_meta).collect();
         Ok(ResultSet {
@@ -159,6 +157,59 @@ impl PostgresConnection {
             rows,
             truncated,
         })
+    }
+}
+
+impl PostgresConnection {
+    /// D-017: a statement that is nearly done is read to the end; a longer one is cancelled.
+    async fn stop_early(
+        &self,
+        client: &Client,
+        mut stream: Pin<&mut RowStream>,
+        sql: &str,
+    ) -> Result<(), DbError> {
+        let drained = tokio::time::timeout(GRACE_TIME, async {
+            for _ in 0..GRACE_ROWS {
+                match stream.next().await {
+                    None => return Ok(true),
+                    Some(Ok(_)) => {}
+                    Some(Err(e)) => return Err(map_error(&e, sql)),
+                }
+            }
+            Ok(false)
+        })
+        .await;
+        if drained.unwrap_or(Ok(false))? {
+            return Ok(());
+        }
+        // Wait for the cancel, then drain what the server already sent.
+        let cancelled = self.cancel.cancel().await;
+        let mut interrupted = false;
+        while let Some(rest) = stream.next().await {
+            match rest {
+                Ok(_) => {}
+                Err(e) if is_cancel(&e) => {
+                    interrupted = true;
+                    break;
+                }
+                Err(e) => return Err(map_error(&e, sql)),
+            }
+        }
+        cancelled?;
+        if interrupted {
+            return Ok(());
+        }
+        absorb_late_cancel(client).await
+    }
+}
+
+/// The statement finished just before the cancel reached it. The server may still deliver the
+/// cancel, which would interrupt the next statement; this statement is there to take it.
+async fn absorb_late_cancel(client: &Client) -> Result<(), DbError> {
+    match client.simple_query(LATE_CANCEL_GUARD).await {
+        Ok(_) => Ok(()),
+        Err(e) if is_cancel(&e) => Ok(()),
+        Err(e) => Err(map_error(&e, "")),
     }
 }
 
@@ -257,6 +308,22 @@ impl Connection for PostgresConnection {
             .read_rows(&client, &statement, sql, options.row_limit)
             .await?;
         Ok(StatementOutcome::Rows(result))
+    }
+
+    async fn list_namespaces(&self) -> Result<Vec<Namespace>, DbError> {
+        crate::introspect::list_namespaces(&*self.client()?).await
+    }
+
+    async fn list_objects(&self, namespace: &NamespaceRef) -> Result<Vec<ObjectSummary>, DbError> {
+        crate::introspect::list_objects(&*self.client()?, namespace).await
+    }
+
+    async fn describe_table(&self, table: &TableRef) -> Result<TableInfo, DbError> {
+        crate::introspect::describe_table(&*self.client()?, table).await
+    }
+
+    async fn table_ddl(&self, table: &TableRef) -> Result<String, DbError> {
+        crate::ddl::table_ddl(&*self.client()?, table).await
     }
 
     fn cancel_handle(&self) -> Arc<dyn CancelHandle> {

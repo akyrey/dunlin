@@ -113,6 +113,9 @@ pub trait Harness: Send + Sync {
     }
 }
 
+/// Truncated reads repeated back to back, to expose a cancel landing on the next statement.
+const TRUNCATE_REPEATS: usize = 50;
+
 /// How long a cancelled statement may take to stop (acceptance: within a second).
 const CANCEL_DEADLINE: std::time::Duration = std::time::Duration::from_secs(1);
 const CANCEL_RETRY: std::time::Duration = std::time::Duration::from_millis(50);
@@ -261,14 +264,21 @@ pub async fn row_limit_group(harness: &dyn Harness) -> Result<(), Failure> {
             ),
         )?;
     }
-    let after = connection
-        .execute("SELECT 1", &ExecuteOptions::default())
-        .await;
-    ensure(
-        after.is_ok(),
-        "row limit",
-        "connection unusable after a truncated result",
-    )?;
+    // Stopping early must never leave a cancel behind for the next statement (D-017).
+    for _ in 0..TRUNCATE_REPEATS {
+        connection
+            .execute(TEN_ROWS, &ExecuteOptions { row_limit: 9 })
+            .await
+            .map_err(|e| fail("row limit repeat", e.to_string()))?;
+        let after = connection
+            .execute("SELECT 1", &ExecuteOptions::default())
+            .await;
+        ensure(
+            after.is_ok(),
+            "row limit",
+            format!("statement after a truncated result failed: {after:?}"),
+        )?;
+    }
     connection
         .close()
         .await

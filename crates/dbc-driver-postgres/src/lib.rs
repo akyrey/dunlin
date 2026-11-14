@@ -1,8 +1,10 @@
 //! PostgreSQL driver.
 
 mod connection;
+mod ddl;
 mod decode;
 mod errors;
+mod introspect;
 mod raw;
 mod tls;
 

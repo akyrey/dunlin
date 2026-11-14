@@ -1,12 +1,13 @@
 //! A MySQL/MariaDB connection over the text protocol.
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use async_trait::async_trait;
 use dbc_core::driver::{CancelHandle, Connection, ConnectionConfig, Endpoint, TlsConfig, TlsMode};
 use dbc_core::result::{ExecuteOptions, ResultSet, StatementOutcome};
+use dbc_core::schema::{Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef};
 use dbc_core::{DbError, DbErrorCode, Value, sql};
 use mysql_async::prelude::Queryable;
 use mysql_async::{ClientIdentity, Conn, DriverError, Error, Opts, OptsBuilder, SslOpts};
@@ -15,6 +16,7 @@ use tokio::sync::Mutex;
 
 use crate::decode::{column_meta, decode};
 use crate::errors::{map_connect_error, map_error};
+use crate::introspect::{self, Flavour};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const DEFAULT_USER: &str = "root";
@@ -23,6 +25,8 @@ const QUERY_INTERRUPTED: u16 = 1317;
 pub(crate) struct MysqlConnection {
     conn: Mutex<Option<Conn>>,
     cancel: Arc<MysqlCancel>,
+    /// Detected on first introspection.
+    flavour: OnceLock<Flavour>,
 }
 
 impl MysqlConnection {
@@ -55,6 +59,7 @@ impl MysqlConnection {
         Ok(Self {
             conn: Mutex::new(Some(conn)),
             cancel,
+            flavour: OnceLock::new(),
         })
     }
 
@@ -109,6 +114,16 @@ impl MysqlConnection {
             rows,
             truncated,
         }))
+    }
+}
+
+impl MysqlConnection {
+    async fn flavour(&self, conn: &mut Conn) -> Result<Flavour, DbError> {
+        if let Some(flavour) = self.flavour.get() {
+            return Ok(*flavour);
+        }
+        let flavour = Flavour::detect(conn).await?;
+        Ok(*self.flavour.get_or_init(|| flavour))
     }
 }
 
@@ -248,6 +263,28 @@ impl Connection for MysqlConnection {
             ));
         }
         Ok(outcome)
+    }
+
+    async fn list_namespaces(&self) -> Result<Vec<Namespace>, DbError> {
+        let mut guard = self.conn.lock().await;
+        introspect::list_namespaces(guard.as_mut().ok_or_else(closed)?).await
+    }
+
+    async fn list_objects(&self, namespace: &NamespaceRef) -> Result<Vec<ObjectSummary>, DbError> {
+        let mut guard = self.conn.lock().await;
+        introspect::list_objects(guard.as_mut().ok_or_else(closed)?, namespace).await
+    }
+
+    async fn describe_table(&self, table: &TableRef) -> Result<TableInfo, DbError> {
+        let mut guard = self.conn.lock().await;
+        let conn = guard.as_mut().ok_or_else(closed)?;
+        let flavour = self.flavour(conn).await?;
+        introspect::describe_table(conn, flavour, table).await
+    }
+
+    async fn table_ddl(&self, table: &TableRef) -> Result<String, DbError> {
+        let mut guard = self.conn.lock().await;
+        introspect::table_ddl(guard.as_mut().ok_or_else(closed)?, table).await
     }
 
     fn cancel_handle(&self) -> Arc<dyn CancelHandle> {

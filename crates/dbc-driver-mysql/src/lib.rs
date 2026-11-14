@@ -3,6 +3,7 @@
 mod connection;
 mod decode;
 mod errors;
+mod introspect;
 
 use std::sync::Arc;
 

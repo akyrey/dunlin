@@ -1,0 +1,15 @@
+---
+source: crates/dbc-driver-mysql/tests/conformance.rs
+expression: ddl
+---
+CREATE TABLE `orders` (
+  `id` int NOT NULL,
+  `customer_id` int NOT NULL,
+  `total` decimal(12,2) DEFAULT NULL,
+  `placed_on` date DEFAULT NULL,
+  `paid` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `orders_customer_idx` (`customer_id`),
+  CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `orders_chk_1` CHECK ((`total` >= 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

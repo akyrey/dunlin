@@ -1,0 +1,114 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: info
+---
+{
+  "table": {
+    "namespace": {
+      "catalog": null,
+      "schema": "public"
+    },
+    "name": "orders"
+  },
+  "kind": "table",
+  "comment": null,
+  "columns": [
+    {
+      "name": "id",
+      "typeName": "integer",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 1,
+      "generated": false
+    },
+    {
+      "name": "customer_id",
+      "typeName": "integer",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 2,
+      "generated": false
+    },
+    {
+      "name": "total",
+      "typeName": "numeric(12,2)",
+      "category": "decimal",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 3,
+      "generated": false
+    },
+    {
+      "name": "placed_on",
+      "typeName": "date",
+      "category": "temporal",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 4,
+      "generated": false
+    },
+    {
+      "name": "paid",
+      "typeName": "boolean",
+      "category": "bool",
+      "nullable": false,
+      "default": "false",
+      "comment": null,
+      "ordinal": 5,
+      "generated": false
+    }
+  ],
+  "primaryKey": {
+    "name": "orders_pkey",
+    "columns": [
+      "id"
+    ]
+  },
+  "indexes": [
+    {
+      "name": "orders_customer_idx",
+      "columns": [
+        "customer_id"
+      ],
+      "unique": false,
+      "method": "btree",
+      "predicate": null
+    }
+  ],
+  "foreignKeys": [
+    {
+      "name": "orders_customer_id_fkey",
+      "columns": [
+        "customer_id"
+      ],
+      "referencedTable": {
+        "namespace": {
+          "catalog": null,
+          "schema": "public"
+        },
+        "name": "customers"
+      },
+      "referencedColumns": [
+        "id"
+      ],
+      "onUpdate": null,
+      "onDelete": "cascade"
+    }
+  ],
+  "uniqueConstraints": [],
+  "checkConstraints": [
+    {
+      "name": "orders_total_check",
+      "expression": "total >= 0::numeric"
+    }
+  ],
+  "rowKey": [
+    "id"
+  ]
+}

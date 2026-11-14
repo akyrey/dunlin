@@ -1,0 +1,17 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: ddl
+---
+-- Reconstructed from the system catalogs; it may differ from the original statement.
+CREATE TABLE "public"."orders" (
+    "id" integer NOT NULL,
+    "customer_id" integer NOT NULL,
+    "total" numeric(12,2),
+    "placed_on" date,
+    "paid" boolean DEFAULT false NOT NULL,
+    CONSTRAINT "orders_pkey" PRIMARY KEY (id),
+    CONSTRAINT "orders_total_check" CHECK (total >= 0::numeric),
+    CONSTRAINT "orders_customer_id_fkey" FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+);
+
+CREATE INDEX orders_customer_idx ON public.orders USING btree (customer_id);

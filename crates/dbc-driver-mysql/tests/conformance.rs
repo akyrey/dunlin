@@ -12,7 +12,7 @@ use dbc_core::conformance::{
 };
 use dbc_core::driver::{ConnectionConfig, Driver, Endpoint, TlsConfig};
 use dbc_core::result::TypeCategory;
-use dbc_core::schema::NamespaceRef;
+use dbc_core::schema::{NamespaceRef, TableRef};
 use dbc_driver_mysql::MysqlDriver;
 use mysql_async::prelude::Queryable;
 use mysql_async::{Conn, Opts};
@@ -209,6 +209,8 @@ impl Harness for MysqlHarness {
         IntrospectionSupport {
             partial_indexes: false,
             expression_indexes: false,
+            // The type table this harness adds.
+            extra_tables: vec!["mysql_types"],
             ..IntrospectionSupport::default()
         }
     }
@@ -244,6 +246,7 @@ async fn run<I: Image>(
     dial: Option<std::net::SocketAddr>,
 ) {
     let port = container.get_host_port_ipv4(3306).await.unwrap();
+    let dial_is_direct = dial.is_none();
     let dial = dial.unwrap_or_else(|| std::net::SocketAddr::from(([127, 0, 0, 1], port)));
     let harness = MysqlHarness {
         port,
@@ -252,6 +255,36 @@ async fn run<I: Image>(
         counter: AtomicUsize::new(0),
     };
     conformance::run_all(&harness).await.unwrap();
+    if dial_is_direct {
+        snapshot_introspection(&harness).await;
+    }
+}
+
+/// Fixture tables whose full description and DDL are snapshotted per flavour.
+const SNAPSHOT_TABLES: [&str; 5] = ["orders", "employees", "shipments", "tags", "paid_orders"];
+
+/// Type names, defaults and check text differ between MySQL and MariaDB, so each has its own.
+async fn snapshot_introspection(harness: &MysqlHarness) {
+    let flavour = match harness.flavour {
+        Flavour::Mysql => "mysql",
+        Flavour::Mariadb => "mariadb",
+    };
+    let config = harness.database(false).await;
+    let database = config.database.clone().unwrap();
+    let connection = MysqlDriver.connect(&config).await.unwrap();
+    for name in SNAPSHOT_TABLES {
+        let table = TableRef {
+            namespace: harness.fixture_namespace(&config),
+            name: name.into(),
+        };
+        let info = connection.describe_table(&table).await.unwrap();
+        let ddl = connection.table_ddl(&table).await.unwrap();
+
+        insta::with_settings!({ filters => vec![(database.as_str(), "[database]")] }, {
+            insta::assert_json_snapshot!(format!("{flavour}_describe_{name}"), info);
+            insta::assert_snapshot!(format!("{flavour}_ddl_{name}"), ddl);
+        });
+    }
 }
 
 #[tokio::test]

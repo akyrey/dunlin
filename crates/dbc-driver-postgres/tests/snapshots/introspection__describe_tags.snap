@@ -1,0 +1,52 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: info
+---
+{
+  "table": {
+    "namespace": {
+      "catalog": null,
+      "schema": "public"
+    },
+    "name": "tags"
+  },
+  "kind": "table",
+  "comment": null,
+  "columns": [
+    {
+      "name": "code",
+      "typeName": "text",
+      "category": "text",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 1,
+      "generated": false
+    },
+    {
+      "name": "label",
+      "typeName": "text",
+      "category": "text",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 2,
+      "generated": false
+    }
+  ],
+  "primaryKey": null,
+  "indexes": [],
+  "foreignKeys": [],
+  "uniqueConstraints": [
+    {
+      "name": "tags_code_key",
+      "columns": [
+        "code"
+      ]
+    }
+  ],
+  "checkConstraints": [],
+  "rowKey": [
+    "code"
+  ]
+}

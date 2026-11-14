@@ -1,0 +1,10 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: ddl
+---
+-- Reconstructed from the system catalogs; it may differ from the original statement.
+CREATE TABLE "public"."tags" (
+    "code" text NOT NULL,
+    "label" text,
+    CONSTRAINT "tags_code_key" UNIQUE (code)
+);

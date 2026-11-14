@@ -1,0 +1,43 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: info
+---
+{
+  "table": {
+    "namespace": {
+      "catalog": null,
+      "schema": "public"
+    },
+    "name": "event_log"
+  },
+  "kind": "table",
+  "comment": null,
+  "columns": [
+    {
+      "name": "happened_at",
+      "typeName": "timestamp without time zone",
+      "category": "temporal",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 1,
+      "generated": false
+    },
+    {
+      "name": "message",
+      "typeName": "text",
+      "category": "text",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 2,
+      "generated": false
+    }
+  ],
+  "primaryKey": null,
+  "indexes": [],
+  "foreignKeys": [],
+  "uniqueConstraints": [],
+  "checkConstraints": [],
+  "rowKey": null
+}

@@ -1,0 +1,70 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: info
+---
+{
+  "table": {
+    "namespace": {
+      "catalog": null,
+      "schema": "public"
+    },
+    "name": "Mixed Case \"Quoted\""
+  },
+  "kind": "table",
+  "comment": null,
+  "columns": [
+    {
+      "name": "select",
+      "typeName": "integer",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 1,
+      "generated": false
+    },
+    {
+      "name": "spaced name",
+      "typeName": "text",
+      "category": "text",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 2,
+      "generated": false
+    },
+    {
+      "name": "naïve",
+      "typeName": "text",
+      "category": "text",
+      "nullable": true,
+      "default": null,
+      "comment": null,
+      "ordinal": 3,
+      "generated": false
+    }
+  ],
+  "primaryKey": {
+    "name": "Mixed Case \"Quoted\"_pkey",
+    "columns": [
+      "select"
+    ]
+  },
+  "indexes": [
+    {
+      "name": "Mixed \"idx\"",
+      "columns": [
+        "spaced name"
+      ],
+      "unique": false,
+      "method": "btree",
+      "predicate": null
+    }
+  ],
+  "foreignKeys": [],
+  "uniqueConstraints": [],
+  "checkConstraints": [],
+  "rowKey": [
+    "select"
+  ]
+}

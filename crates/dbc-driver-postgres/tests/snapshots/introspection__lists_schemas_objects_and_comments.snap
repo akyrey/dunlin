@@ -1,0 +1,21 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: objects
+---
+[
+  {
+    "name": "ident",
+    "kind": "table",
+    "comment": null
+  },
+  {
+    "name": "measurements",
+    "kind": "table",
+    "comment": null
+  },
+  {
+    "name": "order_totals",
+    "kind": "materialized_view",
+    "comment": "It's cached"
+  }
+]

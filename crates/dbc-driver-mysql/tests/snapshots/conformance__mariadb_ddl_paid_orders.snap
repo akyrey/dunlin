@@ -1,0 +1,5 @@
+---
+source: crates/dbc-driver-mysql/tests/conformance.rs
+expression: ddl
+---
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `paid_orders` AS select `orders`.`id` AS `id`,`orders`.`customer_id` AS `customer_id`,`orders`.`total` AS `total` from `orders` where `orders`.`paid` <> 0;

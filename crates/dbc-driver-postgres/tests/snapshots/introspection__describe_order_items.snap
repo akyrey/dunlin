@@ -1,0 +1,91 @@
+---
+source: crates/dbc-driver-postgres/tests/introspection.rs
+expression: info
+---
+{
+  "table": {
+    "namespace": {
+      "catalog": null,
+      "schema": "public"
+    },
+    "name": "order_items"
+  },
+  "kind": "table",
+  "comment": null,
+  "columns": [
+    {
+      "name": "order_id",
+      "typeName": "integer",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 1,
+      "generated": false
+    },
+    {
+      "name": "line",
+      "typeName": "integer",
+      "category": "integer",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 2,
+      "generated": false
+    },
+    {
+      "name": "sku",
+      "typeName": "text",
+      "category": "text",
+      "nullable": false,
+      "default": null,
+      "comment": null,
+      "ordinal": 3,
+      "generated": false
+    },
+    {
+      "name": "quantity",
+      "typeName": "integer",
+      "category": "integer",
+      "nullable": false,
+      "default": "1",
+      "comment": null,
+      "ordinal": 4,
+      "generated": false
+    }
+  ],
+  "primaryKey": {
+    "name": "order_items_pkey",
+    "columns": [
+      "order_id",
+      "line"
+    ]
+  },
+  "indexes": [],
+  "foreignKeys": [
+    {
+      "name": "order_items_order_id_fkey",
+      "columns": [
+        "order_id"
+      ],
+      "referencedTable": {
+        "namespace": {
+          "catalog": null,
+          "schema": "public"
+        },
+        "name": "orders"
+      },
+      "referencedColumns": [
+        "id"
+      ],
+      "onUpdate": null,
+      "onDelete": null
+    }
+  ],
+  "uniqueConstraints": [],
+  "checkConstraints": [],
+  "rowKey": [
+    "order_id",
+    "line"
+  ]
+}
