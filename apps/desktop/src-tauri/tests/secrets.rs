@@ -177,6 +177,7 @@ fn draft() -> ConnectionDraft {
         options: BTreeMap::new(),
         tls: TlsSettings::default(),
         ssh: None,
+        always_preview: false,
     }
 }
 

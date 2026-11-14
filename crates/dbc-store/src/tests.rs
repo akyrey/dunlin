@@ -27,6 +27,7 @@ fn sqlite_draft(name: &str) -> ConnectionDraft {
         options: BTreeMap::from([("create_if_missing".to_owned(), "true".to_owned())]),
         tls: TlsSettings::default(),
         ssh: None,
+        always_preview: false,
     }
 }
 
@@ -423,4 +424,26 @@ fn a_version_one_store_is_upgraded_in_place() {
     assert_eq!(profiles.len(), 1);
     assert_eq!(profiles[0].tls, TlsSettings::default());
     assert!(profiles[0].saved_secrets.is_empty());
+}
+
+#[test]
+fn always_preview_is_saved_and_updated() {
+    let (_dir, path) = temp_path();
+    let store = Store::open(&path).unwrap();
+
+    let saved = store
+        .save_connection(ConnectionDraft {
+            always_preview: true,
+            ..sqlite_draft("prod")
+        })
+        .unwrap();
+    let updated = store
+        .save_connection(ConnectionDraft {
+            always_preview: false,
+            ..ConnectionDraft::from(saved.clone())
+        })
+        .unwrap();
+
+    assert!(saved.always_preview);
+    assert!(!updated.always_preview);
 }

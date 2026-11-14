@@ -4,8 +4,8 @@ import type { SortKey, Value } from "../../ipc";
 import { rowsToJson } from "../../lib/json";
 import { ReadOnlyCode } from "../editor/ReadOnlyCode";
 import { CellViewer } from "./CellViewer";
-import { DataGrid, type GridColumn } from "./DataGrid";
-import type { CellPos } from "./selection";
+import { DataGrid, type GridColumn, type GridEditing } from "./DataGrid";
+import type { CellPos, Range } from "./selection";
 
 export type ViewMode = "grid" | "json";
 
@@ -21,10 +21,16 @@ type Props = {
   noFullReason: string;
   /** Extra controls for the toolbar (page controls, counts). */
   toolbar?: ReactNode;
+  resetKey?: unknown;
+  onSelectionChange?: (range: Range | null) => void;
+  edit?: GridEditing;
 };
 
 /** A result as a grid or as JSON, with the cell viewer for the selected cell (6.9, 6.10, 6.13). */
 export function ResultView({
+  resetKey,
+  onSelectionChange,
+  edit,
   columns,
   rows,
   rowOffset,
@@ -38,6 +44,16 @@ export function ResultView({
   const [mode, setMode] = useState<ViewMode>("grid");
   const [viewer, setViewer] = useState(false);
   const [focus, setFocus] = useState<CellPos | null>(null);
+  /** The viewer was opened to edit (JSON, XML, long text). */
+  const [editingLong, setEditingLong] = useState(false);
+  const gridEdit: GridEditing | undefined = edit && {
+    ...edit,
+    onEditLong: (cell) => {
+      setFocus(cell);
+      setEditingLong(true);
+      setViewer(true);
+    },
+  };
   const json = useMemo(
     () =>
       mode === "json"
@@ -96,7 +112,13 @@ export function ResultView({
               sort={sort}
               onSort={onSort}
               onFollow={onFollow}
-              onFocusCell={setFocus}
+              resetKey={resetKey}
+              onSelectionChange={onSelectionChange}
+              edit={gridEdit}
+              onFocusCell={(cell) => {
+                setFocus(cell);
+                setEditingLong(false);
+              }}
               onActivate={(cell) => {
                 setFocus(cell);
                 setViewer(true);
@@ -118,7 +140,23 @@ export function ResultView({
         {viewer &&
           (focus && focusedValue && focusedColumn ? (
             <CellViewer
-              key={`${focus.row}:${focus.col}`}
+              key={`${focus.row}:${focus.col}:${String(editingLong)}`}
+              edit={
+                edit &&
+                edit.kind(focus) !== "none" &&
+                edit.kind(focus) !== "binary" &&
+                !edit.mark(focus.row).deleted
+                  ? {
+                      initialText: edit.initialText(focus),
+                      parse: (text) => edit.parse(focus, text),
+                      onSave: (value) => {
+                        edit.onCommit(focus, value);
+                        setEditingLong(false);
+                      },
+                      start: editingLong,
+                    }
+                  : undefined
+              }
               column={focusedColumn}
               value={focusedValue}
               loadFull={loadFull?.(focus) ?? null}

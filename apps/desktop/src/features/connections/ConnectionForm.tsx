@@ -80,6 +80,7 @@ export function ConnectionForm({ initial, drivers, savedSecrets, onSave, onCance
       name: draft.name,
       color: draft.color,
       readOnly: draft.readOnly,
+      alwaysPreview: draft.alwaysPreview,
     });
     setTlsTouched(false);
     setTest({ status: "idle" });
@@ -228,6 +229,19 @@ export function ConnectionForm({ initial, drivers, savedSecrets, onSave, onCance
               }}
             />
             Read-only
+          </label>
+          <label
+            className="flex items-center gap-2"
+            title="Show the SQL of staged edits before every apply"
+          >
+            <input
+              type="checkbox"
+              checked={draft.alwaysPreview}
+              onChange={(e) => {
+                change({ alwaysPreview: e.target.checked });
+              }}
+            />
+            Always preview edits
           </label>
           <label className="flex items-center gap-2">
             Colour

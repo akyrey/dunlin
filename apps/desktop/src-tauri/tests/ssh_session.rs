@@ -93,6 +93,7 @@ impl World {
                 },
                 jump: None,
             }),
+            always_preview: false,
         }
     }
 

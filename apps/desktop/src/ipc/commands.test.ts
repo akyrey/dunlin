@@ -36,6 +36,7 @@ const draft: ConnectionDraft = {
   options: {},
   tls: { mode: "disable", caFile: null, certFile: null, keyFile: null },
   ssh: null,
+  alwaysPreview: false,
 };
 
 const ns = { catalog: null, schema: "main" };

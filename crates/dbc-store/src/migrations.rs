@@ -53,6 +53,8 @@ const MIGRATIONS: &[&str] = &[
         error         TEXT
      );
      CREATE INDEX query_history_by_connection ON query_history (connection_id, id);",
+    // 5: always show the SQL preview before applying edits on this connection (task 7.11).
+    "ALTER TABLE connections ADD COLUMN always_preview INTEGER NOT NULL DEFAULT 0;",
 ];
 
 pub(crate) fn latest_version() -> u32 {

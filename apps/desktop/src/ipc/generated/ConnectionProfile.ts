@@ -19,4 +19,8 @@ ssh: SshSettings | null,
 /**
  * Secrets stored in the keychain for this connection. The values are never returned.
  */
-savedSecrets: Array<SecretKind>, };
+savedSecrets: Array<SecretKind>, 
+/**
+ * Show the SQL preview before every apply of edits, even after it was skipped once.
+ */
+alwaysPreview: boolean, };

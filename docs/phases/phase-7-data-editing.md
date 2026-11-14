@@ -49,7 +49,7 @@ A pure reducer over immutable state: editing a cell back to its original value r
 - [x] 7.3 `apply_changes` for PostgreSQL (text parameters with casts), MySQL and SQLite (typed binding from `Value`).
 - [x] 7.4 Conformance group: insert, update, delete, mixed batch ordering, key update, write `NULL`, constraint violation rolls back everything, row deleted by another connection gives `RowCountMismatch` and rolls back, generated columns skipped, JSON, binary, decimal and timestamp values written and read back exactly.
 - [x] 7.5 `changes_preview` and `changes_apply` commands; refuse on read-only sessions and on tables without a row key (checked in the backend, not only the UI).
-- [ ] 7.6 Pending-changes reducer with unit tests for every transition and cancellation rule above.
+- [x] 7.6 Pending-changes reducer with unit tests for every transition and cancellation rule above.
 - [ ] 7.7 Cell editors by `TypeCategory`: text input, number input kept as string with validation, boolean toggle, date/time text with format hint, JSON and long text edited in the cell viewer panel with validation, binary read-only (set to `NULL` only). Enter commits, Escape cancels, Tab moves on.
 - [ ] 7.8 Visual state: edited cells, inserted rows and deleted rows are marked; original value shown on hover; per-cell and per-row revert.
 - [ ] 7.9 Add row (blank, or duplicate selected row without key columns), delete selected rows, set `NULL`.

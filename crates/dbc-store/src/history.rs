@@ -194,6 +194,7 @@ mod tests {
                 options: BTreeMap::new(),
                 tls: TlsSettings::default(),
                 ssh: None,
+                always_preview: false,
             })
             .unwrap();
         (dir, store, profile.id)

@@ -69,6 +69,7 @@ export function sqliteProfile(overrides: Partial<ConnectionProfile> = {}): Conne
     tls: noTls,
     ssh: null,
     savedSecrets: [],
+    alwaysPreview: false,
     ...overrides,
   };
 }

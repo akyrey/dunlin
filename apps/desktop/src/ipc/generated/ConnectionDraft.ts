@@ -6,4 +6,4 @@ import type { TlsSettings } from "./TlsSettings";
 /**
  * A profile to save: without `id` it is created, with `id` it replaces that profile.
  */
-export type ConnectionDraft = { id: string | null, name: string, driver: DriverKind, color: string | null, readOnly: boolean, host: string | null, port: number | null, database: string | null, user: string | null, filePath: string | null, options: { [key in string]: string }, tls: TlsSettings, ssh: SshSettings | null, };
+export type ConnectionDraft = { id: string | null, name: string, driver: DriverKind, color: string | null, readOnly: boolean, host: string | null, port: number | null, database: string | null, user: string | null, filePath: string | null, options: { [key in string]: string }, tls: TlsSettings, ssh: SshSettings | null, alwaysPreview: boolean, };

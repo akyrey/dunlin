@@ -6,7 +6,9 @@ import { decodeBase64, hexDump, imageType } from "../../lib/binary";
 import { copyText } from "../../lib/clipboard";
 import { prettyJson } from "../../lib/json";
 import { formatSize, rawText } from "../../lib/value";
+import { NO_TEXT_SUBSTITUTION } from "../../lib/quotes";
 import { prettyXml } from "../../lib/xml";
+import type { Parsed } from "../edit/editors";
 import { type CodeLanguage, ReadOnlyCode } from "../editor/ReadOnlyCode";
 import type { GridColumn } from "./DataGrid";
 
@@ -18,6 +20,16 @@ type Props = {
   /** Why `loadFull` is unavailable. */
   noFullReason: string;
   onClose: () => void;
+  /** Editing in the panel (JSON, XML, long text); absent for read-only cells. */
+  edit?: ViewerEdit;
+};
+
+export type ViewerEdit = {
+  initialText: string;
+  parse: (text: string) => Parsed;
+  onSave: (value: Value) => void;
+  /** Open straight in edit mode. */
+  start: boolean;
 };
 
 function isTruncated(value: Value): boolean {
@@ -29,7 +41,9 @@ function isTruncated(value: Value): boolean {
 
 /** The selected cell in full: JSON and XML pretty-printed, text with wrapping, binary as a hex
  * dump or an image (task 6.10). Nothing is ever rendered as HTML. */
-export function CellViewer({ column, value, loadFull, noFullReason, onClose }: Props) {
+export function CellViewer({ column, value, loadFull, noFullReason, onClose, edit }: Props) {
+  const [draft, setDraft] = useState<string | null>(edit?.start ? edit.initialText : null);
+  const [invalid, setInvalid] = useState<string | null>(null);
   const [full, setFull] = useState<{ value: Value; for: Value } | null>(null);
   const [error, setError] = useState<AppError | null>(null);
   const [loading, setLoading] = useState(false);
@@ -77,6 +91,19 @@ export function CellViewer({ column, value, loadFull, noFullReason, onClose }: P
         >
           Copy
         </Button>
+        {edit && draft === null && (
+          <Button
+            variant="ghost"
+            className="px-1 text-xs"
+            disabled={truncated}
+            title={truncated ? "Load the whole value before editing it" : undefined}
+            onClick={() => {
+              setDraft(edit.initialText);
+            }}
+          >
+            Edit
+          </Button>
+        )}
         <Button
           variant="ghost"
           className="px-1 text-xs"
@@ -112,7 +139,56 @@ export function CellViewer({ column, value, loadFull, noFullReason, onClose }: P
         </p>
       )}
       <div className="min-h-0 flex-1">
-        <Body value={shown} category={column.category} wrap={wrap} />
+        {edit && draft !== null ? (
+          <div className="flex h-full flex-col gap-1 p-2">
+            <textarea
+              aria-label={`Edit ${column.name}`}
+              aria-invalid={invalid !== null}
+              autoFocus
+              {...NO_TEXT_SUBSTITUTION}
+              className={`min-h-0 flex-1 resize-none rounded bg-zinc-950 p-2 font-mono text-xs text-zinc-100 outline outline-1 ${invalid ? "outline-rose-500" : "outline-zinc-700"} ${wrap ? "" : "whitespace-pre"}`}
+              value={draft}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                setInvalid(null);
+              }}
+            />
+            {invalid && (
+              <p role="alert" className="text-[11px] text-rose-300">
+                {invalid}
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="ghost"
+                className="text-xs"
+                onClick={() => {
+                  setDraft(null);
+                  setInvalid(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                className="text-xs"
+                onClick={() => {
+                  const parsed = edit.parse(draft);
+                  if ("error" in parsed) {
+                    setInvalid(parsed.error);
+                    return;
+                  }
+                  edit.onSave(parsed.value);
+                  setDraft(null);
+                }}
+              >
+                Set value
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Body value={shown} category={column.category} wrap={wrap} />
+        )}
       </div>
     </aside>
   );

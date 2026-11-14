@@ -11,17 +11,18 @@ use crate::{Store, StoreError};
 
 const MAX_NAME_LENGTH: usize = 200;
 const COLUMNS: &str = "id, name, driver, color, read_only, host, port, database, username, \
-    file_path, options, tls_mode, tls_ca_file, tls_cert_file, tls_key_file, ssh, saved_secrets";
+    file_path, options, tls_mode, tls_ca_file, tls_cert_file, tls_key_file, ssh, saved_secrets, \
+    always_preview";
 
-/// Both statements take the same 17 parameters, in `save_connection`'s order.
+/// Both statements take the same 18 parameters, in `save_connection`'s order.
 const INSERT_SQL: &str = "INSERT INTO connections (id, name, driver, color, read_only, host, port,
        database, username, file_path, options, created_at, updated_at,
-       tls_mode, tls_ca_file, tls_cert_file, tls_key_file, ssh)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?12, ?13, ?14, ?15, ?16, ?17)";
+       tls_mode, tls_ca_file, tls_cert_file, tls_key_file, ssh, always_preview)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?12, ?13, ?14, ?15, ?16, ?17, ?18)";
 const UPDATE_SQL: &str = "UPDATE connections SET name = ?2, driver = ?3, color = ?4,
        read_only = ?5, host = ?6, port = ?7, database = ?8, username = ?9, file_path = ?10,
        options = ?11, updated_at = ?12, tls_mode = ?13, tls_ca_file = ?14, tls_cert_file = ?15,
-       tls_key_file = ?16, ssh = ?17
+       tls_key_file = ?16, ssh = ?17, always_preview = ?18
      WHERE id = ?1";
 
 impl Store {
@@ -69,7 +70,8 @@ impl Store {
                 draft.tls.ca_file,
                 draft.tls.cert_file,
                 draft.tls.key_file,
-                ssh
+                ssh,
+                draft.always_preview
             ],
         )?;
         if changed == 0 {
@@ -215,6 +217,7 @@ fn read_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredRow> {
         },
         ssh: None,
         saved_secrets: Vec::new(),
+        always_preview: row.get(17)?,
     };
     Ok(StoredRow {
         profile,

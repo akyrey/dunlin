@@ -29,6 +29,8 @@ pub struct ConnectionProfile {
     pub ssh: Option<SshSettings>,
     /// Secrets stored in the keychain for this connection. The values are never returned.
     pub saved_secrets: Vec<SecretKind>,
+    /// Show the SQL preview before every apply of edits, even after it was skipped once.
+    pub always_preview: bool,
 }
 
 impl ConnectionProfile {
@@ -101,6 +103,8 @@ pub struct ConnectionDraft {
     pub tls: TlsSettings,
     #[serde(default)]
     pub ssh: Option<SshSettings>,
+    #[serde(default)]
+    pub always_preview: bool,
 }
 
 impl From<ConnectionProfile> for ConnectionDraft {
@@ -119,6 +123,7 @@ impl From<ConnectionProfile> for ConnectionDraft {
             options: profile.options,
             tls: profile.tls,
             ssh: profile.ssh,
+            always_preview: profile.always_preview,
         }
     }
 }
