@@ -2,6 +2,7 @@
 
 #[cfg(feature = "test-support")]
 pub mod conformance;
+pub mod data;
 pub mod dialect;
 pub mod driver;
 pub mod error;

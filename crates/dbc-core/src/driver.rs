@@ -14,6 +14,7 @@ use crate::result::{ExecuteOptions, StatementOutcome};
 use crate::schema::{
     CompletionSchema, Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef,
 };
+use crate::value::Value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -207,6 +208,22 @@ pub trait Connection: Send + Sync {
     ) -> Result<StatementOutcome, DbError>;
 
     fn cancel_handle(&self) -> Arc<dyn CancelHandle>;
+
+    /// Runs one statement with bound parameters for the placeholders the dialect produced
+    /// (`Dialect::placeholder`). Used for table pages and, later, edits.
+    async fn query_params(
+        &self,
+        _sql: &str,
+        _params: &[Value],
+        _options: &ExecuteOptions,
+    ) -> Result<StatementOutcome, DbError> {
+        Err(DbError::unsupported("query_params"))
+    }
+
+    /// A cheap row count from statistics, without scanning; `None` when there is none.
+    async fn estimate_rows(&self, _table: &TableRef) -> Result<Option<u64>, DbError> {
+        Ok(None)
+    }
 
     async fn list_namespaces(&self) -> Result<Vec<Namespace>, DbError> {
         Err(DbError::unsupported("list_namespaces"))

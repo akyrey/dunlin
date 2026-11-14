@@ -12,13 +12,53 @@ pub(crate) fn decode(column: &Column, value: Option<&MyValue>) -> Value {
     match value {
         None | Some(MyValue::NULL) => Value::Null,
         Some(MyValue::Bytes(bytes)) => decode_text(column, bytes),
-        // The text protocol only sends bytes; other variants cannot occur, but stay lossless.
-        Some(other) => Value::Unknown {
+        // The binary protocol (statements with parameters) sends numbers and dates natively.
+        Some(other) => decode_binary(column, other).unwrap_or_else(|| Value::Unknown {
             type_name: type_name(column),
             text: Some(other.as_sql(true)),
             hex: None,
-        },
+        }),
     }
+}
+
+fn decode_binary(column: &Column, value: &MyValue) -> Option<Value> {
+    match *value {
+        MyValue::Int(i) => Some(Value::Int(i)),
+        MyValue::UInt(u) => Some(Value::UInt(u)),
+        MyValue::Float(f) => Some(Value::Float(f64::from(f))),
+        MyValue::Double(f) => Some(Value::Float(f)),
+        MyValue::Date(year, month, day, hour, minute, second, micros) => {
+            let date = format!("{year:04}-{month:02}-{day:02}");
+            if matches!(
+                column.column_type(),
+                ColumnType::MYSQL_TYPE_DATE | ColumnType::MYSQL_TYPE_NEWDATE
+            ) {
+                return Some(Value::Date(date));
+            }
+            let fraction = fraction(column, micros);
+            Some(Value::Timestamp(format!(
+                "{date}T{hour:02}:{minute:02}:{second:02}{fraction}"
+            )))
+        }
+        MyValue::Time(negative, days, hours, minutes, seconds, micros) => {
+            let sign = if negative { "-" } else { "" };
+            let hours = u64::from(days) * 24 + u64::from(hours);
+            let fraction = fraction(column, micros);
+            Some(Value::Time(format!(
+                "{sign}{hours:02}:{minutes:02}:{seconds:02}{fraction}"
+            )))
+        }
+        _ => None,
+    }
+}
+
+/// `.123` for a column with 3 fractional digits, as the text protocol shows it.
+fn fraction(column: &Column, micros: u32) -> String {
+    let digits = usize::from(column.decimals().min(6));
+    if digits == 0 {
+        return String::new();
+    }
+    format!(".{:06}", micros)[..=digits].to_owned()
 }
 
 fn decode_text(column: &Column, bytes: &[u8]) -> Value {

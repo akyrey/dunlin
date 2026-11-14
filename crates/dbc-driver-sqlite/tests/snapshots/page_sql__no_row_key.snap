@@ -1,0 +1,6 @@
+---
+source: crates/dbc-driver-sqlite/tests/page_sql.rs
+expression: "format!(\"{}\\n{:?}\", bound.sql, bound.params)"
+---
+SELECT * FROM "main"."event_log" LIMIT 200 OFFSET 0
+[]

@@ -2,12 +2,14 @@
 //! [`Harness`]. Each check returns a [`Failure`] naming what went wrong instead of panicking.
 
 mod introspection;
+mod table_data;
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
 
 pub use introspection::{IntrospectionSupport, introspection_group};
+pub use table_data::{page_sql_cases, table_data_group};
 
 use crate::driver::{ConnectionConfig, Driver};
 use crate::error::DbErrorCode;
@@ -128,7 +130,8 @@ pub async fn run_all(harness: &dyn Harness) -> Result<(), Failure> {
     execute_group(harness).await?;
     read_only_group(harness).await?;
     cancel_group(harness).await?;
-    introspection_group(harness).await
+    introspection_group(harness).await?;
+    table_data_group(harness).await
 }
 
 /// Connect, ping, close; unreachable and bad credentials fail with the right codes.
@@ -196,11 +199,25 @@ pub async fn type_round_trip_group(harness: &dyn Harness) -> Result<(), Failure>
         .connect(&harness.database(false).await)
         .await
         .map_err(|e| fail("connect", e.to_string()))?;
-    for case in harness.type_cases() {
-        let outcome = connection
-            .execute(&case.query, &ExecuteOptions::default())
-            .await
-            .map_err(|e| fail("type query", format!("{}: {e}", case.query)))?;
+    // Both paths: ad-hoc statements, and prepared statements with parameters, which MySQL
+    // answers in its binary protocol.
+    for (case, prepared) in harness
+        .type_cases()
+        .into_iter()
+        .flat_map(|case| [(case.clone(), false), (case, true)])
+    {
+        let options = ExecuteOptions::default();
+        let outcome = if prepared {
+            connection.query_params(&case.query, &[], &options).await
+        } else {
+            connection.execute(&case.query, &options).await
+        }
+        .map_err(|e| {
+            fail(
+                "type query",
+                format!("{} (prepared: {prepared}): {e}", case.query),
+            )
+        })?;
         let StatementOutcome::Rows(result) = outcome else {
             return Err(fail("type query", format!("{}: no rows", case.query)));
         };
@@ -209,7 +226,7 @@ pub async fn type_round_trip_group(harness: &dyn Harness) -> Result<(), Failure>
             actual.is_some_and(|v| same_value(v, &case.expected)),
             "type value",
             format!(
-                "{}: expected {:?}, got {actual:?}",
+                "{} (prepared: {prepared}): expected {:?}, got {actual:?}",
                 case.query, case.expected
             ),
         )?;

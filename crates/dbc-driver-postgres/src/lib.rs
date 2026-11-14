@@ -6,6 +6,7 @@ mod ddl;
 mod decode;
 mod errors;
 mod introspect;
+mod params;
 mod raw;
 mod tls;
 
@@ -72,6 +73,15 @@ impl Dialect for PostgresDialect {
             dollar_quoting: true,
             nested_block_comments: true,
             ..SplitterRules::default()
+        }
+    }
+
+    /// Sent as text and cast, so every type binds the same way (`params.rs`).
+    fn placeholder(&self, index: usize, type_name: &str) -> String {
+        if type_name.is_empty() {
+            format!("${index}")
+        } else {
+            format!("${index}::text::{type_name}")
         }
     }
 }

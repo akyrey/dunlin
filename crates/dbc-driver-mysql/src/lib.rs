@@ -71,6 +71,10 @@ impl Dialect for MysqlDialect {
     fn splitter_rules(&self) -> SplitterRules {
         rules()
     }
+
+    fn placeholder(&self, _index: usize, _type_name: &str) -> String {
+        "?".to_owned()
+    }
 }
 
 fn rules() -> SplitterRules {

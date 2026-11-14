@@ -139,15 +139,50 @@ fn open_connection(spec: &OpenSpec) -> Result<rusqlite::Connection, DbError> {
     Ok(connection)
 }
 
+/// Binds a value as SQLite stores it; booleans are integers.
+fn to_sqlite(value: Value) -> Result<rusqlite::types::Value, DbError> {
+    use rusqlite::types::Value as Sql;
+    Ok(match value {
+        Value::Null => Sql::Null,
+        Value::Bool(b) => Sql::Integer(i64::from(b)),
+        Value::Int(i) => Sql::Integer(i),
+        Value::UInt(u) => i64::try_from(u).map_or_else(|_| Sql::Text(u.to_string()), Sql::Integer),
+        Value::Float(f) => Sql::Real(f),
+        Value::Bytes(bytes) => Sql::Blob(bytes),
+        Value::Decimal(s)
+        | Value::Text(s)
+        | Value::Json(s)
+        | Value::Xml(s)
+        | Value::Uuid(s)
+        | Value::Date(s)
+        | Value::Time(s)
+        | Value::Timestamp(s)
+        | Value::TimestampTz(s)
+        | Value::Interval(s) => Sql::Text(s),
+        Value::Unknown {
+            text: Some(text), ..
+        } => Sql::Text(text),
+        Value::Array(_) | Value::Unknown { text: None, .. } => {
+            return Err(DbError::new(
+                DbErrorCode::Unsupported,
+                "Arrays and values without a text form cannot be used as parameters yet",
+            ));
+        }
+    })
+}
+
 fn run_statement(
     connection: &rusqlite::Connection,
     sql: &str,
+    params: &[rusqlite::types::Value],
     row_limit: usize,
 ) -> Result<StatementOutcome, DbError> {
     let mut statement = connection.prepare(sql).map_err(map_error)?;
     if statement.column_count() == 0 {
         let before = connection.total_changes();
-        statement.execute([]).map_err(map_error)?;
+        statement
+            .execute(rusqlite::params_from_iter(params))
+            .map_err(map_error)?;
         // `changes()` keeps the count of the last DML statement, so DDL would report a stale one.
         let rows = if connection.total_changes() == before {
             0
@@ -160,7 +195,7 @@ fn run_statement(
         .columns()
         .map(|c| (c.name().to_owned(), c.decl_type().map(str::to_owned)))
         .collect();
-    let (rows, truncated) = read_rows(&mut statement, declared.len(), row_limit)?;
+    let (rows, truncated) = read_rows(&mut statement, params, declared.len(), row_limit)?;
     let columns = declared
         .into_iter()
         .enumerate()
@@ -176,10 +211,13 @@ fn run_statement(
 /// Reads up to `limit` rows; `truncated` is true when at least one more row exists.
 fn read_rows(
     statement: &mut rusqlite::Statement<'_>,
+    params: &[rusqlite::types::Value],
     width: usize,
     limit: usize,
 ) -> Result<(Vec<Vec<Value>>, bool), DbError> {
-    let mut rows = statement.query([]).map_err(map_error)?;
+    let mut rows = statement
+        .query(rusqlite::params_from_iter(params))
+        .map_err(map_error)?;
     let mut result = Vec::new();
     while let Some(row) = rows.next().map_err(map_error)? {
         if result.len() == limit {
@@ -230,7 +268,25 @@ impl Connection for SqliteConnection {
     ) -> Result<StatementOutcome, DbError> {
         let sql = sql.to_owned();
         let row_limit = options.row_limit;
-        self.call(move |c| run_statement(c, &sql, row_limit)).await
+        self.call(move |c| run_statement(c, &sql, &[], row_limit))
+            .await
+    }
+
+    async fn query_params(
+        &self,
+        sql: &str,
+        params: &[Value],
+        options: &ExecuteOptions,
+    ) -> Result<StatementOutcome, DbError> {
+        let sql = sql.to_owned();
+        let params = params
+            .iter()
+            .cloned()
+            .map(to_sqlite)
+            .collect::<Result<Vec<_>, _>>()?;
+        let row_limit = options.row_limit;
+        self.call(move |c| run_statement(c, &sql, &params, row_limit))
+            .await
     }
 
     async fn list_namespaces(&self) -> Result<Vec<Namespace>, DbError> {

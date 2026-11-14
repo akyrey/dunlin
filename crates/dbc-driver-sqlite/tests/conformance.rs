@@ -153,3 +153,10 @@ async fn introspection_group() {
         .await
         .unwrap();
 }
+
+#[tokio::test]
+async fn table_data_group() {
+    conformance::table_data_group(&SqliteHarness::default())
+        .await
+        .unwrap();
+}

@@ -1,0 +1,6 @@
+---
+source: crates/dbc-driver-mysql/tests/page_sql.rs
+expression: "format!(\"{}\\n{:?}\", bound.sql, bound.params)"
+---
+SELECT * FROM `shop`.`Order Items` WHERE ("select" > 1 OR id IS NULL) ORDER BY `id`, `select` LIMIT 200 OFFSET 0
+[]

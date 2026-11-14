@@ -24,6 +24,11 @@ pub trait Dialect: Send + Sync {
 
     /// Lexical rules for the statement splitter and classifier.
     fn splitter_rules(&self) -> SplitterRules;
+
+    /// The placeholder for bound parameter `index` (1-based) compared with a column of type
+    /// `type_name`: `$1::text::integer` on PostgreSQL, `?` on MySQL, `?1` on SQLite. Drivers bind
+    /// every parameter as the [`Value`](crate::Value) they are given.
+    fn placeholder(&self, index: usize, type_name: &str) -> String;
 }
 
 /// Wraps `name` in `quote`, doubling every occurrence of `quote` inside it.
@@ -56,6 +61,10 @@ mod tests {
 
         fn splitter_rules(&self) -> SplitterRules {
             SplitterRules::default()
+        }
+
+        fn placeholder(&self, index: usize, _type_name: &str) -> String {
+            format!("${index}")
         }
     }
 

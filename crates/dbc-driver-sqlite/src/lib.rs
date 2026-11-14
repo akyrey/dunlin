@@ -75,6 +75,10 @@ impl Dialect for SqliteDialect {
             ..SplitterRules::default()
         }
     }
+
+    fn placeholder(&self, index: usize, _type_name: &str) -> String {
+        format!("?{index}")
+    }
 }
 
 #[cfg(test)]

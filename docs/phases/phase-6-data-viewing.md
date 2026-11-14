@@ -40,8 +40,8 @@ pub enum RowCount { Exact(u64), Estimate(u64), Unknown }
 ## Tasks
 
 - [ ] 6.1 **Spike: grid.** Render 1000 × 50 with row and column virtualisation, keyboard cell navigation, column resize and a custom cell renderer. Measure scroll smoothness. Confirm or replace the choice in DECISIONS D-006.
-- [ ] 6.2 `Dialect::select_page` for the three dialects. Snapshot tests: no filter, filter, multi-column sort, offset, identifiers needing quotes, table without a row key.
-- [ ] 6.3 `fetch_table_page` and `count_rows` in the three drivers. Conformance group.
+- [x] 6.2 `Dialect::select_page` for the three dialects. Snapshot tests: no filter, filter, multi-column sort, offset, identifiers needing quotes, table without a row key.
+- [x] 6.3 `fetch_table_page` and `count_rows` in the three drivers. Conformance group.
 - [ ] 6.4 `table_page` and `table_count` commands on the metadata connection, cancellable.
 - [ ] 6.5 Grid core: virtualised rows and columns, sticky header and row-number column, column resize and auto-size to content, cell and range selection, keyboard navigation, copy as TSV.
 - [ ] 6.6 Cell rendering by `TypeCategory`: right-aligned numbers, distinct styling for `NULL`, booleans, truncated previews for long text, JSON and binary (`<binary 2.4 MB>`), arrays.

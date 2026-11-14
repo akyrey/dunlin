@@ -28,9 +28,14 @@ pub trait Connection: Send + Sync {
     async fn table_ddl(&self, table: &TableRef) -> Result<String, DbError>;
     async fn completion_schema(&self, namespace: &NamespaceRef) -> Result<CompletionSchema, DbError>;
 
-    // Table data, added with their phases (6 and 7), also defaulting to `Unsupported`.
-    // async fn fetch_table_page(&self, request: &TablePageRequest) -> Result<ResultSet, DbError>;
-    // async fn count_rows(&self, table: &TableRef, filter: Option<&str>, exact: bool) -> Result<RowCount, DbError>;
+    async fn default_namespace(&self) -> Result<Option<NamespaceRef>, DbError>;   // default Ok(None)
+
+    // Table data (Phase 6). Pages, counts and cells are built in `dbc_core::data` from the
+    // dialect and run through `query_params` (D-022).
+    async fn query_params(&self, sql: &str, params: &[Value], options: &ExecuteOptions) -> Result<StatementOutcome, DbError>;
+    async fn estimate_rows(&self, table: &TableRef) -> Result<Option<u64>, DbError>;   // default Ok(None)
+
+    // Phase 7:
     // async fn apply_changes(&self, changes: &ChangeSet) -> Result<ApplyReport, DbError>;
 
     // Idempotent. Later calls on the connection fail with `ConnectionLost`.
@@ -222,12 +227,14 @@ pub trait Dialect: Send + Sync {
     fn qualified_name(&self, table: &TableRef) -> String;        // default: quoted parts joined by "."
     fn splitter_rules(&self) -> SplitterRules;                   // dollar quoting, backticks, comment styles
 
-    // Added with their phases (6 and 7):
-    // fn select_page(&self, request: &TablePageRequest) -> String;
-    // fn placeholder(&self, index: usize, type_name: &str) -> String;   // "$1::text::int4", "?", "?1"
+    fn placeholder(&self, index: usize, type_name: &str) -> String;   // "$1::text::integer", "?", "?1"
+
+    // Phase 7:
     // fn render_literal(&self, value: &Value, type_name: &str) -> String; // preview only, never executed
 }
 ```
+
+Table pages come from `dbc_core::data::page_sql(dialect, info, request)`: `SELECT * FROM <qualified> [WHERE (<filter>) AND <key> = <placeholder>...] [ORDER BY <sort, else row key>] LIMIT n OFFSET m`. Sort and key columns must be columns of the table; the filter must be one expression. `count_sql` and `cell_sql` follow the same rules.
 
 `render_literal` exists only to show the user readable SQL in the change preview and in `INSERT` export. Executed statements always bind parameters.
 

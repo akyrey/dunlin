@@ -17,6 +17,7 @@ use secrecy::ExposeSecret;
 use tokio::net::TcpStream;
 use tokio_postgres::config::SslMode;
 use tokio_postgres::tls::MakeTlsConnect;
+use tokio_postgres::types::{ToSql, Type};
 use tokio_postgres::{CancelToken, Client, NoTls, RowStream, Statement};
 use tokio_postgres_rustls::MakeRustlsConnect;
 
@@ -132,11 +133,12 @@ impl PostgresConnection {
         &self,
         client: &Client,
         statement: &Statement,
+        params: &[Option<String>],
         sql: &str,
         limit: usize,
     ) -> Result<ResultSet, DbError> {
         let stream = client
-            .query_raw(statement, std::iter::empty::<i32>())
+            .query_raw(statement, params.iter().map(|p| p as &(dyn ToSql + Sync)))
             .await
             .map_err(|e| map_error(&e, sql))?;
         pin_mut!(stream);
@@ -307,9 +309,60 @@ impl Connection for PostgresConnection {
             return Ok(StatementOutcome::Affected { rows });
         }
         let result = self
-            .read_rows(&client, &statement, sql, options.row_limit)
+            .read_rows(&client, &statement, &[], sql, options.row_limit)
             .await?;
         Ok(StatementOutcome::Rows(result))
+    }
+
+    async fn query_params(
+        &self,
+        sql: &str,
+        params: &[Value],
+        options: &ExecuteOptions,
+    ) -> Result<StatementOutcome, DbError> {
+        let client = self.client()?;
+        let texts = params
+            .iter()
+            .map(crate::params::as_text)
+            .collect::<Result<Vec<_>, _>>()?;
+        let types = vec![Type::TEXT; texts.len()];
+        let statement = client
+            .prepare_typed(sql, &types)
+            .await
+            .map_err(|e| map_error(&e, sql))?;
+        if statement.columns().is_empty() {
+            let refs: Vec<&(dyn ToSql + Sync)> =
+                texts.iter().map(|t| t as &(dyn ToSql + Sync)).collect();
+            let rows = client
+                .execute(&statement, &refs)
+                .await
+                .map_err(|e| map_error(&e, sql))?;
+            return Ok(StatementOutcome::Affected { rows });
+        }
+        let result = self
+            .read_rows(&client, &statement, &texts, sql, options.row_limit)
+            .await?;
+        Ok(StatementOutcome::Rows(result))
+    }
+
+    async fn estimate_rows(&self, table: &TableRef) -> Result<Option<u64>, DbError> {
+        let client = self.client()?;
+        let schema = table.namespace.schema.as_deref().unwrap_or("public");
+        // reltuples is -1 before the first VACUUM or ANALYZE; views have no statistics.
+        let rows = client
+            .query(
+                "SELECT c.reltuples::bigint FROM pg_class c \
+                 JOIN pg_namespace n ON n.oid = c.relnamespace \
+                 WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p', 'm', 'f')",
+                &[&schema, &table.name],
+            )
+            .await
+            .map_err(|e| map_error(&e, ""))?;
+        let estimate = match rows.first() {
+            Some(row) => row.try_get::<_, i64>(0).map_err(|e| map_error(&e, ""))?,
+            None => return Ok(None),
+        };
+        Ok(u64::try_from(estimate).ok())
     }
 
     async fn list_namespaces(&self) -> Result<Vec<Namespace>, DbError> {

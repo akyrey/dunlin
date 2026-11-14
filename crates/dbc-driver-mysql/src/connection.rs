@@ -11,8 +11,11 @@ use dbc_core::schema::{
     CompletionSchema, Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef,
 };
 use dbc_core::{DbError, DbErrorCode, Value, sql};
-use mysql_async::prelude::Queryable;
-use mysql_async::{ClientIdentity, Conn, DriverError, Error, Opts, OptsBuilder, SslOpts};
+use mysql_async::prelude::{Protocol, Queryable};
+use mysql_async::{
+    ClientIdentity, Conn, DriverError, Error, Opts, OptsBuilder, Params, QueryResult, SslOpts,
+    Value as MyValue,
+};
 use secrecy::ExposeSecret;
 use tokio::sync::Mutex;
 
@@ -71,10 +74,38 @@ impl MysqlConnection {
         statement: &str,
         limit: usize,
     ) -> Result<StatementOutcome, DbError> {
-        let mut result = conn
+        let result = conn
             .query_iter(statement)
             .await
             .map_err(|e| map_error(&e))?;
+        self.read(result, limit).await
+    }
+
+    /// A prepared statement with parameters, over the binary protocol.
+    async fn run_params(
+        &self,
+        conn: &mut Conn,
+        statement: &str,
+        params: Vec<MyValue>,
+        limit: usize,
+    ) -> Result<StatementOutcome, DbError> {
+        let params = if params.is_empty() {
+            Params::Empty
+        } else {
+            Params::Positional(params)
+        };
+        let result = conn
+            .exec_iter(statement, params)
+            .await
+            .map_err(|e| map_error(&e))?;
+        self.read(result, limit).await
+    }
+
+    async fn read<P: Protocol>(
+        &self,
+        mut result: QueryResult<'_, 'static, P>,
+        limit: usize,
+    ) -> Result<StatementOutcome, DbError> {
         let columns = result.columns().filter(|c| !c.is_empty());
         let Some(columns) = columns else {
             let rows = result.affected_rows();
@@ -310,6 +341,38 @@ impl Connection for MysqlConnection {
         introspect::table_ddl(guard.as_mut().ok_or_else(closed)?, table).await
     }
 
+    async fn query_params(
+        &self,
+        statement: &str,
+        params: &[Value],
+        options: &ExecuteOptions,
+    ) -> Result<StatementOutcome, DbError> {
+        let params = params.iter().map(to_mysql).collect::<Result<Vec<_>, _>>()?;
+        let mut guard = self.conn.lock().await;
+        let conn = guard.as_mut().ok_or_else(closed)?;
+        self.cancel.requested.store(false, Ordering::SeqCst);
+        self.run_params(conn, statement, params, options.row_limit)
+            .await
+    }
+
+    async fn estimate_rows(&self, table: &TableRef) -> Result<Option<u64>, DbError> {
+        let mut guard = self.conn.lock().await;
+        let conn = guard.as_mut().ok_or_else(closed)?;
+        // TABLE_ROWS is InnoDB's estimate; NULL for views.
+        let estimate: Option<Option<u64>> = conn
+            .exec_first(
+                "SELECT TABLE_ROWS FROM information_schema.TABLES \
+                 WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND TABLE_TYPE = 'BASE TABLE'",
+                (
+                    table.namespace.schema.clone().unwrap_or_default(),
+                    table.name.clone(),
+                ),
+            )
+            .await
+            .map_err(|e| map_error(&e))?;
+        Ok(estimate.flatten())
+    }
+
     fn cancel_handle(&self) -> Arc<dyn CancelHandle> {
         Arc::clone(&self.cancel) as Arc<dyn CancelHandle>
     }
@@ -351,6 +414,39 @@ impl MysqlCancel {
         let disconnected = side.disconnect().await.map_err(|e| map_error(&e));
         killed.and(disconnected)
     }
+}
+
+/// Binds a value natively; text-like values go as strings, which MySQL converts.
+fn to_mysql(value: &Value) -> Result<MyValue, DbError> {
+    Ok(match value {
+        Value::Null => MyValue::NULL,
+        Value::Bool(b) => MyValue::Int(i64::from(*b)),
+        Value::Int(i) => MyValue::Int(*i),
+        Value::UInt(u) => MyValue::UInt(*u),
+        Value::Float(f) => MyValue::Double(*f),
+        Value::Bytes(bytes) => MyValue::Bytes(bytes.clone()),
+        Value::Decimal(s)
+        | Value::Text(s)
+        | Value::Json(s)
+        | Value::Xml(s)
+        | Value::Uuid(s)
+        | Value::Date(s)
+        | Value::Time(s)
+        | Value::Interval(s) => MyValue::Bytes(s.clone().into_bytes()),
+        // MySQL datetimes have a space where ISO 8601 has `T`.
+        Value::Timestamp(s) | Value::TimestampTz(s) => {
+            MyValue::Bytes(s.replacen('T', " ", 1).into_bytes())
+        }
+        Value::Unknown {
+            text: Some(text), ..
+        } => MyValue::Bytes(text.clone().into_bytes()),
+        Value::Array(_) | Value::Unknown { text: None, .. } => {
+            return Err(DbError::new(
+                DbErrorCode::Unsupported,
+                "Arrays and values without a text form cannot be used as parameters yet",
+            ));
+        }
+    })
 }
 
 fn closed() -> DbError {
