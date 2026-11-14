@@ -1,7 +1,7 @@
-# db-client
+# Dunlin
 
 A desktop database client written in Rust, in the spirit of DBeaver but much smaller.
-Working name: `db-client` (crate prefix `dbc-`).
+Product name: **Dunlin**. Crate prefix `dbc-` (see DECISIONS D-012, D-014).
 
 **Status:** documentation complete, implementation not started. See [docs/ROADMAP.md](docs/ROADMAP.md).
 

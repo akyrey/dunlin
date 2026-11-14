@@ -83,3 +83,9 @@ Format: context, decision, consequences. Keep entries short.
 **Context.** `Box<dyn Connection>` / `Arc<dyn Connection>` requires dyn-compatible traits. Native `async fn` in traits is not dyn-compatible; making it so means hand-written boxed-future signatures in every driver.
 **Decision.** `Driver`, `Connection` and `CancelHandle` use `#[async_trait]`.
 **Consequences.** One heap allocation per call, which is negligible next to a database round trip. Signatures stay readable. Revisit if the language gains dyn-compatible async traits.
+
+## D-014 Product name: Dunlin (2026-11-14)
+
+**Context.** D-012 left the product name open. It must be fixed before the Tauri bundle identifier (which decides the app data directory) and the keychain service name are set, because renaming either later orphans stored data.
+**Decision.** The product is **Dunlin**. Bundle identifier `dev.dunlin.desktop`, keychain service `dunlin`, app data directory as derived by Tauri from the identifier. Crate prefix stays `dbc-`.
+**Consequences.** Supersedes the open question in D-012. Checked free on crates.io only; trademark and domain are unchecked.

@@ -16,7 +16,7 @@ Out of scope: a compromised local user account or OS, and the SQL the user delib
 
 ## Secrets
 
-- Stored only in the OS keychain through `keyring`, under service `db-client`, account `<connection id>:<secret kind>`.
+- Stored only in the OS keychain through `keyring`, under service `dunlin`, account `<connection id>:<secret kind>`.
 - Held in memory as `SecretString` (zeroised on drop, redacted `Debug`).
 - Never written to the store database, logs, error messages, history or exports.
 - Never returned to the frontend. Edit forms show "stored" and accept a replacement.
@@ -48,7 +48,7 @@ Out of scope: a compromised local user account or OS, and the SQL the user delib
 
 ## Production safeguards
 
-1. **Read-only connections.** Enforced twice: the server session is set read-only where supported, and the backend rejects statements classified as anything other than `Read`, `Session` or `Transaction` before sending. `Unknown` counts as a write.
+1. **Read-only connections.** Enforced twice: the server session is set read-only where supported, and the backend rejects statements classified as anything other than `Read`, `Session` or `Transaction` before sending. `Unknown` counts as a write, and so do session or transaction statements that would switch the session back to read-write (`SET ... READ WRITE`, `SET default_transaction_read_only = off`, `RESET ALL`).
 2. **Dangerous statements** (`UPDATE`/`DELETE` without `WHERE`, `DROP`, `TRUNCATE`) return `confirmation_required`. The check is in the backend, so the frontend cannot skip it by mistake.
 3. **Colour tag** of the active connection is always visible in the tab and status bar.
 4. **Staged edits** are never applied without the SQL preview.

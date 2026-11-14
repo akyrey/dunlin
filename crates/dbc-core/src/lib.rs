@@ -1,5 +1,7 @@
 //! Shared model for all drivers: values, schema, traits and SQL utilities. No I/O.
 
+#[cfg(feature = "test-support")]
+pub mod conformance;
 pub mod dialect;
 pub mod driver;
 pub mod error;

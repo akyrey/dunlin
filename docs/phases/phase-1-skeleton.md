@@ -23,14 +23,14 @@ Highlighting configuration and autocomplete (Phase 5), schema tree (Phase 4), an
 
 ## Tasks
 
-- [ ] 1.1 `git init`, `.gitignore`, `rust-toolchain.toml`, workspace `Cargo.toml` with shared lints (`unsafe_code = "forbid"`, clippy `unwrap_used`/`expect_used` denied outside tests), `rustfmt.toml`.
+- [x] 1.1 `git init`, `.gitignore`, `rust-toolchain.toml`, workspace `Cargo.toml` with shared lints (`unsafe_code = "forbid"`, clippy `unwrap_used`/`expect_used` denied outside tests), `rustfmt.toml`.
 - [ ] 1.2 Scaffold `apps/desktop` with Tauri 2, React, TypeScript, Vite, Tailwind, ESLint, Prettier, Vitest. Check the current `create-tauri-app` docs first.
-- [ ] 1.3 `dbc-core::value`: `Value`, custom `Serialize`/`Deserialize` for the wire format, truncation of large values. Tests: every variant round-trips; `i64::MAX`, `u64::MAX`, `NaN`, infinities, empty string versus null, invalid UTF-8 bytes.
-- [ ] 1.4 `dbc-core::error`, `schema`, `driver`, `dialect`: types and traits as in DRIVER_API.md. Decide `async-trait` versus native async traits and record it in DECISIONS.md.
-- [ ] 1.5 `dbc-core::sql::split`. Tests: strings with `;`, escaped quotes, quoted identifiers, backticks, line and block comments, nested block comments (PostgreSQL), dollar quoting with and without tags, trailing statement without `;`, empty statements, property test that ranges never overlap and cover all non-whitespace text.
-- [ ] 1.6 `dbc-core::sql::classify`. Tests: leading comments and whitespace, CTEs (`WITH ... SELECT` versus `WITH ... DELETE`), `UPDATE`/`DELETE` with and without `WHERE`, `WHERE` appearing only inside a string or subquery, `DROP`, `TRUNCATE`, `EXPLAIN`, `PRAGMA`, unknown input.
-- [ ] 1.7 Driver conformance suite skeleton in `dbc-core` (`test-support` feature) with the connect, type round-trip and row-limit groups; fixture `sqlite.sql`.
-- [ ] 1.8 `dbc-driver-sqlite`: worker-thread connection, `connect` (file path, read-only flag, `PRAGMA foreign_keys = ON`), `ping`, `execute`, `close`, interrupt-based `CancelHandle`. Passes the conformance groups from 1.7.
+- [x] 1.3 `dbc-core::value`: `Value`, custom `Serialize`/`Deserialize` for the wire format, truncation of large values. Tests: every variant round-trips; `i64::MAX`, `u64::MAX`, `NaN`, infinities, empty string versus null, invalid UTF-8 bytes.
+- [x] 1.4 `dbc-core::error`, `schema`, `driver`, `dialect`: types and traits as in DRIVER_API.md. Decide `async-trait` versus native async traits and record it in DECISIONS.md.
+- [x] 1.5 `dbc-core::sql::split`. Tests: strings with `;`, escaped quotes, quoted identifiers, backticks, line and block comments, nested block comments (PostgreSQL), dollar quoting with and without tags, trailing statement without `;`, empty statements, property test that ranges never overlap and cover all non-whitespace text.
+- [x] 1.6 `dbc-core::sql::classify`. Tests: leading comments and whitespace, CTEs (`WITH ... SELECT` versus `WITH ... DELETE`), `UPDATE`/`DELETE` with and without `WHERE`, `WHERE` appearing only inside a string or subquery, `DROP`, `TRUNCATE`, `EXPLAIN`, `PRAGMA`, unknown input.
+- [x] 1.7 Driver conformance suite skeleton in `dbc-core` (`test-support` feature) with the connect, type round-trip and row-limit groups; fixture `sqlite.sql`.
+- [x] 1.8 `dbc-driver-sqlite`: worker-thread connection, `connect` (file path, read-only flag, `PRAGMA foreign_keys = ON`), `ping`, `execute`, `close`, interrupt-based `CancelHandle`. Passes the conformance groups from 1.7.
 - [ ] 1.9 `dbc-store`: open or create the store file, migration runner, `connections` CRUD. Tests against a temp file, including upgrade from an empty file and reopening an existing one.
 - [ ] 1.10 `src-tauri`: driver registry, `SessionManager`, `AppError` mapping, commands `driver_list`, `connection_*`, `session_open`, `session_close`, `sql_split`, `query_execute`, `tab_close`. Command tests with a temp store and temp SQLite file.
 - [ ] 1.11 Type generation with `ts-rs` into `src/ipc/generated/`, plus a check that fails when output is stale. Confirm the `Value` type generates correctly (DECISIONS D-010).

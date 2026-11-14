@@ -5,41 +5,53 @@ Everything here lives in `dbc-core`. The Rust below is the intended shape, not f
 ## Traits
 
 ```rust
+#[async_trait]
 pub trait Driver: Send + Sync {
-    fn kind(&self) -> DriverKind;                 // Postgres | MySql | Sqlite | ...
-    fn capabilities(&self) -> Capabilities;
-    fn dialect(&self) -> &dyn Dialect;
-    async fn connect(&self, config: &ConnectionConfig) -> Result<Box<dyn Connection>, DbError>;
+    fn info(&self) -> DriverInfo;                 // kind, label, endpoint kind, capabilities, option fields
+    fn dialect(&self) -> Arc<dyn Dialect>;
+    async fn connect(&self, config: &ConnectionConfig) -> Result<Arc<dyn Connection>, DbError>;
 }
 
+#[async_trait]
 pub trait Connection: Send + Sync {
     async fn ping(&self) -> Result<(), DbError>;
+    async fn server_version(&self) -> Result<String, DbError>;
 
     // Ad-hoc execution of exactly one statement.
     async fn execute(&self, sql: &str, options: &ExecuteOptions) -> Result<StatementOutcome, DbError>;
     fn cancel_handle(&self) -> Arc<dyn CancelHandle>;
 
-    // Introspection.
+    // Introspection (Phase 4). Default implementations return `Unsupported`.
     async fn list_namespaces(&self) -> Result<Vec<Namespace>, DbError>;
     async fn list_objects(&self, namespace: &NamespaceRef) -> Result<Vec<ObjectSummary>, DbError>;
     async fn describe_table(&self, table: &TableRef) -> Result<TableInfo, DbError>;
     async fn table_ddl(&self, table: &TableRef) -> Result<String, DbError>;
     async fn completion_schema(&self, namespace: &NamespaceRef) -> Result<CompletionSchema, DbError>;
 
-    // Table data.
-    async fn fetch_table_page(&self, request: &TablePageRequest) -> Result<ResultSet, DbError>;
-    async fn count_rows(&self, table: &TableRef, filter: Option<&str>, exact: bool) -> Result<RowCount, DbError>;
-    async fn apply_changes(&self, changes: &ChangeSet) -> Result<ApplyReport, DbError>;
+    // Table data, added with their phases (6 and 7), also defaulting to `Unsupported`.
+    // async fn fetch_table_page(&self, request: &TablePageRequest) -> Result<ResultSet, DbError>;
+    // async fn count_rows(&self, table: &TableRef, filter: Option<&str>, exact: bool) -> Result<RowCount, DbError>;
+    // async fn apply_changes(&self, changes: &ChangeSet) -> Result<ApplyReport, DbError>;
 
-    async fn close(self: Box<Self>) -> Result<(), DbError>;
+    // Idempotent. Later calls on the connection fail with `ConnectionLost`.
+    async fn close(&self) -> Result<(), DbError>;
 }
 
+#[async_trait]
 pub trait CancelHandle: Send + Sync {
     async fn cancel(&self) -> Result<(), DbError>;
 }
+
+pub struct DriverInfo {
+    pub kind: DriverKind,
+    pub label: String,
+    pub endpoint: EndpointKind,          // Tcp | File: decides the connection form fields
+    pub capabilities: Capabilities,
+    pub options: Vec<OptionField>,       // key, label, kind (Bool | Text), default, help
+}
 ```
 
-Async trait methods use `async-trait` (or native async-in-trait with boxed futures) so that `Box<dyn Connection>` works. Methods take `&self`; a driver whose client needs `&mut` wraps it in a `tokio::sync::Mutex`.
+Traits use `async-trait` (D-013). Connections are shared as `Arc<dyn Connection>`, so `close` takes `&self`; this lets a running statement and its cancellation, or a close, happen from different tasks. Methods take `&self`; a driver whose client needs `&mut` wraps it in a `tokio::sync::Mutex` (or, for SQLite, a worker thread).
 
 ## Connection configuration
 
@@ -101,7 +113,7 @@ pub enum Value {
 
 ### Wire format
 
-Tagged, with string payloads:
+Tagged, with string payloads. The wire form is its own type, `WireValue` (generated for TypeScript as `Value`); `Value::into_wire(limit)` converts and truncates, and `Value`'s `Serialize`/`Deserialize` go through it without truncation. Deserialising a value flagged `truncated` fails, so a truncated display value can never be written back.
 
 ```json
 {"t":"null"}
@@ -191,12 +203,14 @@ How the three databases map onto namespaces:
 
 ```rust
 pub trait Dialect: Send + Sync {
-    fn quote_identifier(&self, name: &str) -> String;            // doubles embedded quotes
-    fn qualified_name(&self, table: &TableRef) -> String;
-    fn select_page(&self, request: &TablePageRequest) -> String;
-    fn placeholder(&self, index: usize, type_name: &str) -> String;   // "$1::text::int4", "?", "?1"
-    fn render_literal(&self, value: &Value, type_name: &str) -> String; // preview only, never executed
+    fn quote_identifier(&self, name: &str) -> String;            // doubles embedded quotes (helper: quote_with)
+    fn qualified_name(&self, table: &TableRef) -> String;        // default: quoted parts joined by "."
     fn splitter_rules(&self) -> SplitterRules;                   // dollar quoting, backticks, comment styles
+
+    // Added with their phases (6 and 7):
+    // fn select_page(&self, request: &TablePageRequest) -> String;
+    // fn placeholder(&self, index: usize, type_name: &str) -> String;   // "$1::text::int4", "?", "?1"
+    // fn render_literal(&self, value: &Value, type_name: &str) -> String; // preview only, never executed
 }
 ```
 
@@ -231,18 +245,18 @@ pub struct ApplyReport { pub statements: usize, pub rows_affected: u64 }
 
 ## Statement utilities
 
-- `sql::split(text, rules) -> Vec<StatementRange { start, end }>` splits on `;` outside strings, quoted identifiers, comments and PostgreSQL dollar-quoted bodies. MySQL's `DELIMITER` command is not supported in v1.
-- `sql::classify(statement) -> StatementClass` returns `Read`, `Write`, `Ddl`, `Transaction`, `Session` or `Unknown`, plus a `dangerous` flag for `UPDATE`/`DELETE` without `WHERE`, `DROP`, `TRUNCATE`. It is a lexer-level heuristic: `Unknown` is treated as a write on read-only sessions.
+- `sql::split(text, rules) -> Vec<StatementRange { start, end }>` splits on `;` outside strings, quoted identifiers, comments and PostgreSQL dollar-quoted bodies. Inside a `CREATE` statement, `BEGIN ... END` blocks (SQLite triggers, SQL-standard function bodies) do not split. Ranges are **byte** offsets, exclude surrounding whitespace and the `;`, and segments containing only comments are dropped. The IPC layer converts offsets to UTF-16 (`sql::byte_to_utf16`). MySQL's `DELIMITER` command is not supported in v1.
+- `sql::classify(statement, rules) -> Classification { class, danger }`. `class` is `Read`, `Write`, `Ddl`, `Transaction`, `Session` or `Unknown`; `danger` is `UpdateWithoutWhere`, `DeleteWithoutWhere`, `Drop` or `Truncate` (with a user-facing `reason()`). It is a lexer-level heuristic: `Unknown` is treated as a write on read-only sessions (`StatementClass::allowed_on_read_only`). Refinements: `SELECT ... INTO` and data-modifying CTEs are `Write`; `EXPLAIN ANALYZE` is classified as the statement it runs; `SET`/`BEGIN`/`RESET` statements that would undo the server-side read-only guard (`READ WRITE`, anything naming `read_only`, `RESET ALL`) are `Write`.
 
 ## Errors
 
 ```rust
 pub struct DbError {
     pub code: DbErrorCode,       // Connect | Auth | Tls | Timeout | Cancelled | Syntax | Constraint | Permission
-                                 // | ConnectionLost | Unsupported | RowCountMismatch | Internal
+                                 // | ReadOnly | ConnectionLost | Unsupported | RowCountMismatch | Internal
     pub message: String,
     pub detail: Option<String>,  // server detail/hint
-    pub position: Option<usize>, // character offset in the statement, when the server reports one
+    pub position: Option<usize>, // byte offset in the statement, when the server reports one (UTF-16 over IPC)
     pub sqlstate: Option<String>,
 }
 ```
@@ -271,4 +285,7 @@ pub struct DbError {
 - Read-only: open with `SQLITE_OPEN_READ_ONLY`.
 - DDL: `sqlite_master.sql`. Introspection through `PRAGMA table_info`, `index_list`, `index_info`, `foreign_key_list`.
 - `row_key` falls back to the primary key only; `rowid` addressing is deferred.
-- `PRAGMA foreign_keys = ON` is set per connection.
+- `PRAGMA foreign_keys = ON` and a 5 s busy timeout are set per connection.
+- The file must exist unless the driver option `create_if_missing` is `true`; read-only connections never create. Opening reads `sqlite_master` so a non-database file fails at connect (`Connect`), not on the first query.
+- Affected rows: `changes()` is used only if `total_changes()` moved, because SQLite keeps the last DML count across DDL.
+- Error mapping: `SQLITE_ERROR` (syntax, unknown table or column) is `Syntax`, with the byte offset from `sqlite3_error_offset` when available.

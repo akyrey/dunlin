@@ -12,7 +12,7 @@ default = []
 # Derives ts-rs `TS` on IPC-facing types.
 ts = ["dep:ts-rs"]
 # Driver conformance suite, used by driver crates' tests.
-test-support = ["dep:tokio"]
+test-support = []
 
 [dependencies]
 async-trait.workspace = true
@@ -20,7 +20,6 @@ base64.workspace = true
 secrecy = "0.10"
 serde.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, optional = true }
 ts-rs = { workspace = true, optional = true }
 
 [dev-dependencies]

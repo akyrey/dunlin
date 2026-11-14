@@ -213,3 +213,103 @@ pub trait Connection: Send + Sync {
 pub trait CancelHandle: Send + Sync {
     async fn cancel(&self) -> Result<(), DbError>;
 }
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+
+    use super::*;
+    use crate::error::DbErrorCode;
+
+    #[rstest]
+    #[case(Some("true"), false, true)]
+    #[case(Some("false"), true, false)]
+    #[case(Some("yes"), true, true)]
+    #[case(None, false, false)]
+    fn bool_option_falls_back_to_default(
+        #[case] stored: Option<&str>,
+        #[case] default: bool,
+        #[case] expected: bool,
+    ) {
+        let mut config = ConnectionConfig::file("x.db", false);
+        if let Some(stored) = stored {
+            config.options.insert("flag".into(), stored.into());
+        }
+
+        assert_eq!(config.bool_option("flag", default), expected);
+    }
+
+    #[test]
+    fn driver_kind_serialises_like_as_str() {
+        for kind in [DriverKind::Postgres, DriverKind::Mysql, DriverKind::Sqlite] {
+            let json = serde_json::to_value(kind).unwrap();
+            assert_eq!(json, serde_json::Value::String(kind.as_str().into()));
+        }
+    }
+
+    struct Minimal;
+
+    struct NoCancel;
+
+    #[async_trait]
+    impl CancelHandle for NoCancel {
+        async fn cancel(&self) -> Result<(), DbError> {
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl Connection for Minimal {
+        async fn ping(&self) -> Result<(), DbError> {
+            Ok(())
+        }
+        async fn server_version(&self) -> Result<String, DbError> {
+            Ok("1".into())
+        }
+        async fn execute(&self, _: &str, _: &ExecuteOptions) -> Result<StatementOutcome, DbError> {
+            Ok(StatementOutcome::Affected { rows: 0 })
+        }
+        fn cancel_handle(&self) -> Arc<dyn CancelHandle> {
+            Arc::new(NoCancel)
+        }
+        async fn close(&self) -> Result<(), DbError> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn introspection_defaults_to_unsupported() {
+        let table = TableRef {
+            namespace: NamespaceRef::default(),
+            name: "t".into(),
+        };
+        let namespace = NamespaceRef::default();
+
+        let codes = [
+            block_on(Minimal.list_namespaces()).err().map(|e| e.code),
+            block_on(Minimal.list_objects(&namespace))
+                .err()
+                .map(|e| e.code),
+            block_on(Minimal.describe_table(&table))
+                .err()
+                .map(|e| e.code),
+            block_on(Minimal.table_ddl(&table)).err().map(|e| e.code),
+            block_on(Minimal.completion_schema(&namespace))
+                .err()
+                .map(|e| e.code),
+        ];
+
+        assert!(codes.iter().all(|c| *c == Some(DbErrorCode::Unsupported)));
+    }
+
+    /// Polls a future that never actually waits (the defaults are immediately ready).
+    fn block_on<T>(future: impl std::future::Future<Output = T>) -> T {
+        let mut future = std::pin::pin!(future);
+        let mut context = std::task::Context::from_waker(std::task::Waker::noop());
+        loop {
+            if let std::task::Poll::Ready(value) = future.as_mut().poll(&mut context) {
+                return value;
+            }
+        }
+    }
+}

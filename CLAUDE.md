@@ -1,4 +1,4 @@
-# Project instructions
+# Project instructions (Dunlin)
 
 Desktop database client: Tauri 2 shell, Rust workspace backend, React + TypeScript frontend.
 The design lives in `docs/`. Code follows the docs; when they disagree, fix one of them in the same change.
