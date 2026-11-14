@@ -1,36 +1,102 @@
+import { type SQLNamespace, sql } from "@codemirror/lang-sql";
+import {
+  Compartment,
+  EditorSelection,
+  EditorState,
+  Prec,
+  StateEffect,
+  StateField,
+} from "@codemirror/state";
+import { Decoration, type DecorationSet, keymap } from "@codemirror/view";
 import { EditorView, basicSetup } from "codemirror";
-import { EditorSelection, EditorState, Prec } from "@codemirror/state";
-import { keymap } from "@codemirror/view";
 import { type RefObject, useEffect, useImperativeHandle, useRef } from "react";
 
-import type { Selection } from "./editorStore";
-import { editorTheme } from "./theme";
+import type { DriverKind } from "../../ipc";
+import { type Span, statementAt } from "../../lib/text";
+import { dialectFor } from "./dialects";
+import type { RunMode, Selection } from "./run";
+import { themeExtension } from "./theme";
 
 export type EditorHandle = {
   selection: () => Selection;
   focusAt: (offset: number) => void;
+  focus: () => void;
 };
+
+export type Completion = { schema: SQLNamespace; defaultSchema: string | undefined };
 
 type Props = {
   initialText: string;
+  driver: DriverKind;
+  completion: Completion | undefined;
+  /** Statements of the current text, once split; the one at the cursor is highlighted. */
+  ranges: Span[] | null;
+  /** The failing statement, or the reported error position, underlined. */
+  errorRange: Span | null;
+  running: boolean;
   onChange: (text: string) => void;
-  onRun: (selection: Selection) => void;
+  onRun: (selection: Selection, mode: RunMode) => void;
+  onCancel: () => void;
   handleRef: RefObject<EditorHandle | null>;
 };
+
+type Marks = { ranges: Span[]; error: Span | null };
+
+const setMarks = StateEffect.define<Marks>();
+
+/** Statement ranges and the error, cleared as soon as the text changes (they would be stale). */
+const marksField = StateField.define<Marks>({
+  create: () => ({ ranges: [], error: null }),
+  update: (value, transaction) => {
+    for (const effect of transaction.effects) if (effect.is(setMarks)) return effect.value;
+    return transaction.docChanged ? { ranges: [], error: null } : value;
+  },
+});
+
+const activeStatement = Decoration.mark({ class: "cm-activeStatement" });
+const statementError = Decoration.mark({ class: "cm-statementError" });
+
+const marksDecorations = EditorView.decorations.compute(
+  [marksField, "selection"],
+  (state): DecorationSet => {
+    const { ranges, error } = state.field(marksField);
+    const length = state.doc.length;
+    const marks = [];
+    const active = statementAt(ranges, state.selection.main.head);
+    if (active && active.end <= length && active.start < active.end) {
+      marks.push(activeStatement.range(active.start, active.end));
+    }
+    if (error && error.end <= length && error.start < error.end) {
+      marks.push(statementError.range(error.start, error.end));
+    }
+    return Decoration.set(marks, true);
+  },
+);
 
 function selectionOf(view: EditorView): Selection {
   const main = view.state.selection.main;
   return { from: main.from, to: main.to, head: main.head };
 }
 
-/** A plain CodeMirror editor. Highlighting per dialect and autocomplete arrive in Phase 5. */
-export function SqlEditor({ initialText, onChange, onRun, handleRef }: Props) {
+function language(driver: DriverKind, completion: Completion | undefined) {
+  return sql({
+    dialect: dialectFor(driver),
+    schema: completion?.schema,
+    defaultSchema: completion?.defaultSchema,
+    upperCaseKeywords: true,
+  });
+}
+
+/** The SQL editor: dialect highlighting, schema autocomplete, statement under the cursor. */
+export function SqlEditor(props: Props) {
+  const { initialText, driver, completion, ranges, errorRange, handleRef } = props;
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
-  const callbacks = useRef({ onChange, onRun });
+  const languageSlot = useRef(new Compartment());
+  const callbacks = useRef(props);
 
   useEffect(() => {
-    callbacks.current = { onChange, onRun };
+    callbacks.current = props;
   });
 
   useImperativeHandle(handleRef, () => ({
@@ -42,29 +108,44 @@ export function SqlEditor({ initialText, onChange, onRun, handleRef }: Props) {
       current.dispatch({ selection: EditorSelection.cursor(position), scrollIntoView: true });
       current.focus();
     },
+    focus: () => view.current?.focus(),
   }));
 
   useEffect(() => {
     if (!host.current) return;
-    const runKey = Prec.highest(
+    const run = (mode: RunMode) => (target: EditorView) => {
+      callbacks.current.onRun(selectionOf(target), mode);
+      return true;
+    };
+    const runKeys = Prec.highest(
       keymap.of([
-        {
-          key: "Mod-Enter",
-          run: (target) => {
-            callbacks.current.onRun(selectionOf(target));
-            return true;
-          },
-        },
+        { key: "Mod-Enter", run: run("statement") },
+        { key: "Mod-Shift-Enter", run: run("script") },
       ]),
     );
+    // Default precedence, so Escape first closes an open autocomplete list.
+    const cancelKey = keymap.of([
+      {
+        key: "Escape",
+        run: () => {
+          if (!callbacks.current.running) return false;
+          callbacks.current.onCancel();
+          return true;
+        },
+      },
+    ]);
     const created = new EditorView({
       parent: host.current,
       state: EditorState.create({
         doc: initialText,
         extensions: [
           basicSetup,
-          runKey,
-          editorTheme,
+          runKeys,
+          cancelKey,
+          themeExtension("dark"),
+          languageSlot.current.of(language(callbacks.current.driver, callbacks.current.completion)),
+          marksField,
+          marksDecorations,
           EditorView.contentAttributes.of({ "aria-label": "SQL editor" }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) callbacks.current.onChange(update.state.doc.toString());
@@ -80,6 +161,17 @@ export function SqlEditor({ initialText, onChange, onRun, handleRef }: Props) {
     // The editor owns its document after mount; remount (via `key`) to replace it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A refreshed schema (after DDL or a refresh) reconfigures completion in place.
+  useEffect(() => {
+    view.current?.dispatch({
+      effects: languageSlot.current.reconfigure(language(driver, completion)),
+    });
+  }, [driver, completion]);
+
+  useEffect(() => {
+    view.current?.dispatch({ effects: setMarks.of({ ranges: ranges ?? [], error: errorRange }) });
+  }, [ranges, errorRange]);
 
   return <div ref={host} className="h-full overflow-hidden" />;
 }

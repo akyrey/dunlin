@@ -145,10 +145,12 @@ describe("schema browser", () => {
     );
 
     expect(vi.mocked(copyText).mock.calls).toEqual([["people"], ['"main"."people"']]);
-    const sessionId = Object.keys(useEditor.getState().tabs)[0] ?? "";
-    expect(useEditor.getState().tabs[sessionId]?.text).toBe(
-      'SELECT "id", "name", "balance"\nFROM "main"."people";',
-    );
+    const tabs = Object.values(useEditor.getState().tabs);
+    expect(tabs.map((tab) => [tab.title, tab.text])).toEqual([
+      ["Query 1", ""],
+      ["people", 'SELECT "id", "name", "balance"\nFROM "main"."people";'],
+    ]);
+    expect(screen.getByRole("tab", { name: "people", selected: true })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Run" })).toBeInTheDocument();
   });
 

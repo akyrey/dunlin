@@ -3,7 +3,7 @@ import { type TableRef, schemaSnippets } from "../../ipc";
 import { copyText } from "../../lib/clipboard";
 import { useEditor } from "../editor/editorStore";
 import { useSessions } from "../sessions/sessionsStore";
-import { EDITOR_VIEW, useWorkspace } from "../workspace/workspaceStore";
+import { useWorkspace } from "../workspace/workspaceStore";
 
 export type ObjectAction = "details" | "copy-name" | "copy-qualified" | "select";
 
@@ -36,9 +36,8 @@ export async function runObjectAction(action: ObjectAction, target: ActionTarget
       return;
     case "select": {
       const { select } = await schemaSnippets(sessionId, table);
-      useEditor.getState().insertText(sessionId, select);
       focus(target);
-      useWorkspace.getState().activate(sessionId, EDITOR_VIEW);
+      useEditor.getState().openTab(sessionId, { title: table.name, text: select });
       return;
     }
   }

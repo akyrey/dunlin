@@ -83,7 +83,7 @@ describe("App", () => {
     const dialog = await screen.findByRole("dialog", { name: "Run a dangerous statement?" });
     await userEvent.click(within(dialog).getByRole("button", { name: "Run anyway" }));
 
-    expect(await screen.findByText("2 rows affected.")).toBeInTheDocument();
+    expect(await screen.findByText(/^2 rows affected/)).toBeInTheDocument();
   });
 
   it("rejects writes on a read-only connection", async () => {

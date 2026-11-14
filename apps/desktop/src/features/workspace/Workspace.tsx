@@ -1,96 +1,126 @@
-import type { SessionInfo } from "../../ipc";
-import { EditorPane } from "../editor/EditorPane";
-import { TableDetails } from "../schema/TableDetails";
-import { EDITOR_VIEW, useWorkspace, workspaceOf } from "./workspaceStore";
+import { useEffect, useState } from "react";
 
-/** The main area for one session: the SQL editor plus one tab per opened table. */
-export function Workspace({ session }: { session: SessionInfo }) {
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import type { ConnectionProfile, SessionInfo } from "../../ipc";
+import { EditorPane } from "../editor/EditorPane";
+import { useCompletion } from "../editor/completionStore";
+import { useEditor } from "../editor/editorStore";
+import { loadTabs } from "../editor/persistence";
+import { TableDetails } from "../schema/TableDetails";
+import { matchShortcut } from "./shortcuts";
+import { TabStrip } from "./TabStrip";
+import { type View, useWorkspace, workspaceOf } from "./workspaceStore";
+
+type Props = { session: SessionInfo; profile: ConnectionProfile | null };
+
+/** Opens the session's saved tabs, or one empty tab, the first time it is shown. */
+function useInitialTabs(session: SessionInfo) {
+  useEffect(() => {
+    const { sessionId, connectionId } = session;
+    if (workspaceOf(useWorkspace.getState(), sessionId).views.length > 0) return;
+    const saved = loadTabs(connectionId);
+    const { openTab } = useEditor.getState();
+    if (saved.length === 0) openTab(sessionId);
+    for (const tab of saved) openTab(sessionId, tab);
+    const first = workspaceOf(useWorkspace.getState(), sessionId).views[0];
+    if (first) useWorkspace.getState().activate(sessionId, first.key);
+    void useCompletion.getState().load(session);
+  }, [session]);
+}
+
+/** The main area for one session: editor tabs and table detail tabs. */
+export function Workspace({ session, profile }: Props) {
   const { sessionId } = session;
   const workspace = useWorkspace((state) => workspaceOf(state, sessionId));
-  const { activate, close, openTable } = useWorkspace.getState();
-  const active = workspace.details.find((d) => d.key === workspace.active);
+  const tabs = useEditor((state) => state.tabs);
+  const [closing, setClosing] = useState<string | null>(null);
+  useInitialTabs(session);
+
+  const active = workspace.views.find((v) => v.key === workspace.active) ?? null;
+
+  const requestClose = (view: View) => {
+    if (view.kind === "table") {
+      useWorkspace.getState().close(sessionId, view.key);
+      return;
+    }
+    if (tabs[view.key]?.running) setClosing(view.key);
+    else void useEditor.getState().closeTab(view.key);
+  };
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const shortcut = matchShortcut(event);
+      if (!shortcut) return;
+      event.preventDefault();
+      const { views, active: current } = workspaceOf(useWorkspace.getState(), sessionId);
+      const view = views.find((v) => v.key === current);
+      switch (shortcut) {
+        case "new-tab":
+          useEditor.getState().openTab(sessionId);
+          return;
+        case "close-tab":
+          if (view) requestClose(view);
+          return;
+        case "next-tab":
+          useWorkspace.getState().cycle(sessionId, 1);
+          return;
+        case "previous-tab":
+          useWorkspace.getState().cycle(sessionId, -1);
+          return;
+        case "focus-results":
+          document.querySelector<HTMLElement>("[data-results]")?.focus();
+          return;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+    };
+  });
 
   return (
     <div className="flex h-full flex-col">
-      {workspace.details.length > 0 && (
-        <div
-          role="tablist"
-          aria-label="Open views"
-          className="flex shrink-0 overflow-x-auto border-b border-zinc-800 bg-zinc-900"
-        >
-          <ViewTab
-            label="SQL"
-            selected={!active}
-            onSelect={() => {
-              activate(sessionId, EDITOR_VIEW);
-            }}
-          />
-          {workspace.details.map((detail) => (
-            <ViewTab
-              key={detail.key}
-              label={detail.table.name}
-              selected={detail.key === workspace.active}
-              onSelect={() => {
-                activate(sessionId, detail.key);
-              }}
-              onClose={() => {
-                close(sessionId, detail.key);
-              }}
-            />
-          ))}
-        </div>
-      )}
+      <TabStrip
+        sessionId={sessionId}
+        views={workspace.views}
+        active={workspace.active}
+        tabs={tabs}
+        color={profile?.color ?? null}
+        onClose={requestClose}
+      />
       <div className="min-h-0 flex-1">
-        {active ? (
+        {active?.kind === "table" && (
           <TableDetails
             key={`${sessionId}:${active.key}`}
             sessionId={sessionId}
             table={active.table}
             onOpenTable={(table) => {
-              openTable(sessionId, table);
+              useWorkspace.getState().openTable(sessionId, table);
             }}
           />
-        ) : (
-          <EditorPane session={session} />
         )}
+        {active?.kind === "editor" && (
+          <EditorPane key={active.key} tabId={active.key} session={session} profile={profile} />
+        )}
+        {!active && <p className="p-6 text-sm text-zinc-500">Open a new tab with ⌘T.</p>}
       </div>
-    </div>
-  );
-}
-
-function ViewTab({
-  label,
-  selected,
-  onSelect,
-  onClose,
-}: {
-  label: string;
-  selected: boolean;
-  onSelect: () => void;
-  onClose?: () => void;
-}) {
-  return (
-    <div
-      className={`flex items-center border-r border-zinc-800 text-sm ${selected ? "bg-zinc-950 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`}
-    >
-      <button
-        type="button"
-        role="tab"
-        aria-selected={selected}
-        className="max-w-48 truncate px-3 py-1.5"
-        onClick={onSelect}
-      >
-        {label}
-      </button>
-      {onClose && (
-        <button
-          type="button"
-          aria-label={`Close ${label}`}
-          className="pr-2 text-xs text-zinc-500 hover:text-zinc-100"
-          onClick={onClose}
-        >
-          ×
-        </button>
+      {closing && (
+        <ConfirmDialog
+          title="Close a running tab?"
+          message="A statement is running in this tab. Closing it cancels the statement and closes the tab's connection."
+          confirmLabel="Close tab"
+          onConfirm={() => {
+            const tabId = closing;
+            setClosing(null);
+            void useEditor
+              .getState()
+              .cancel(tabId)
+              .finally(() => useEditor.getState().closeTab(tabId));
+          }}
+          onCancel={() => {
+            setClosing(null);
+          }}
+        />
       )}
     </div>
   );

@@ -7,15 +7,16 @@ import { ConnectionForm } from "./features/connections/ConnectionForm";
 import { ConnectionList } from "./features/connections/ConnectionList";
 import { useConnections } from "./features/connections/connectionsStore";
 import { draftFromProfile, emptyDraft } from "./features/connections/draft";
-import { useEditor } from "./features/editor/editorStore";
+import { shownResult, useEditor } from "./features/editor/editorStore";
+import { persistTabs } from "./features/editor/persistence";
 import { SchemaTree } from "./features/schema/SchemaTree";
-import { useSchema } from "./features/schema/schemaStore";
 import { useSessions } from "./features/sessions/sessionsStore";
 import { HostKeyDialog } from "./features/ssh/HostKeyDialog";
 import { TrustedHosts } from "./features/ssh/TrustedHosts";
 import { describeConnectError, hostKeyFrom } from "./features/ssh/hostKey";
 import { Workspace } from "./features/workspace/Workspace";
-import { useWorkspace } from "./features/workspace/workspaceStore";
+import { forgetEndedSessions } from "./features/workspace/lifecycle";
+import { useWorkspace, workspaceOf } from "./features/workspace/workspaceStore";
 import {
   type AppError,
   type ConnectionDraft,
@@ -43,8 +44,11 @@ export function App() {
 
   const activeProfile = profiles.find((p) => p.id === activeConnectionId) ?? null;
   const activeSession = activeConnectionId ? (sessions[activeConnectionId] ?? null) : null;
-  const activeTab = useEditor((state) =>
-    activeSession ? state.tabs[activeSession.sessionId] : undefined,
+  const activeView = useWorkspace((state) =>
+    activeSession ? workspaceOf(state, activeSession.sessionId).active : null,
+  );
+  const activeResult = useEditor((state) =>
+    shownResult(activeView ? state.tabs[activeView] : undefined),
   );
   const editingSavedSecrets = profiles.find((p) => p.id === editing?.id)?.savedSecrets ?? [];
   const firstDriver = drivers[0];
@@ -59,18 +63,22 @@ export function App() {
     [profiles, sessions],
   );
 
-  // Forget the tree and tabs of sessions that ended (closed, deleted or lost).
+  // Forget the tree, tabs and completion of sessions that ended (closed, deleted or lost).
   useEffect(() => {
-    const open = new Set(Object.values(sessions).map((s) => s.sessionId));
-    for (const store of [useSchema, useWorkspace]) {
-      const known = Object.keys(
-        store === useSchema ? useSchema.getState().trees : useWorkspace.getState().workspaces,
-      );
-      for (const sessionId of known) {
-        if (!open.has(sessionId)) store.getState().dropSession(sessionId);
-      }
-    }
+    forgetEndedSessions(new Set(Object.values(sessions).map((s) => s.sessionId)));
   }, [sessions]);
+
+  // Editor tabs are saved locally and restored when the connection is opened again.
+  useEffect(
+    () =>
+      persistTabs(() =>
+        Object.values(useSessions.getState().sessions).map(({ sessionId, connectionId }) => ({
+          sessionId,
+          connectionId,
+        })),
+      ),
+    [],
+  );
 
   const openConnection = async (profile: ConnectionProfile) => {
     setActionError(null);
@@ -106,10 +114,8 @@ export function App() {
   const deleteConnection = async (profile: ConnectionProfile) => {
     setDeleting(null);
     try {
-      const session = useSessions.getState().sessions[profile.id];
       await useConnections.getState().remove(profile.id);
       useSessions.getState().forget(profile.id);
-      if (session) useEditor.getState().dropTab(session.sessionId);
     } catch (error) {
       setActionError(toAppError(error));
     }
@@ -171,17 +177,13 @@ export function App() {
         </aside>
         <main className="min-w-0 flex-1">
           {activeSession ? (
-            <Workspace session={activeSession} />
+            <Workspace session={activeSession} profile={activeProfile} />
           ) : (
             <p className="p-6 text-sm text-zinc-500">Open a connection to start writing SQL.</p>
           )}
         </main>
       </div>
-      <StatusBar
-        profile={activeProfile}
-        session={activeSession}
-        result={activeTab?.result ?? null}
-      />
+      <StatusBar profile={activeProfile} session={activeSession} result={activeResult} />
       {editing && (
         <ConnectionForm
           initial={editing}

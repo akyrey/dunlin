@@ -10,6 +10,8 @@ import type {
   ConnectionDraft,
   ConnectionProfile,
   ConnectionSecrets,
+  HistoryEntry,
+  HistoryListArgs,
   KnownHost,
   Namespace,
   ObjectSummary,
@@ -175,6 +177,46 @@ export function createMockBackend() {
   /** Pending sleeps by tab, resolved by `query_cancel`. */
   const sleeping = new Map<string, () => void>();
   const knownHosts: KnownHost[] = [];
+  const history: HistoryEntry[] = [];
+
+  /** Records a statement the way the backend does after running it. */
+  const record = (args: QueryExecuteArgs, outcome: Promise<QueryResult>): Promise<QueryResult> => {
+    const connectionId = sessions.get(args.sessionId)?.id ?? "";
+    const entry = (patch: Partial<HistoryEntry>): HistoryEntry => ({
+      id: history.length + 1,
+      connectionId,
+      statement: args.sql,
+      startedAt: Date.now(),
+      durationMs: 1,
+      outcome: "rows",
+      rowCount: null,
+      truncated: false,
+      error: null,
+      ...patch,
+    });
+    outcome.then(
+      (result) => {
+        history.push(
+          entry(
+            result.outcome.kind === "rows"
+              ? {
+                  outcome: "rows",
+                  rowCount: result.outcome.rows.length,
+                  truncated: result.outcome.truncated,
+                }
+              : { outcome: "affected", rowCount: Number(result.outcome.rows) },
+          ),
+        );
+      },
+      (caught: unknown) => {
+        const error = caught as AppError;
+        if (error.code !== "confirmation_required" && error.code !== "read_only") {
+          history.push(entry({ outcome: "error", error: error.message }));
+        }
+      },
+    );
+    return outcome;
+  };
   let nextId = 1;
 
   const save = (draft: ConnectionDraft, secrets?: ConnectionSecrets): ConnectionProfile => {
@@ -310,7 +352,30 @@ export function createMockBackend() {
       return null;
     },
     sql_split: (a) => split(a.text as string),
-    query_execute: (a) => execute(a as unknown as QueryExecuteArgs),
+    query_execute: (a) =>
+      record(a as unknown as QueryExecuteArgs, execute(a as unknown as QueryExecuteArgs)),
+    history_list: (a) => {
+      const args = a as unknown as HistoryListArgs;
+      const search = args.search?.toLowerCase();
+      return history
+        .filter((e) => e.connectionId === args.connectionId)
+        .filter((e) => !search || e.statement.toLowerCase().includes(search))
+        .filter((e) => args.before === undefined || e.id < args.before)
+        .reverse()
+        .slice(0, args.limit);
+    },
+    history_clear: (a) => {
+      const keep = history.filter((e) => e.connectionId !== a.connectionId);
+      history.splice(0, history.length, ...keep);
+      return null;
+    },
+    schema_completion: () => ({
+      tables: MOCK_OBJECTS.map((o) => ({
+        schema: "main",
+        name: o.name,
+        columns: mockTable({ namespace: MAIN, name: o.name }).columns.map((c) => c.name),
+      })),
+    }),
     schema_namespaces: () => MOCK_NAMESPACES,
     schema_objects: () => MOCK_OBJECTS,
     schema_refresh: () => null,

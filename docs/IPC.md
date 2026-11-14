@@ -46,9 +46,9 @@ Errors from `session_open` and `connection_test` carry `detail.stage`: `ssh_conn
 | `connection_save` | `{ profile, secrets? }` | `ConnectionProfile` | 1 (`secrets` from 2) |
 | `connection_delete` | `{ connectionId }` | none | 1 |
 | `connection_test` | `{ profile, secrets? }` | `{ serverVersion, latencyMs }` | 1 (`secrets` from 2) |
-| `session_open` | `{ connectionId }` | `SessionInfo` (sessionId, connectionId, driver, capabilities, readOnly) | 1 |
+| `session_open` | `{ connectionId }` | `SessionInfo` (sessionId, connectionId, driver, capabilities, readOnly, defaultNamespace) | 1 |
 | `session_close` | `{ sessionId }` | none | 1 |
-| `sql_split` | `{ sessionId, text }` | `StatementRange[]` | 1 |
+| `sql_split` | `{ sessionId, text }` | `StatementRange[]` (UTF-16 start/end, and `danger`: why it needs confirmation, or null) | 1 |
 | `query_execute` | `{ sessionId, tabId, sql, rowLimit (1..=100000), confirmed? }` | `QueryResult` | 1 |
 | `query_cancel` | `{ sessionId, tabId }` | none (no-op when the tab is idle) | 2 |
 | `tab_close` | `{ sessionId, tabId }` | none | 1 |

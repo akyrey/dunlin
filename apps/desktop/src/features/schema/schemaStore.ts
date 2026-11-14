@@ -10,6 +10,7 @@ import {
   schemaRefresh,
   toAppError,
 } from "../../ipc";
+import { useCompletion } from "../editor/completionStore";
 
 export type Load<T> =
   { status: "loading" } | { status: "loaded"; data: T } | { status: "failed"; error: AppError };
@@ -156,7 +157,7 @@ export const useSchema = create<SchemaState>()((set, get) => {
         patch(sessionId, (t) => ({ ...t, namespaces: failed(caught) }));
         return;
       }
-      await get().reload(sessionId);
+      await Promise.all([get().reload(sessionId), useCompletion.getState().reload(sessionId)]);
     },
 
     dropSession: (sessionId) => {

@@ -3,8 +3,11 @@ import type {
   ConnectionDraft,
   ConnectionProfile,
   ConnectionSecrets,
+  CompletionSchema,
   ConnectionTestResult,
   DriverInfo,
+  HistoryEntry,
+  HistoryListArgs,
   KnownHost,
   Namespace,
   NamespaceRef,
@@ -71,6 +74,11 @@ export const schemaObjects = (
   namespace: NamespaceRef,
 ): Promise<ObjectSummary[]> => call("schema_objects", { sessionId, namespace });
 
+export const schemaCompletion = (
+  sessionId: string,
+  namespace: NamespaceRef,
+): Promise<CompletionSchema> => call("schema_completion", { sessionId, namespace });
+
 export const schemaTable = (sessionId: string, table: TableRef): Promise<TableInfo> =>
   call("schema_table", { sessionId, table });
 
@@ -83,3 +91,9 @@ export const schemaSnippets = (sessionId: string, table: TableRef): Promise<Tabl
 /** Clears the session's metadata cache; callers then reload what they show. */
 export const schemaRefresh = (sessionId: string): Promise<void> =>
   call("schema_refresh", { sessionId });
+
+export const historyList = (args: HistoryListArgs): Promise<HistoryEntry[]> =>
+  call("history_list", args);
+
+export const historyClear = (connectionId: string): Promise<void> =>
+  call("history_clear", { connectionId });

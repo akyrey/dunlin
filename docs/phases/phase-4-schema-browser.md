@@ -48,7 +48,7 @@ Use the system catalogs rather than `information_schema` on PostgreSQL: they are
 
 ## Notes from implementation
 
-- Until Phase 5 adds editor tabs, "Generate SELECT" appends to the session's one editor and switches to it. The quoting comes from the backend (`schema_snippets`), since the frontend never branches on the driver.
+- "Generate SELECT" opens a new editor tab named after the table (since Phase 5; before that it appended to the session's one editor). The quoting comes from the backend (`schema_snippets`), since the frontend never branches on the driver.
 - The tree reads through the session's metadata connection, so a SQLite database `ATTACH`ed in an editor tab is not shown: the attachment belongs to that tab's connection.
 - The TypeScript name of `dbc_core::schema::Index` is `TableIndex`, because `Index.ts` would clash with the generated `index.ts` on case-insensitive file systems.
 
