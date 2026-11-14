@@ -1,5 +1,7 @@
 //! Tauri command wrappers. Each one only forwards to the implementation in `commands`.
 
+use dbc_core::WireValue;
+use dbc_core::data::RowCount;
 use dbc_core::driver::DriverInfo;
 use dbc_core::schema::{CompletionSchema, Namespace, ObjectSummary, TableInfo};
 use dbc_store::ConnectionProfile;
@@ -7,6 +9,7 @@ use tauri::State;
 
 use crate::commands;
 use crate::error::AppError;
+use crate::ipc::{CellFullValueArgs, TableCountArgs, TablePage, TablePageArgs};
 use crate::ipc::{
     ConnectionIdArgs, ConnectionSaveArgs, ConnectionTestArgs, ConnectionTestResult,
     HistoryListArgs, QueryExecuteArgs, QueryResult, SchemaObjectsArgs, SchemaTableArgs,
@@ -147,6 +150,30 @@ pub async fn schema_refresh(
     args: SessionIdArgs,
 ) -> Result<(), AppError> {
     commands::schema_refresh(&state, args).await
+}
+
+#[tauri::command]
+pub async fn table_page(
+    state: State<'_, AppState>,
+    args: TablePageArgs,
+) -> Result<TablePage, AppError> {
+    commands::table_page(&state, args).await
+}
+
+#[tauri::command]
+pub async fn table_count(
+    state: State<'_, AppState>,
+    args: TableCountArgs,
+) -> Result<RowCount, AppError> {
+    commands::table_count(&state, args).await
+}
+
+#[tauri::command]
+pub async fn cell_full_value(
+    state: State<'_, AppState>,
+    args: CellFullValueArgs,
+) -> Result<WireValue, AppError> {
+    commands::cell_full_value(&state, args).await
 }
 
 #[tauri::command]

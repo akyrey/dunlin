@@ -5,7 +5,7 @@ mod wire;
 #[cfg(test)]
 mod tests;
 
-pub use wire::{WireError, WireValue};
+pub use wire::{BytesPayload, TextPayload, WireError, WireValue};
 
 /// Values larger than this (in bytes) are truncated when prepared for display.
 pub const DEFAULT_DISPLAY_LIMIT: usize = 64 * 1024;

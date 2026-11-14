@@ -64,9 +64,9 @@ Errors from `session_open` and `connection_test` carry `detail.stage`: `ssh_conn
 | `schema_completion` | `{ sessionId, namespace }` | `CompletionSchema` (cached with the other `schema_*` results) | 5 |
 | `history_list` | `{ connectionId, search?, limit (1..=500), before? }` | `HistoryEntry[]`, newest first; `before` is the last id of the previous page | 5 |
 | `history_clear` | `{ connectionId }` | none | 5 |
-| `table_page` | `{ sessionId, table, filter?, sort?, limit, offset }` | `ResultSet` | 6 |
-| `table_count` | `{ sessionId, table, filter?, exact }` | `RowCount` | 6 |
-| `cell_full_value` | `{ sessionId, table, key, column }` | `Value` | 6 |
+| `table_page` | `{ sessionId, viewId, table, filter?, key?, sort, limit (1..=10000), offset }` | `TablePage` (columns, rows, hasMore, elapsedMs) | 6 |
+| `table_count` | `{ sessionId, viewId, table, filter?, key?, exact }` | `RowCount` (`exact`, `estimate` or `unknown`; rows as a string) | 6 |
+| `cell_full_value` | `{ sessionId, viewId, table, key, column }` | `Value`, untruncated; `unsupported` without a row key | 6 |
 | `changes_preview` | `{ sessionId, changeSet }` | `string[]` (SQL) | 7 |
 | `changes_apply` | `{ sessionId, changeSet }` | `ApplyReport` | 7 |
 | `export_result` | `{ format, columns, rows, path, table? }` | `{ rowsWritten }` | 8 |
@@ -100,3 +100,7 @@ A command call is one request and one response. Progress for long operations (ex
 ## Schema browser
 
 `schema_*` commands run on the session's metadata connection, never on a tab's, so a long statement in an editor tab does not hold up the tree. Results are cached per session, keyed by namespace and table; the cache is cleared by `schema_refresh` and after any statement classified as `ddl` runs in the session (whether or not it succeeded, since MySQL DDL can apply part of its work). The frontend sees `statementClass: "ddl"` in the `QueryResult` (or the error) and reloads the nodes it has open. Errors are per call, so a namespace the user may not read fails on its own node with `permission`, and a table dropped elsewhere fails with `not_found`. A lost metadata connection is reopened on the next call; a lost SSH tunnel closes the session with `tunnel_lost`, as for queries.
+
+## Table data
+
+`table_page`, `table_count` and `cell_full_value` run on the view's own connection, named by `viewId` exactly like an editor tab's `tabId`: a long page can be cancelled with `query_cancel { sessionId, tabId: viewId }`, and closing the view calls `tab_close` with it. They never wait for the schema tree or an editor tab. `key` is a list of `{ column, value }` equalities bound as parameters; `filter` is the user's `WHERE` expression and must be a single expression. Page cells are truncated like query results; `cell_full_value` fetches one whole value by the row's key.

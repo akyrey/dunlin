@@ -61,10 +61,23 @@ impl Session {
         sql: &str,
         options: &ExecuteOptions,
     ) -> Result<StatementOutcome, DbError> {
+        self.on_tab(tab_id, |connection| async move {
+            connection.execute(sql, options).await
+        })
+        .await
+    }
+
+    /// Runs `work` on the tab's own connection (an editor tab or a table data view), marked as
+    /// running so it can be cancelled. A lost connection is dropped so the next call reconnects.
+    pub async fn on_tab<T, F, Fut>(&self, tab_id: &str, work: F) -> Result<T, DbError>
+    where
+        F: FnOnce(Arc<dyn Connection>) -> Fut,
+        Fut: Future<Output = Result<T, DbError>>,
+    {
         let connection = self.tab_connection(tab_id).await?;
         let outcome = {
             let _running = self.mark_running(tab_id)?;
-            connection.execute(sql, options).await
+            work(Arc::clone(&connection)).await
         };
         if let Err(error) = &outcome
             && error.code == DbErrorCode::ConnectionLost

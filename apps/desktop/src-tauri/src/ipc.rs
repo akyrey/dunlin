@@ -1,6 +1,7 @@
 //! Argument and return types of the Tauri commands. TypeScript is generated from these.
 
 use dbc_core::WireValue;
+use dbc_core::data::SortKey;
 use dbc_core::driver::{Capabilities, DriverKind};
 use dbc_core::result::ColumnMeta;
 use dbc_core::schema::{NamespaceRef, TableRef};
@@ -148,6 +149,71 @@ pub struct HistoryListArgs {
     #[serde(default)]
     #[ts(optional)]
     pub before: Option<i64>,
+}
+
+/// `column = value` on a table page: foreign key navigation and cell lookups.
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyArg {
+    pub column: String,
+    pub value: WireValue,
+}
+
+/// Table data commands run on the view's own connection (`viewId`, like an editor tab id), so
+/// they can be cancelled with `query_cancel` and never wait for the tree or an editor.
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct TablePageArgs {
+    pub session_id: String,
+    pub view_id: String,
+    pub table: TableRef,
+    #[serde(default)]
+    #[ts(optional)]
+    pub filter: Option<String>,
+    #[serde(default)]
+    pub key: Vec<KeyArg>,
+    #[serde(default)]
+    pub sort: Vec<SortKey>,
+    pub limit: usize,
+    #[ts(type = "number")]
+    pub offset: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct TablePage {
+    pub columns: Vec<ColumnMeta>,
+    pub rows: Vec<Vec<WireValue>>,
+    /// Another page follows.
+    pub has_more: bool,
+    #[ts(type = "number")]
+    pub elapsed_ms: u64,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct TableCountArgs {
+    pub session_id: String,
+    pub view_id: String,
+    pub table: TableRef,
+    #[serde(default)]
+    #[ts(optional)]
+    pub filter: Option<String>,
+    #[serde(default)]
+    pub key: Vec<KeyArg>,
+    /// `false`: the driver's estimate, immediately; `true`: `count(*)`.
+    pub exact: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct CellFullValueArgs {
+    pub session_id: String,
+    pub view_id: String,
+    pub table: TableRef,
+    /// The row key of the row, as shown.
+    pub key: Vec<KeyArg>,
+    pub column: String,
 }
 
 #[derive(Debug, Clone, Deserialize, TS)]

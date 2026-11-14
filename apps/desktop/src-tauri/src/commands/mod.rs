@@ -8,6 +8,7 @@ mod queries;
 mod schema;
 mod sessions;
 mod ssh;
+mod table_data;
 
 pub use connections::{
     connection_delete, connection_list, connection_save, connection_test, driver_list,
@@ -20,3 +21,4 @@ pub use schema::{
 };
 pub use sessions::{session_close, session_open, tab_close};
 pub use ssh::{ssh_known_host_remove, ssh_known_hosts_list, ssh_trust_host};
+pub use table_data::{PAGE_DISPLAY_LIMIT, cell_full_value, table_count, table_page};

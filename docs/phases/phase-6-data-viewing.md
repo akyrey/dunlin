@@ -42,14 +42,14 @@ pub enum RowCount { Exact(u64), Estimate(u64), Unknown }
 - [ ] 6.1 **Spike: grid.** Render 1000 × 50 with row and column virtualisation, keyboard cell navigation, column resize and a custom cell renderer. Measure scroll smoothness. Confirm or replace the choice in DECISIONS D-006.
 - [x] 6.2 `Dialect::select_page` for the three dialects. Snapshot tests: no filter, filter, multi-column sort, offset, identifiers needing quotes, table without a row key.
 - [x] 6.3 `fetch_table_page` and `count_rows` in the three drivers. Conformance group.
-- [ ] 6.4 `table_page` and `table_count` commands on the metadata connection, cancellable.
+- [x] 6.4 `table_page` and `table_count` commands on the metadata connection, cancellable.
 - [ ] 6.5 Grid core: virtualised rows and columns, sticky header and row-number column, column resize and auto-size to content, cell and range selection, keyboard navigation, copy as TSV.
 - [ ] 6.6 Cell rendering by `TypeCategory`: right-aligned numbers, distinct styling for `NULL`, booleans, truncated previews for long text, JSON and binary (`<binary 2.4 MB>`), arrays.
 - [ ] 6.7 Table data tab: toolbar with filter input (with history of recent filters per table), refresh, page controls, page size, row count (estimate first, "count exactly" action); sort by clicking a header, shift-click to add a secondary sort.
 - [ ] 6.8 Filter errors are shown inline under the filter box with the server message; the previous page stays visible.
 - [ ] 6.9 JSON view: toggle that renders the current rows as an array of objects in a read-only CodeMirror JSON editor. Numbers that are safe stay numbers; integers and decimals beyond double precision are emitted as strings; binary as base64; a note says so.
 - [ ] 6.10 Cell viewer panel, opened for the selected cell: JSON pretty-printed and highlighted (falls back to raw text if it does not parse), XML likewise, plain text with wrap toggle, binary as hex dump with size, and image preview for common image signatures. Copy button.
-- [ ] 6.11 `cell_full_value` command to fetch a value that was truncated on the wire, addressed by row key; for tables without a row key the viewer shows the truncated value and says so.
+- [x] 6.11 `cell_full_value` command to fetch a value that was truncated on the wire, addressed by row key; for tables without a row key the viewer shows the truncated value and says so.
 - [ ] 6.12 Foreign key navigation: cells in foreign key columns get a link affordance; activating it opens the referenced table filtered to that key.
 - [ ] 6.13 Apply the grid upgrades and the JSON view to editor results.
 - [ ] 6.14 Column header shows name, type and key markers (primary key, foreign key).
