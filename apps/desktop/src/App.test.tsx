@@ -3,10 +3,16 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { App } from "./App";
+import { sshTrustHost } from "./ipc";
 import { useConnections } from "./features/connections/connectionsStore";
 import { useEditor } from "./features/editor/editorStore";
 import { useSessions } from "./features/sessions/sessionsStore";
-import { MOCK_DATABASE_PATH, createMockBackend } from "./test/mockBackend";
+import {
+  MOCK_DATABASE_PATH,
+  MOCK_DROP_TUNNEL,
+  MOCK_FINGERPRINT,
+  createMockBackend,
+} from "./test/mockBackend";
 
 beforeEach(() => {
   useConnections.setState({ drivers: [], profiles: [], loaded: false, error: null });
@@ -163,6 +169,88 @@ describe("App", () => {
       "placeholder",
       "Stored in the keychain",
     );
-    expect(useConnections.getState().profiles[0]?.hasDbPassword).toBe(true);
+    expect(useConnections.getState().profiles[0]?.savedSecrets).toEqual(["db_password"]);
+  });
+
+  async function addTunnelledConnection(name: string, sshHost: string) {
+    await userEvent.click(await screen.findByRole("button", { name: "New connection" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText("Name"), name);
+    await userEvent.type(within(dialog).getByLabelText("Password"), "db-pw");
+    await userEvent.click(within(dialog).getByLabelText("Connect through an SSH server"));
+    await userEvent.type(within(dialog).getByLabelText("SSH server host"), sshHost);
+    await userEvent.type(within(dialog).getByLabelText("SSH server user"), "deploy");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+  }
+
+  it("asks to trust an unknown SSH host once, then connects", async () => {
+    render(<App />);
+    await addTunnelledConnection("Behind bastion", "bastion.example.com");
+
+    await userEvent.click(screen.getByRole("button", { name: /^Behind bastion/ }));
+    const prompt = await screen.findByRole("dialog", { name: "Trust this SSH server?" });
+    expect(within(prompt).getByTestId("fingerprint")).toHaveTextContent(MOCK_FINGERPRINT);
+    await userEvent.click(within(prompt).getByRole("button", { name: "Trust and connect" }));
+
+    expect(await screen.findByRole("button", { name: "Run" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Trusted SSH hosts" }));
+    const trusted = await screen.findByRole("list", { name: "Trusted hosts" });
+    expect(trusted).toHaveTextContent("bastion.example.com:22");
+    await userEvent.click(
+      within(trusted).getByRole("button", { name: "Remove bastion.example.com:22" }),
+    );
+    expect(await screen.findByText("No hosts trusted yet.")).toBeInTheDocument();
+  });
+
+  it("declining an unknown key connects to nothing and stores nothing", async () => {
+    render(<App />);
+    await addTunnelledConnection("Behind bastion", "bastion.example.com");
+
+    await userEvent.click(screen.getByRole("button", { name: /^Behind bastion/ }));
+    const prompt = await screen.findByRole("dialog", { name: "Trust this SSH server?" });
+    await userEvent.click(within(prompt).getByRole("button", { name: "Cancel" }));
+    await userEvent.click(screen.getByRole("button", { name: "Trusted SSH hosts" }));
+
+    expect(await screen.findByText("No hosts trusted yet.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Run" })).toBeNull();
+  });
+
+  it("refuses a changed SSH host key with no way to proceed", async () => {
+    render(<App />);
+    await addTunnelledConnection("Moved", "changed.example.com");
+    // Trusted earlier with the real key; the host now presents a different one.
+    await sshTrustHost({
+      host: "changed.example.com",
+      port: 22,
+      algorithm: "ssh-ed25519",
+      fingerprint: MOCK_FINGERPRINT,
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /^Moved/ }));
+    const refusal = await screen.findByRole("dialog", { name: "SSH host key has changed" });
+
+    expect(within(refusal).getByRole("alert")).toHaveTextContent("will not connect");
+    expect(within(refusal).queryByRole("button", { name: "Trust and connect" })).toBeNull();
+  });
+
+  it("closes the session and explains when the SSH tunnel is lost", async () => {
+    render(<App />);
+    await addTunnelledConnection("Behind bastion", "bastion.example.com");
+    await userEvent.click(screen.getByRole("button", { name: /^Behind bastion/ }));
+    await userEvent.click(await screen.findByRole("button", { name: "Trust and connect" }));
+    await screen.findByRole("button", { name: "Run" });
+    const sessionId = Object.keys(useEditor.getState().tabs)[0] ?? "";
+    useEditor.getState().setText(sessionId, MOCK_DROP_TUNNEL);
+
+    await userEvent.click(screen.getByRole("button", { name: "Run" }));
+
+    expect(
+      await screen.findByText(/The SSH connection was lost\. Open the connection again/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Run" })).toBeNull();
+    expect(screen.getByText("Open a connection to start writing SQL.")).toBeInTheDocument();
   });
 });

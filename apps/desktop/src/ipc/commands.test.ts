@@ -29,6 +29,7 @@ const draft: ConnectionDraft = {
   filePath: "/tmp/a.db",
   options: {},
   tls: { mode: "disable", caFile: null, certFile: null, keyFile: null },
+  ssh: null,
 };
 
 afterEach(() => {

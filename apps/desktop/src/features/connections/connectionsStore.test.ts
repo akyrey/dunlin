@@ -16,7 +16,7 @@ vi.mock("../../ipc", async (importOriginal) => {
 });
 
 function profile(id: string, name: string): ConnectionProfile {
-  return { ...emptyDraft(sqliteDriver), id, name, filePath: "/tmp/a.db", hasDbPassword: false };
+  return { ...emptyDraft(sqliteDriver), id, name, filePath: "/tmp/a.db", savedSecrets: [] };
 }
 
 beforeEach(() => {

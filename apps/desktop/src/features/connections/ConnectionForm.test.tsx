@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import type { ConnectionDraft } from "../../ipc";
+import type { ConnectionDraft, SecretKind } from "../../ipc";
 import * as ipc from "../../ipc";
 import {
   mysqlDriver,
@@ -21,6 +21,8 @@ vi.mock("../../ipc", async (importOriginal) => {
     pickDatabaseFile: vi.fn(),
     pickNewDatabaseFile: vi.fn(),
     pickPemFile: vi.fn(),
+    pickPrivateKeyFile: vi.fn(),
+    sshTrustHost: vi.fn(),
   };
 });
 
@@ -32,13 +34,13 @@ beforeEach(() => {
 
 function renderForm(
   initial: ConnectionDraft,
-  { storedPassword = false, onSave = vi.fn().mockResolvedValue(undefined) } = {},
+  { savedSecrets = [] as SecretKind[], onSave = vi.fn().mockResolvedValue(undefined) } = {},
 ) {
   render(
     <ConnectionForm
       initial={initial}
       drivers={drivers}
-      storedPassword={storedPassword}
+      savedSecrets={savedSecrets}
       onSave={onSave}
       onCancel={vi.fn()}
     />,
@@ -157,7 +159,9 @@ describe("ConnectionForm with a network database", () => {
 
 describe("ConnectionForm passwords", () => {
   it("keeps a stored password when the field is left empty", async () => {
-    const onSave = renderForm(draftFromProfile(postgresProfile()), { storedPassword: true });
+    const onSave = renderForm(draftFromProfile(postgresProfile()), {
+      savedSecrets: ["db_password"] as SecretKind[],
+    });
 
     expect(screen.getByLabelText("Password")).toHaveAttribute(
       "placeholder",
@@ -169,7 +173,9 @@ describe("ConnectionForm passwords", () => {
   });
 
   it("sends a typed password", async () => {
-    const onSave = renderForm(draftFromProfile(postgresProfile()), { storedPassword: true });
+    const onSave = renderForm(draftFromProfile(postgresProfile()), {
+      savedSecrets: ["db_password"] as SecretKind[],
+    });
 
     await userEvent.type(screen.getByLabelText("Password"), "s3cret");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -178,7 +184,9 @@ describe("ConnectionForm passwords", () => {
   });
 
   it("can forget the stored password", async () => {
-    const onSave = renderForm(draftFromProfile(postgresProfile()), { storedPassword: true });
+    const onSave = renderForm(draftFromProfile(postgresProfile()), {
+      savedSecrets: ["db_password"] as SecretKind[],
+    });
 
     await userEvent.click(screen.getByLabelText("Forget stored"));
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -220,7 +228,7 @@ it("renders text options as inputs", async () => {
     <ConnectionForm
       initial={draftFromProfile(sqliteProfile())}
       drivers={[withText]}
-      storedPassword={false}
+      savedSecrets={[]}
       onSave={onSave}
       onCancel={vi.fn()}
     />,
@@ -231,4 +239,100 @@ it("renders text options as inputs", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
   expect(savedDraft(onSave)?.options.mode).toBe("b");
+});
+
+describe("ConnectionForm SSH tunnel", () => {
+  it("is offered only for drivers that support tunnels", () => {
+    renderForm(draftFromProfile(sqliteProfile()));
+
+    expect(screen.queryByText("SSH tunnel")).toBeNull();
+  });
+
+  it("saves a key-file tunnel behind a jump host with each hop's secret", async () => {
+    vi.mocked(ipc.pickPrivateKeyFile).mockResolvedValue("/home/me/.ssh/id_ed25519");
+    const onSave = renderForm(draftFromProfile(postgresProfile()));
+
+    await userEvent.click(screen.getByLabelText("Connect through an SSH server"));
+    await userEvent.type(screen.getByLabelText("SSH server host"), "bastion.internal");
+    await userEvent.type(screen.getByLabelText("SSH server user"), "deploy");
+    await userEvent.selectOptions(screen.getByLabelText("SSH server authentication"), "key_file");
+    const server = screen.getByRole("group", { name: "SSH server" });
+    await userEvent.click(within(server).getByRole("button", { name: "Browse…" }));
+    await userEvent.type(screen.getByLabelText("SSH server key passphrase"), "phrase");
+    await userEvent.click(screen.getByLabelText("Reach it through a jump host"));
+    await userEvent.type(screen.getByLabelText("Jump host host"), "jump.example.com");
+    await userEvent.type(screen.getByLabelText("Jump host user"), "me");
+    await userEvent.selectOptions(screen.getByLabelText("Jump host authentication"), "password");
+    await userEvent.type(screen.getByLabelText("Jump host password"), "jump-pw");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(savedDraft(onSave)?.ssh).toEqual({
+      server: {
+        host: "bastion.internal",
+        port: 22,
+        user: "deploy",
+        auth: "key_file",
+        keyFile: "/home/me/.ssh/id_ed25519",
+      },
+      jump: { host: "jump.example.com", port: 22, user: "me", auth: "password", keyFile: null },
+    });
+    expect(onSave.mock.calls[0]?.[1]).toEqual({
+      sshKeyPassphrase: "phrase",
+      jumpPassword: "jump-pw",
+    });
+  });
+
+  it("shows stored SSH secrets and lets the tunnel be removed", async () => {
+    const ssh = {
+      server: { host: "b", port: 2222, user: "u", auth: "password" as const, keyFile: null },
+      jump: null,
+    };
+    const onSave = renderForm(draftFromProfile(postgresProfile({ ssh })), {
+      savedSecrets: ["ssh_password"] as SecretKind[],
+    });
+
+    expect(screen.getByLabelText("SSH server password")).toHaveAttribute(
+      "placeholder",
+      "Stored in the keychain",
+    );
+    expect(screen.getByLabelText("SSH server port")).toHaveValue("2222");
+    await userEvent.click(screen.getByLabelText("Connect through an SSH server"));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(savedDraft(onSave)?.ssh).toBeNull();
+  });
+
+  it("asks to trust an unknown host key during a test and retries", async () => {
+    const hostKey = { host: "b", port: 22, algorithm: "ssh-ed25519", fingerprint: "SHA256:k" };
+    vi.mocked(ipc.connectionTest).mockRejectedValueOnce({
+      code: "ssh_host_key_unknown",
+      message: "not trusted",
+      detail: { ...hostKey, stage: "host_key" },
+    });
+    vi.mocked(ipc.connectionTest).mockResolvedValueOnce({
+      serverVersion: "PostgreSQL 18",
+      latencyMs: 9,
+    });
+    vi.mocked(ipc.sshTrustHost).mockResolvedValue(undefined);
+    renderForm(draftFromProfile(postgresProfile()));
+
+    await userEvent.click(screen.getByRole("button", { name: "Test connection" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Trust and connect" }));
+
+    expect(ipc.sshTrustHost).toHaveBeenCalledWith(hostKey);
+    expect(await screen.findByText("Connected: PostgreSQL 18 · 9 ms")).toBeInTheDocument();
+  });
+
+  it("labels test failures with the failing stage", async () => {
+    vi.mocked(ipc.connectionTest).mockRejectedValue({
+      code: "ssh_auth",
+      message: "rejected",
+      detail: { stage: "ssh_auth" },
+    });
+    renderForm(draftFromProfile(postgresProfile()));
+
+    await userEvent.click(screen.getByRole("button", { name: "Test connection" }));
+
+    expect(await screen.findByText("SSH authentication failed: rejected")).toBeInTheDocument();
+  });
 });

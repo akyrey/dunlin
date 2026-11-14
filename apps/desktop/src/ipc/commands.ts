@@ -5,6 +5,9 @@ import type {
   ConnectionSecrets,
   ConnectionTestResult,
   DriverInfo,
+  KnownHost,
+  SshKnownHostRemoveArgs,
+  SshTrustHostArgs,
   QueryExecuteArgs,
   QueryResult,
   SessionInfo,
@@ -43,6 +46,13 @@ export const queryExecute = (args: QueryExecuteArgs): Promise<QueryResult> =>
 
 export const queryCancel = (sessionId: string, tabId: string): Promise<void> =>
   call("query_cancel", { sessionId, tabId });
+
+export const sshTrustHost = (args: SshTrustHostArgs): Promise<void> => call("ssh_trust_host", args);
+
+export const sshKnownHostsList = (): Promise<KnownHost[]> => call("ssh_known_hosts_list");
+
+export const sshKnownHostRemove = (args: SshKnownHostRemoveArgs): Promise<void> =>
+  call("ssh_known_host_remove", args);
 
 export const tabClose = (sessionId: string, tabId: string): Promise<void> =>
   call("tab_close", { sessionId, tabId });

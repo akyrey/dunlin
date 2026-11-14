@@ -10,11 +10,14 @@ import type {
   ConnectionDraft,
   ConnectionProfile,
   ConnectionSecrets,
+  KnownHost,
   QueryExecuteArgs,
   QueryResult,
+  SecretKind,
   StatementRange,
   Value,
 } from "../ipc/generated";
+import { SECRET_KINDS, type SecretField } from "../features/connections/draft";
 import { mysqlDriver, postgresDriver, sessionFor, sqliteDriver } from "./fixtures";
 
 export const MOCK_DATABASE_PATH = "/mock/people.db";
@@ -68,6 +71,11 @@ function split(text: string): StatementRange[] {
   return ranges;
 }
 
+/** The SSH server's fingerprint in the mock; a host named `changed.example.com` presents another. */
+export const MOCK_FINGERPRINT = "SHA256:mockmockmockmockmockmockmockmockmockmockmock";
+/** Running this statement makes the mock behave as if the SSH tunnel dropped. */
+export const MOCK_DROP_TUNNEL = "SELECT drop_tunnel()";
+
 /** A statement that runs until it is cancelled, like `SELECT pg_sleep(30)`. */
 const SLEEP = /sleep\(/i;
 
@@ -76,29 +84,66 @@ export function createMockBackend() {
   const sessions = new Map<string, ConnectionProfile>();
   /** Pending sleeps by tab, resolved by `query_cancel`. */
   const sleeping = new Map<string, () => void>();
+  const knownHosts: KnownHost[] = [];
   let nextId = 1;
 
   const save = (draft: ConnectionDraft, secrets?: ConnectionSecrets): ConnectionProfile => {
     if (!draft.name.trim())
       throw { code: "invalid_argument", message: "The connection name is required" };
     const id = draft.id ?? `c${nextId++}`;
-    const previous = profiles.get(id);
-    const password = secrets?.dbPassword;
+    const saved = new Set(profiles.get(id)?.savedSecrets ?? []);
+    for (const [field, kind] of Object.entries(SECRET_KINDS) as [SecretField, SecretKind][]) {
+      const value = secrets?.[field];
+      if (value === null) saved.delete(kind);
+      else if (value !== undefined) saved.add(kind);
+    }
     const profile: ConnectionProfile = {
       ...draft,
       id,
       name: draft.name.trim(),
-      hasDbPassword:
-        password === undefined ? (previous?.hasDbPassword ?? false) : password !== null,
+      savedSecrets: [...saved].sort(),
     };
     profiles.set(id, profile);
     return profile;
+  };
+
+  /** The SSH trust flow: unknown until trusted; `changed.example.com` always presents another key. */
+  const checkHostKey = (profile: ConnectionProfile): Promise<never> | null => {
+    const server = profile.ssh?.server;
+    if (!server) return null;
+    const presented = server.host === "changed.example.com" ? "SHA256:other" : MOCK_FINGERPRINT;
+    const detail = {
+      stage: "host_key",
+      host: server.host,
+      port: server.port,
+      algorithm: "ssh-ed25519",
+      fingerprint: presented,
+    };
+    const trusted = knownHosts.find((k) => k.host === server.host && k.port === server.port);
+    if (!trusted)
+      return reject(
+        "ssh_host_key_unknown",
+        `The SSH host key of ${server.host} is not trusted yet`,
+        detail,
+      );
+    if (trusted.fingerprint !== presented) {
+      return reject(
+        "ssh_host_key_changed",
+        `The SSH host key of ${server.host} has changed`,
+        detail,
+      );
+    }
+    return null;
   };
 
   const execute = (args: QueryExecuteArgs): Promise<QueryResult> => {
     const profile = sessions.get(args.sessionId);
     if (!profile) return reject("not_found", "The session was not found");
     const sql = args.sql.trim();
+    if (sql === MOCK_DROP_TUNNEL) {
+      sessions.delete(args.sessionId);
+      return reject("tunnel_lost", "The SSH connection was lost");
+    }
     if (SLEEP.test(sql)) {
       return new Promise((_resolve, rejectSleep) => {
         sleeping.set(args.tabId, () => {
@@ -154,13 +199,18 @@ export function createMockBackend() {
         return reject("connect", "unable to open database file");
       if (draft.driver === "sqlite") return { serverVersion: "SQLite 3 (mock)", latencyMs: 1 };
       const typed = (a.secrets as ConnectionSecrets | undefined)?.dbPassword;
-      const stored = draft.id !== null && profiles.get(draft.id)?.hasDbPassword === true;
-      if (!typed && !stored) return reject("auth", "password authentication failed");
+      const stored =
+        draft.id !== null && profiles.get(draft.id)?.savedSecrets.includes("db_password") === true;
+      if (!typed && !stored) {
+        return reject("auth", "password authentication failed", { stage: "db_auth" });
+      }
       return { serverVersion: "PostgreSQL 18 (mock)", latencyMs: 2 };
     },
     session_open: (a) => {
       const profile = profiles.get(a.connectionId as string);
       if (!profile) return reject("not_found", "The connection was not found");
+      const hostKeyError = checkHostKey(profile);
+      if (hostKeyError) return hostKeyError;
       const info = sessionFor(profile, `s-${profile.id}`);
       sessions.set(info.sessionId, profile);
       return info;
@@ -171,6 +221,16 @@ export function createMockBackend() {
     },
     sql_split: (a) => split(a.text as string),
     query_execute: (a) => execute(a as unknown as QueryExecuteArgs),
+    ssh_trust_host: (a) => {
+      knownHosts.push(a as unknown as KnownHost);
+      return null;
+    },
+    ssh_known_hosts_list: () => [...knownHosts],
+    ssh_known_host_remove: (a) => {
+      const index = knownHosts.findIndex((k) => k.host === a.host && k.port === a.port);
+      if (index >= 0) knownHosts.splice(index, 1);
+      return null;
+    },
     query_cancel: (a) => {
       sleeping.get(a.tabId as string)?.();
       sleeping.delete(a.tabId as string);

@@ -61,7 +61,7 @@ pub trait HostKeyStore: Send + Sync {
 - [x] 3.8 Keepalive and loss detection: when the SSH connection drops, close the listener and surface `tunnel_lost` on the next database call.
 - [x] 3.9 Session integration: open tunnel before connecting; pass `dial_host`/`dial_port` as the loopback address and keep `server_name` as the real host; route PostgreSQL cancel connections through the tunnel; close tunnel after connections.
 - [x] 3.10 Profile model and store migration for tunnel settings; secret kinds `ssh_password` and `ssh_key_passphrase`.
-- [ ] 3.11 Frontend: SSH section in the connection form (toggle, host, port, user, auth method, key file picker, jump host subsection); host key trust dialog showing the SHA-256 fingerprint; clear error for a changed key.
+- [x] 3.11 Frontend: SSH section in the connection form (toggle, host, port, user, auth method, key file picker, jump host subsection); host key trust dialog showing the SHA-256 fingerprint; clear error for a changed key.
 - [x] 3.12 "Test connection" reports which stage failed: SSH connect, host key, SSH auth, forward, database connect, database auth.
 
 ## Acceptance criteria

@@ -8,11 +8,18 @@ import {
   type ConnectionSecrets,
   type DriverInfo,
   type OptionField,
+  type SecretKind,
   connectionTest,
+  sshTrustHost,
   toAppError,
 } from "../../ipc";
+import { HostKeyDialog } from "../ssh/HostKeyDialog";
+import { describeConnectError, hostKeyFrom } from "../ssh/hostKey";
 import {
   type PasswordChange,
+  SECRET_KINDS,
+  type SecretChanges,
+  type SecretField,
   defaultTlsMode,
   draftProblems,
   emptyDraft,
@@ -22,6 +29,7 @@ import { Field } from "./fields/Field";
 import { FileFields } from "./fields/FileFields";
 import { NetworkFields } from "./fields/NetworkFields";
 import { PasswordField } from "./fields/PasswordField";
+import { SshFields } from "./fields/SshFields";
 import { TlsFields } from "./fields/TlsFields";
 
 type TestState =
@@ -33,17 +41,17 @@ type TestState =
 type Props = {
   initial: ConnectionDraft;
   drivers: DriverInfo[];
-  /** The saved profile has a password in the keychain. */
-  storedPassword: boolean;
+  /** Secrets the keychain already holds for the saved profile. */
+  savedSecrets: SecretKind[];
   onSave: (draft: ConnectionDraft, secrets?: ConnectionSecrets) => Promise<void>;
   onCancel: () => void;
 };
 
 /** The form is driven by `DriverInfo`; it never branches on the driver kind. */
-export function ConnectionForm({ initial, drivers, storedPassword, onSave, onCancel }: Props) {
+export function ConnectionForm({ initial, drivers, savedSecrets, onSave, onCancel }: Props) {
   const driverSelectId = useId();
   const [draft, setDraft] = useState(initial);
-  const [password, setPassword] = useState<PasswordChange>({ kind: "keep" });
+  const [secrets, setSecrets] = useState<SecretChanges>({});
   const [tlsTouched, setTlsTouched] = useState(initial.id !== null);
   const [test, setTest] = useState<TestState>({ status: "idle" });
   const [saveError, setSaveError] = useState<AppError | null>(null);
@@ -80,7 +88,7 @@ export function ConnectionForm({ initial, drivers, storedPassword, onSave, onCan
   const runTest = async () => {
     setTest({ status: "testing" });
     try {
-      const result = await connectionTest(draft, secretsFor(password));
+      const result = await connectionTest(draft, secretsFor(secrets));
       setTest({ status: "ok", message: `${result.serverVersion} · ${result.latencyMs} ms` });
     } catch (error) {
       setTest({ status: "failed", error: toAppError(error) });
@@ -91,10 +99,29 @@ export function ConnectionForm({ initial, drivers, storedPassword, onSave, onCan
     setSaving(true);
     setSaveError(null);
     try {
-      await onSave(draft, secretsFor(password));
+      await onSave(draft, secretsFor(secrets));
     } catch (error) {
       setSaveError(toAppError(error));
       setSaving(false);
+    }
+  };
+
+  const setSecret = (field: SecretField, next: PasswordChange) => {
+    setSecrets((current) => ({ ...current, [field]: next }));
+    setTest({ status: "idle" });
+  };
+  const stored = (field: SecretField) => savedSecrets.includes(SECRET_KINDS[field]);
+  const failedHostKey =
+    test.status === "failed" && test.error.code.startsWith("ssh_host_key_")
+      ? hostKeyFrom(test.error)
+      : null;
+  const trustAndRetest = async () => {
+    if (!failedHostKey) return;
+    try {
+      await sshTrustHost(failedHostKey);
+      await runTest();
+    } catch (error) {
+      setTest({ status: "failed", error: toAppError(error) });
     }
   };
 
@@ -152,14 +179,24 @@ export function ConnectionForm({ initial, drivers, storedPassword, onSave, onCan
           <>
             <NetworkFields draft={draft} onChange={change} />
             <PasswordField
-              stored={storedPassword}
-              change={password}
+              stored={stored("dbPassword")}
+              change={secrets.dbPassword ?? { kind: "keep" }}
               onChange={(next) => {
-                setPassword(next);
-                setTest({ status: "idle" });
+                setSecret("dbPassword", next);
               }}
             />
           </>
+        )}
+        {driver.capabilities.tunnel && (
+          <SshFields
+            ssh={draft.ssh}
+            onChange={(ssh) => {
+              change({ ssh });
+            }}
+            secrets={secrets}
+            onSecretChange={setSecret}
+            stored={stored}
+          />
         )}
         {driver.tlsModes.length > 0 && (
           <TlsFields
@@ -206,6 +243,16 @@ export function ConnectionForm({ initial, drivers, storedPassword, onSave, onCan
         </div>
         <Feedback problems={problems} test={test} saveError={saveError} />
       </div>
+      {failedHostKey && test.status === "failed" && (
+        <HostKeyDialog
+          hostKey={failedHostKey}
+          changed={test.error.code === "ssh_host_key_changed"}
+          onTrust={() => void trustAndRetest()}
+          onCancel={() => {
+            setTest({ status: "idle" });
+          }}
+        />
+      )}
     </Modal>
   );
 }
@@ -259,7 +306,9 @@ function Feedback({
     <div role="status" className="min-h-5 text-xs">
       {problems.length > 0 && <p className="text-zinc-400">{problems.join(" · ")}</p>}
       {test.status === "ok" && <p className="text-emerald-400">Connected: {test.message}</p>}
-      {test.status === "failed" && <p className="text-rose-400">{test.error.message}</p>}
+      {test.status === "failed" && (
+        <p className="text-rose-400">{describeConnectError(test.error)}</p>
+      )}
       {saveError && <p className="text-rose-400">{saveError.message}</p>}
     </div>
   );

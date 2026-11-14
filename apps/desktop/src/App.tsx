@@ -10,17 +10,26 @@ import { draftFromProfile, emptyDraft } from "./features/connections/draft";
 import { EditorPane } from "./features/editor/EditorPane";
 import { useEditor } from "./features/editor/editorStore";
 import { useSessions } from "./features/sessions/sessionsStore";
+import { HostKeyDialog } from "./features/ssh/HostKeyDialog";
+import { TrustedHosts } from "./features/ssh/TrustedHosts";
+import { describeConnectError, hostKeyFrom } from "./features/ssh/hostKey";
 import {
   type AppError,
   type ConnectionDraft,
   type ConnectionProfile,
   type ConnectionSecrets,
+  type SshTrustHostArgs,
+  sshTrustHost,
   toAppError,
 } from "./ipc";
 
+type HostKeyPrompt = { profile: ConnectionProfile; hostKey: SshTrustHostArgs; changed: boolean };
+
 export function App() {
   const { drivers, profiles, error: loadError } = useConnections();
-  const { sessions, activeConnectionId } = useSessions();
+  const { sessions, activeConnectionId, notice } = useSessions();
+  const [hostKeyPrompt, setHostKeyPrompt] = useState<HostKeyPrompt | null>(null);
+  const [showTrustedHosts, setShowTrustedHosts] = useState(false);
   const [editing, setEditing] = useState<ConnectionDraft | null>(null);
   const [deleting, setDeleting] = useState<ConnectionProfile | null>(null);
   const [actionError, setActionError] = useState<AppError | null>(null);
@@ -34,16 +43,33 @@ export function App() {
   const activeTab = useEditor((state) =>
     activeSession ? state.tabs[activeSession.sessionId] : undefined,
   );
-  const editingStoredPassword = profiles.some((p) => p.id === editing?.id && p.hasDbPassword);
+  const editingSavedSecrets = profiles.find((p) => p.id === editing?.id)?.savedSecrets ?? [];
   const firstDriver = drivers[0];
 
   const openConnection = async (profile: ConnectionProfile) => {
     setActionError(null);
     try {
       await useSessions.getState().open(profile.id);
+    } catch (caught) {
+      const error = toAppError(caught);
+      const hostKey = error.code.startsWith("ssh_host_key_") ? hostKeyFrom(error) : null;
+      if (hostKey) {
+        setHostKeyPrompt({ profile, hostKey, changed: error.code === "ssh_host_key_changed" });
+        return;
+      }
+      setActionError(error);
+    }
+  };
+
+  const trustAndOpen = async (prompt: HostKeyPrompt) => {
+    setHostKeyPrompt(null);
+    try {
+      await sshTrustHost(prompt.hostKey);
     } catch (error) {
       setActionError(toAppError(error));
+      return;
     }
+    await openConnection(prompt.profile);
   };
 
   const saveConnection = async (draft: ConnectionDraft, secrets?: ConnectionSecrets) => {
@@ -94,9 +120,27 @@ export function App() {
               role="alert"
               className="mx-3 mt-2 rounded bg-rose-950/60 px-2 py-1 text-xs text-rose-300"
             >
-              {(loadError ?? actionError)?.message}
+              {loadError ? loadError.message : actionError && describeConnectError(actionError)}
             </p>
           )}
+          {notice && (
+            <p
+              role="alert"
+              className="mx-3 mt-2 rounded bg-amber-950/60 px-2 py-1 text-xs text-amber-300"
+            >
+              {notice}
+            </p>
+          )}
+          <div className="mt-auto border-t border-zinc-800 px-3 py-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowTrustedHosts(true);
+              }}
+            >
+              Trusted SSH hosts
+            </Button>
+          </div>
         </aside>
         <main className="min-w-0 flex-1">
           {activeSession ? (
@@ -115,10 +159,27 @@ export function App() {
         <ConnectionForm
           initial={editing}
           drivers={drivers}
-          storedPassword={editingStoredPassword}
+          savedSecrets={editingSavedSecrets}
           onSave={saveConnection}
           onCancel={() => {
             setEditing(null);
+          }}
+        />
+      )}
+      {hostKeyPrompt && (
+        <HostKeyDialog
+          hostKey={hostKeyPrompt.hostKey}
+          changed={hostKeyPrompt.changed}
+          onTrust={() => void trustAndOpen(hostKeyPrompt)}
+          onCancel={() => {
+            setHostKeyPrompt(null);
+          }}
+        />
+      )}
+      {showTrustedHosts && (
+        <TrustedHosts
+          onClose={() => {
+            setShowTrustedHosts(false);
           }}
         />
       )}

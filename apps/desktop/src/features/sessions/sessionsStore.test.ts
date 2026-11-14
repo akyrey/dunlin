@@ -59,4 +59,16 @@ describe("sessions store", () => {
 
     expect(useSessions.getState().activeConnectionId).toBe("c9");
   });
+
+  it("forgets a session whose tunnel was lost and keeps a notice", () => {
+    useSessions.setState({ sessions: { c1: session }, activeConnectionId: "c1", notice: null });
+
+    useSessions.getState().markLost("s1", "The SSH connection was lost");
+    useSessions.getState().markLost("unknown", "ignored");
+
+    expect(useSessions.getState().sessions).toEqual({});
+    expect(useSessions.getState().notice).toContain("The SSH connection was lost");
+    useSessions.getState().dismissNotice();
+    expect(useSessions.getState().notice).toBeNull();
+  });
 });

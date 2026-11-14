@@ -9,6 +9,7 @@ import {
   toAppError,
 } from "../../ipc";
 import { statementAt } from "../../lib/text";
+import { useSessions } from "../sessions/sessionsStore";
 
 export const DEFAULT_ROW_LIMIT = 1000;
 
@@ -93,6 +94,14 @@ export const useEditor = create<EditorState>()((set, get) => {
       update(sessionId, { running: false, startedAt: null, result });
     } catch (caught) {
       const error = toAppError(caught);
+      if (error.code === "tunnel_lost") {
+        // The backend already closed the session; nothing in this tab can run any more.
+        set({
+          tabs: Object.fromEntries(Object.entries(get().tabs).filter(([k]) => k !== sessionId)),
+        });
+        useSessions.getState().markLost(sessionId, error.message);
+        return;
+      }
       if (error.code === "confirmation_required") {
         update(sessionId, {
           running: false,

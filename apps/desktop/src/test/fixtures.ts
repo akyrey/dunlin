@@ -67,7 +67,8 @@ export function sqliteProfile(overrides: Partial<ConnectionProfile> = {}): Conne
     filePath: "/tmp/local.db",
     options: { create_if_missing: "false" },
     tls: noTls,
-    hasDbPassword: false,
+    ssh: null,
+    savedSecrets: [],
     ...overrides,
   };
 }
@@ -84,7 +85,7 @@ export function postgresProfile(overrides: Partial<ConnectionProfile> = {}): Con
     filePath: null,
     options: {},
     tls: { ...noTls, mode: "verify-full" },
-    hasDbPassword: true,
+    savedSecrets: ["db_password"],
     ...overrides,
   });
 }

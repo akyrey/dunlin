@@ -3,10 +3,14 @@ import type {
   ConnectionProfile,
   ConnectionSecrets,
   DriverInfo,
+  SecretKind,
+  SshHostSettings,
+  SshSettings,
   TlsMode,
 } from "../../ipc";
 
 export const DEFAULT_COLOR = "#3b82f6";
+export const DEFAULT_SSH_PORT = 22;
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
@@ -51,10 +55,19 @@ export function emptyDraft(driver: DriverInfo): ConnectionDraft {
       certFile: null,
       keyFile: null,
     },
+    ssh: null,
   };
 }
 
-/** The editable part of a saved profile; `hasDbPassword` is the backend's to report. */
+export function emptySshHost(): SshHostSettings {
+  return { host: "", port: DEFAULT_SSH_PORT, user: "", auth: "agent", keyFile: null };
+}
+
+export function emptySsh(): SshSettings {
+  return { server: emptySshHost(), jump: null };
+}
+
+/** The editable part of a saved profile; which secrets are stored is the backend's to report. */
 export function draftFromProfile(profile: ConnectionProfile): ConnectionDraft {
   return {
     id: profile.id,
@@ -69,21 +82,59 @@ export function draftFromProfile(profile: ConnectionProfile): ConnectionDraft {
     filePath: profile.filePath,
     options: { ...profile.options },
     tls: { ...profile.tls },
+    ssh: profile.ssh
+      ? {
+          server: { ...profile.ssh.server },
+          jump: profile.ssh.jump ? { ...profile.ssh.jump } : null,
+        }
+      : null,
   };
 }
 
-/** What the password field means for the backend: keep, replace or forget. */
+/** What a secret field means for the backend: keep, replace or forget. */
 export type PasswordChange = { kind: "keep" } | { kind: "set"; value: string } | { kind: "clear" };
 
-export function secretsFor(change: PasswordChange): ConnectionSecrets | undefined {
-  switch (change.kind) {
+export type SecretField = keyof ConnectionSecrets;
+
+export const SECRET_KINDS: Record<SecretField, SecretKind> = {
+  dbPassword: "db_password",
+  sshPassword: "ssh_password",
+  sshKeyPassphrase: "ssh_key_passphrase",
+  jumpPassword: "jump_password",
+  jumpKeyPassphrase: "jump_key_passphrase",
+};
+
+export type SecretChanges = Partial<Record<SecretField, PasswordChange>>;
+
+function secretValue(change: PasswordChange | undefined): string | null | undefined {
+  switch (change?.kind) {
+    case undefined:
     case "keep":
       return undefined;
     case "set":
-      return { dbPassword: change.value };
+      return change.value;
     case "clear":
-      return { dbPassword: null };
+      return null;
   }
+}
+
+/** Only changed fields are sent: absent keeps the stored secret (docs/IPC.md). */
+export function secretsFor(changes: SecretChanges): ConnectionSecrets | undefined {
+  const secrets: ConnectionSecrets = {};
+  for (const field of Object.keys(SECRET_KINDS) as SecretField[]) {
+    const value = secretValue(changes[field]);
+    if (value !== undefined) secrets[field] = value;
+  }
+  return Object.keys(secrets).length > 0 ? secrets : undefined;
+}
+
+function sshHostProblems(host: SshHostSettings, label: string): string[] {
+  const problems: string[] = [];
+  if (host.host.trim() === "") problems.push(`${label}: enter a host`);
+  if (host.user.trim() === "") problems.push(`${label}: enter a user`);
+  if (host.auth === "key_file" && !host.keyFile?.trim())
+    problems.push(`${label}: choose a key file`);
+  return problems;
 }
 
 /** Client-side checks that mirror the backend's, for immediate feedback. */
@@ -95,6 +146,10 @@ export function draftProblems(draft: ConnectionDraft, driver: DriverInfo): strin
   if (driver.endpoint === "tcp" && !draft.host?.trim()) problems.push("Enter a host");
   if (Boolean(draft.tls.certFile) !== Boolean(draft.tls.keyFile)) {
     problems.push("A client certificate needs both a certificate and a key file");
+  }
+  if (draft.ssh) {
+    problems.push(...sshHostProblems(draft.ssh.server, "SSH"));
+    if (draft.ssh.jump) problems.push(...sshHostProblems(draft.ssh.jump, "Jump host"));
   }
   return problems;
 }

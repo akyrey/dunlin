@@ -187,3 +187,67 @@ async fn verify_full_checks_the_real_host_name_through_a_tunnel() {
     assert_eq!(ssl.rows[0][0], Value::Bool(true));
     assert_eq!(wrong, Some(dbc_core::DbErrorCode::Tls));
 }
+
+#[tokio::test]
+#[ignore = "needs Docker"]
+async fn the_database_is_reachable_through_a_jump_host() {
+    use dbc_tunnel::test_support::USER;
+    use dbc_tunnel::{FingerprintList, SshHost, TrustedKey, TunnelError};
+
+    let id = std::process::id();
+    let network = format!("dunlin-jumpdb-{id}");
+    let database_name = format!("dunlin-jumpdb-pg-{id}");
+    let inner_name = format!("dunlin-jumpdb-inner-{id}");
+    let keys = Keys::generate();
+    let server = Server::start_on(&network, &database_name).await;
+    let jump = SshServer::start(&keys, Some((&network, &format!("dunlin-jumpdb-jump-{id}")))).await;
+    let _inner = SshServer::start(&keys, Some((&network, &inner_name))).await;
+    let mut store: FingerprintList = trusted_store(&tunnel_config(jump.host(key_auth(&keys))))
+        .await
+        .as_ref()
+        .clone();
+    let mut config = tunnel_config(SshHost {
+        host: inner_name,
+        port: 22,
+        user: USER.into(),
+        auth: key_auth(&keys),
+    });
+    config.jump = Some(jump.host(key_auth(&keys)));
+    config.target_host = database_name;
+    config.target_port = 5432;
+    // The inner server's key is learnt the way the app does it.
+    if let Err(TunnelError::HostKeyUnknown {
+        host,
+        port,
+        algorithm,
+        fingerprint,
+    }) = Tunnel::open(&config, Arc::new(store.clone())).await
+    {
+        store.entries.push(TrustedKey {
+            host,
+            port,
+            algorithm,
+            fingerprint,
+        });
+    }
+    let tunnel = Tunnel::open(&config, Arc::new(store)).await.unwrap();
+    let harness = TunnelHarness {
+        server,
+        tunnel: tunnel.local_addr(),
+    };
+
+    let connection = PostgresDriver
+        .connect(&harness.database(false).await)
+        .await
+        .unwrap();
+    let outcome = connection
+        .execute("SELECT count(*) FROM customers", &ExecuteOptions::default())
+        .await
+        .unwrap();
+
+    let StatementOutcome::Rows(result) = outcome else {
+        panic!("expected rows")
+    };
+    assert_eq!(result.rows[0][0], Value::Int(3));
+    tunnel.close().await.unwrap();
+}

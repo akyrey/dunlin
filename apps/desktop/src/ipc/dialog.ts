@@ -16,6 +16,12 @@ export async function pickPemFile(): Promise<string | null> {
   return typeof selected === "string" ? selected : null;
 }
 
+/** Asks for an SSH private key. Resolves `null` when cancelled. */
+export async function pickPrivateKeyFile(): Promise<string | null> {
+  const selected = await open({ multiple: false, directory: false });
+  return typeof selected === "string" ? selected : null;
+}
+
 /** Asks for an existing SQLite file. Resolves `null` when cancelled. */
 export async function pickDatabaseFile(): Promise<string | null> {
   const selected = await open({ multiple: false, directory: false, filters: SQLITE_FILTERS });

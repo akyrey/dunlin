@@ -26,10 +26,11 @@ Out of scope: a compromised local user account or OS, and the SQL the user delib
 
 ## SSH
 
-- Host keys are checked against the user's `~/.ssh/known_hosts` (read-only) and the app's own `known_hosts` table.
+- Host keys are checked against the user's `~/.ssh/known_hosts` (read-only; hashed entries and `[host]:port` are understood, `@revoked`/`@cert-authority` lines are not) and the app's own `known_hosts` table, per key algorithm (DECISIONS D-019). A conflict between the two counts as changed.
 - Unknown host: the connection stops with `ssh_host_key_unknown` and the fingerprint. Only an explicit user decision stores the key, in the app's table.
 - Changed host key: hard failure (`ssh_host_key_changed`). There is no "connect anyway" button; the user must remove the stored key deliberately in settings.
-- Authentication order is whatever the profile specifies; there is no silent fallback from key to password.
+- Authentication order is whatever the profile specifies; there is no silent fallback from key to password. Agent authentication uses the agent named by `SSH_AUTH_SOCK` at connect time.
+- SSH passwords and key passphrases (also the jump host's) are keychain secrets like the database password.
 - The forwarding listener binds to `127.0.0.1` only, on an OS-assigned port, and closes with the session. Other local processes can reach it while it is open, as with `ssh -L`; this is accepted.
 
 ## TLS

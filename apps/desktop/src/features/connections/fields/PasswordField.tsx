@@ -3,13 +3,14 @@ import { useId } from "react";
 import type { PasswordChange } from "../draft";
 
 type Props = {
+  label?: string;
   stored: boolean;
   change: PasswordChange;
   onChange: (change: PasswordChange) => void;
 };
 
 /** The stored password is never shown or sent back; the user can only replace or forget it. */
-export function PasswordField({ stored, change, onChange }: Props) {
+export function PasswordField({ label = "Password", stored, change, onChange }: Props) {
   const id = useId();
   const typed = change.kind === "set" ? change.value : "";
   const placeholder =
@@ -17,7 +18,7 @@ export function PasswordField({ stored, change, onChange }: Props) {
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className="text-xs text-zinc-400">
-        Password
+        {label}
       </label>
       <div className="flex items-center gap-2">
         <input

@@ -92,3 +92,24 @@ test("a network connection is configured with TLS and a stored password", async 
     "Stored in the keychain",
   );
 });
+
+test("an SSH tunnel asks to trust the server's key, then connects", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New connection" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Name", { exact: true }).fill("Behind bastion");
+  await dialog.getByLabel("Password", { exact: true }).fill("db-pw");
+  await dialog.getByLabel("Connect through an SSH server").check();
+  await dialog.getByLabel("SSH server host").fill("bastion.example.com");
+  await dialog.getByLabel("SSH server user").fill("deploy");
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(dialog).toBeHidden();
+
+  await page.getByRole("button", { name: /^Behind bastion/ }).click();
+  const prompt = page.getByRole("dialog", { name: "Trust this SSH server?" });
+  await expect(prompt.getByTestId("fingerprint")).toContainText("SHA256:");
+  await prompt.getByRole("button", { name: "Trust and connect" }).click();
+
+  await runInEditor(page, "SELECT * FROM people");
+  await expect(page.getByRole("gridcell", { name: "Ada" })).toBeVisible();
+});
