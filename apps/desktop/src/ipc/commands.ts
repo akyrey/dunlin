@@ -163,6 +163,9 @@ export const savedQueryDelete = (id: string): Promise<void> => call("saved_query
 
 export const settingsGet = (): Promise<Settings> => call("settings_get");
 
+/** Reports the first usable window; resolves with the cold start time in milliseconds. */
+export const appReady = (): Promise<number> => call("app_ready");
+
 export const settingsSet = (settings: Settings): Promise<Settings> =>
   call("settings_set", { settings });
 

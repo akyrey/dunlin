@@ -164,7 +164,7 @@ describe("table editing", () => {
     show("documents");
     await userEvent.dblClick(await screen.findByRole("gridcell", { name: /broken/ }));
 
-    const editor = screen.getByLabelText("Edit body");
+    const editor = await screen.findByLabelText("Edit body");
     await userEvent.clear(editor);
     await userEvent.type(editor, "{{oops");
     await userEvent.click(screen.getByRole("button", { name: "Set value" }));

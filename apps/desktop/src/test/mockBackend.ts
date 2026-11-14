@@ -651,6 +651,7 @@ export function createMockBackend() {
       return { ...settings };
     },
     logs_dir: () => "/mock/logs",
+    app_ready: () => 42,
     saved_query_list: () => [...savedQueries],
     saved_query_save: (a) => {
       const draft = a.query as SavedQueryDraft;

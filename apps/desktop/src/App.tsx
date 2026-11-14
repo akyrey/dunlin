@@ -19,11 +19,10 @@ import { useSavedQueries } from "./features/saved/savedQueriesStore";
 import { SchemaTree } from "./features/schema/SchemaTree";
 import { useSessions } from "./features/sessions/sessionsStore";
 import { HostKeyDialog } from "./features/ssh/HostKeyDialog";
-import { AppCommands } from "./features/palette/AppCommands";
-import { SettingsView } from "./features/settings/SettingsView";
-import { ShortcutsView } from "./features/shortcuts/ShortcutsView";
+import { lazyPanel } from "./lib/lazyPanel";
 import { matchShortcut, shortcutLabel } from "./features/shortcuts/registry";
 import { useSettings } from "./features/settings/settingsStore";
+import { useStartup } from "./features/settings/startup";
 import { useApplyTheme } from "./features/settings/theme";
 import { TrustedHosts } from "./features/ssh/TrustedHosts";
 import { describeConnectError, hostKeyFrom } from "./features/ssh/hostKey";
@@ -41,6 +40,16 @@ import {
   sshTrustHost,
   toAppError,
 } from "./ipc";
+
+const AppCommands = lazyPanel(
+  async () => (await import("./features/palette/AppCommands")).AppCommands,
+);
+const SettingsView = lazyPanel(
+  async () => (await import("./features/settings/SettingsView")).SettingsView,
+);
+const ShortcutsView = lazyPanel(
+  async () => (await import("./features/shortcuts/ShortcutsView")).ShortcutsView,
+);
 
 type HostKeyPrompt = { profile: ConnectionProfile; hostKey: SshTrustHostArgs; changed: boolean };
 
@@ -142,6 +151,9 @@ export function App() {
   };
 
   const layout = useLayoutRestore(profiles, loaded, openConnection);
+  useEffect(() => {
+    if (loaded) void useStartup.getState().report();
+  }, [loaded]);
 
   const trustAndOpen = async (prompt: HostKeyPrompt) => {
     setHostKeyPrompt(null);

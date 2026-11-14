@@ -51,7 +51,7 @@ Everything in the roadmap's deferred list, auto-update, Linux and Windows builds
 
 ### Robustness and performance
 
-- [ ] 8.14 Measure cold start (NFR-1) and fix regressions; lazy-load editor language packages and the cell viewer.
+- [x] 8.14 Measure cold start (NFR-1) and fix regressions; lazy-load editor language packages and the cell viewer.
 - [ ] 8.15 Idle connection handling: periodic `ping` on open sessions, transparent reconnect of idle connections, clear state when a server goes away.
 - [ ] 8.16 Audit: every command validates input; every error path has a user-facing message; no panics reachable from IPC (fuzz the command argument deserialisers with malformed input).
 - [ ] 8.17 Security checklist from SECURITY.md across the whole codebase; `cargo audit` and `pnpm audit` clean.
@@ -77,3 +77,5 @@ Everything in the roadmap's deferred list, auto-update, Linux and Windows builds
 ## Manual smoke
 
 Run the full smoke lists of Phases 1 to 7 once more on the packaged build.
+
+- Cold start (NFR-1): quit and start the packaged app a few times; Settings shows "Started in N ms" (also logged as `window usable`), which must stay under 1500. It is measured from the start of `run` to the first render with the connection list loaded; the initial bundle no longer contains CodeMirror, the cell viewer, export, settings or the palette.

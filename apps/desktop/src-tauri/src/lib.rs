@@ -27,6 +27,7 @@ struct LogGuard {
 
 /// Starts the app. Returns an error instead of panicking if setup fails.
 pub fn run() -> Result<(), tauri::Error> {
+    logging::mark_start();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -87,6 +88,7 @@ pub fn run() -> Result<(), tauri::Error> {
             handlers::saved_query_save,
             handlers::saved_query_delete,
             handlers::settings_get,
+            handlers::app_ready,
             handlers::settings_set,
             handlers::logs_dir,
             handlers::history_list,

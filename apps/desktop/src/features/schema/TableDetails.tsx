@@ -11,7 +11,7 @@ import {
   schemaTableDdl,
   toAppError,
 } from "../../ipc";
-import { ReadOnlyCode } from "../editor/ReadOnlyCode";
+import { LazyReadOnlyCode as ReadOnlyCode } from "../editor/lazy";
 
 type SubTab = "columns" | "indexes" | "constraints" | "ddl";
 

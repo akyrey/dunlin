@@ -295,6 +295,12 @@ pub async fn saved_query_delete(
     .await
 }
 
+/// The frontend's first usable render; returns the cold start time in milliseconds.
+#[tauri::command]
+pub fn app_ready() -> u64 {
+    crate::logging::ready()
+}
+
 #[tauri::command]
 pub fn settings_get(state: State<'_, AppState>) -> dbc_store::Settings {
     commands::settings_get(&state)

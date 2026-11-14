@@ -7,6 +7,7 @@ import { type AppError, type Settings, logsDir, revealFile, toAppError } from ".
 import { BOUNDS } from "./defaults";
 import { NUMBER_LABELS, type NumberField, settingsProblem } from "./validate";
 import { useSettings } from "./settingsStore";
+import { useStartup } from "./startup";
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   // Each control carries its own aria-label; this text is for the eye.
@@ -25,6 +26,7 @@ type Props = { onClose: () => void; onShowTrustedHosts: () => void };
 export function SettingsView({ onClose, onShowTrustedHosts }: Props) {
   const saved = useSettings((s) => s.settings);
   const loadError = useSettings((s) => s.error);
+  const startupMs = useStartup((s) => s.startupMs);
   const [draft, setDraft] = useState<Settings>(saved);
   const [error, setError] = useState<AppError | null>(null);
   const [saving, setSaving] = useState(false);
@@ -155,6 +157,11 @@ export function SettingsView({ onClose, onShowTrustedHosts }: Props) {
           <Button variant="ghost" onClick={() => void openLogs()}>
             Open logs folder
           </Button>
+          {startupMs !== null && (
+            <span className="ml-auto self-center text-xs text-zinc-500">
+              Started in {startupMs} ms
+            </span>
+          )}
         </div>
         {(problem ?? shownError) && (
           <p role="alert" className="text-xs text-rose-300">

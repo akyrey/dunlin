@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
-import { ReadOnlyCode } from "../editor/ReadOnlyCode";
+import { LazyReadOnlyCode as ReadOnlyCode } from "../editor/lazy";
 
 type Props = {
   statements: string[];

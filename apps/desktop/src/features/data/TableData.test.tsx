@@ -189,7 +189,7 @@ describe("TableData", () => {
     const cell = await screen.findByRole("gridcell", { name: /Quarterly/ });
 
     await userEvent.dblClick(cell);
-    const viewer = screen.getByRole("complementary", { name: "Cell viewer" });
+    const viewer = await screen.findByRole("complementary", { name: "Cell viewer" });
     await userEvent.click(within(viewer).getByRole("button", { name: "Load the whole value" }));
     await waitFor(() => {
       expect(within(viewer).getByLabelText("Cell value")).toHaveTextContent('"items": [');

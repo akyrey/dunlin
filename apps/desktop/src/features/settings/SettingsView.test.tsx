@@ -6,6 +6,7 @@ import { createMockBackend } from "../../test/mockBackend";
 import { SettingsView } from "./SettingsView";
 import { DEFAULT_SETTINGS } from "./defaults";
 import { useSettings } from "./settingsStore";
+import { useStartup } from "./startup";
 import { resolveTheme, useApplyTheme } from "./theme";
 import { settingsProblem } from "./validate";
 
@@ -79,6 +80,13 @@ describe("SettingsView", () => {
     await waitFor(() => {
       expect(calls.some((c) => c.cmd === "logs_dir")).toBe(true);
     });
+  });
+
+  it("shows how long the last start took", async () => {
+    await useStartup.getState().report();
+    show();
+
+    expect(screen.getByText("Started in 42 ms")).toBeInTheDocument();
   });
 
   it("loads the backend's settings", async () => {

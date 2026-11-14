@@ -2,10 +2,13 @@ import { type ReactNode, useMemo, useState } from "react";
 
 import type { ColumnMeta, SortKey, Value } from "../../ipc";
 import { CopyAs } from "../export/CopyAs";
-import { ExportDialog, type TableSource } from "../export/ExportDialog";
+import type { TableSource } from "../export/ExportDialog";
+import { lazyPanel } from "../../lib/lazyPanel";
 import { rowsToJson } from "../../lib/json";
-import { ReadOnlyCode } from "../editor/ReadOnlyCode";
-import { CellViewer } from "./CellViewer";
+import { LazyReadOnlyCode as ReadOnlyCode } from "../editor/lazy";
+
+const ExportDialog = lazyPanel(async () => (await import("../export/ExportDialog")).ExportDialog);
+const CellViewer = lazyPanel(async () => (await import("./CellViewer")).CellViewer);
 import { DataGrid, type GridColumn, type GridEditing } from "./DataGrid";
 import type { CellPos, Range } from "./selection";
 
