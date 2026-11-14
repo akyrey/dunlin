@@ -3,6 +3,7 @@
 
 mod changes;
 mod introspection;
+mod stream;
 mod table_data;
 
 use std::sync::Arc;
@@ -14,6 +15,7 @@ pub use changes::{
     literal_round_trip_group,
 };
 pub use introspection::{IntrospectionSupport, introspection_group};
+pub use stream::stream_group;
 pub use table_data::{page_sql_cases, table_data_group};
 
 use crate::driver::{ConnectionConfig, Driver};
@@ -142,7 +144,8 @@ pub async fn run_all(harness: &dyn Harness) -> Result<(), Failure> {
     introspection_group(harness).await?;
     table_data_group(harness).await?;
     literal_round_trip_group(harness).await?;
-    apply_changes_group(harness).await
+    apply_changes_group(harness).await?;
+    stream_group(harness).await
 }
 
 /// Connect, ping, close; unreachable and bad credentials fail with the right codes.

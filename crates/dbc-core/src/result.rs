@@ -52,6 +52,16 @@ pub enum StatementOutcome {
     Affected { rows: u64 },
 }
 
+/// What `Connection::stream_rows` sends: the columns once, then batches of rows.
+#[derive(Debug, Clone, PartialEq)]
+pub enum StreamEvent {
+    Columns(Vec<ColumnMeta>),
+    Rows(Vec<Vec<Value>>),
+}
+
+/// Rows per `StreamEvent::Rows` batch.
+pub const STREAM_BATCH: usize = 1000;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ExecuteOptions {
     pub row_limit: usize,

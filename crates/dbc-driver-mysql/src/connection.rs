@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use dbc_core::driver::{CancelHandle, Connection, ConnectionConfig, Endpoint, TlsConfig, TlsMode};
-use dbc_core::result::{ExecuteOptions, ResultSet, StatementOutcome};
+use dbc_core::result::{ExecuteOptions, ResultSet, STREAM_BATCH, StatementOutcome, StreamEvent};
 use dbc_core::schema::{
     CompletionSchema, Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef,
 };
@@ -18,6 +18,7 @@ use mysql_async::{
 };
 use secrecy::ExposeSecret;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc;
 
 use crate::decode::{column_meta, decode};
 use crate::errors::{map_connect_error, map_error};
@@ -128,17 +129,7 @@ impl MysqlConnection {
             );
         }
         if truncated {
-            // D-017: KILL QUERY first, then read what is left of the response.
-            let killed = self.cancel.kill().await;
-            loop {
-                match result.next().await {
-                    Ok(Some(_)) => {}
-                    Ok(None) => break,
-                    Err(Error::Server(e)) if e.code == QUERY_INTERRUPTED => break,
-                    Err(e) => return Err(map_error(&e)),
-                }
-            }
-            killed?;
+            self.stop_early(&mut result).await?;
         }
         result.drop_result().await.map_err(|e| map_error(&e))?;
         let columns = columns.iter().map(column_meta).collect();
@@ -151,6 +142,80 @@ impl MysqlConnection {
 }
 
 impl MysqlConnection {
+    /// D-017: KILL QUERY first, then read what is left of the response.
+    async fn stop_early<P: Protocol>(
+        &self,
+        result: &mut QueryResult<'_, 'static, P>,
+    ) -> Result<(), DbError> {
+        let killed = self.cancel.kill().await;
+        loop {
+            match result.next().await {
+                Ok(Some(_)) => {}
+                Ok(None) => break,
+                Err(Error::Server(e)) if e.code == QUERY_INTERRUPTED => break,
+                Err(e) => return Err(map_error(&e)),
+            }
+        }
+        killed
+    }
+
+    /// Sends the rows of a prepared statement in batches (`Connection::stream_rows`).
+    async fn stream(
+        &self,
+        conn: &mut Conn,
+        statement: &str,
+        params: Vec<MyValue>,
+        rows: mpsc::Sender<StreamEvent>,
+    ) -> Result<u64, DbError> {
+        let params = if params.is_empty() {
+            Params::Empty
+        } else {
+            Params::Positional(params)
+        };
+        let mut result = conn
+            .exec_iter(statement, params)
+            .await
+            .map_err(|e| map_error(&e))?;
+        let columns = result.columns().unwrap_or_default();
+        if rows
+            .send(StreamEvent::Columns(
+                columns.iter().map(column_meta).collect(),
+            ))
+            .await
+            .is_err()
+        {
+            result.drop_result().await.map_err(|e| map_error(&e))?;
+            return Ok(0);
+        }
+        let mut sent = 0u64;
+        let mut batch = Vec::with_capacity(STREAM_BATCH);
+        while let Some(row) = result.next().await.map_err(|e| map_error(&e))? {
+            batch.push(
+                columns
+                    .iter()
+                    .enumerate()
+                    .map(|(i, c)| decode(c, row.as_ref(i)))
+                    .collect(),
+            );
+            if batch.len() == STREAM_BATCH {
+                let full = std::mem::replace(&mut batch, Vec::with_capacity(STREAM_BATCH));
+                let count = full.len() as u64;
+                if rows.send(StreamEvent::Rows(full)).await.is_err() {
+                    self.stop_early(&mut result).await?;
+                    result.drop_result().await.map_err(|e| map_error(&e))?;
+                    return Ok(sent);
+                }
+                sent += count;
+            }
+        }
+        result.drop_result().await.map_err(|e| map_error(&e))?;
+        let count = batch.len() as u64;
+        if !batch.is_empty() && rows.send(StreamEvent::Rows(batch)).await.is_ok() {
+            sent += count;
+        }
+        Ok(sent)
+    }
+
     async fn flavour(&self, conn: &mut Conn) -> Result<Flavour, DbError> {
         if let Some(flavour) = self.flavour.get() {
             return Ok(*flavour);
@@ -353,6 +418,19 @@ impl Connection for MysqlConnection {
         self.cancel.requested.store(false, Ordering::SeqCst);
         self.run_params(conn, statement, params, options.row_limit)
             .await
+    }
+
+    async fn stream_rows(
+        &self,
+        statement: &str,
+        params: &[Value],
+        rows: mpsc::Sender<StreamEvent>,
+    ) -> Result<u64, DbError> {
+        let params = params.iter().map(to_mysql).collect::<Result<Vec<_>, _>>()?;
+        let mut guard = self.conn.lock().await;
+        let conn = guard.as_mut().ok_or_else(closed)?;
+        self.cancel.requested.store(false, Ordering::SeqCst);
+        self.stream(conn, statement, params, rows).await
     }
 
     async fn estimate_rows(&self, table: &TableRef) -> Result<Option<u64>, DbError> {

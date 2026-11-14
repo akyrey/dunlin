@@ -1086,6 +1086,7 @@ name = "dbc-driver-postgres"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "bytes",
  "dbc-core",
  "dbc-tunnel",
  "futures-util",

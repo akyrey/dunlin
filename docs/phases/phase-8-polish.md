@@ -26,9 +26,9 @@ Everything in the roadmap's deferred list, auto-update, Linux and Windows builds
 
 ### Export
 
-- [ ] 8.1 `dbc-core::export`: streaming writers for CSV (RFC 4180, configurable delimiter, header, `NULL` representation), JSON (array of objects, same number rules as the JSON view) and SQL `INSERT` (using `Dialect::render_literal`, batched). Unit tests with awkward values: embedded quotes, newlines, delimiters, unicode, binary, nulls.
-- [ ] 8.2 `export_result`: writes rows already in the frontend to a path chosen in a save dialog.
-- [ ] 8.3 `export_table`: streams a whole table (with current filter and sort) from the database to a file without holding it in memory, with progress over a Tauri channel and cancellation. Integration test with a table larger than memory budget for a page.
+- [x] 8.1 `dbc-core::export`: streaming writers for CSV (RFC 4180, configurable delimiter, header, `NULL` representation), JSON (array of objects, same number rules as the JSON view) and SQL `INSERT` (using `Dialect::render_literal`, batched). Unit tests with awkward values: embedded quotes, newlines, delimiters, unicode, binary, nulls.
+- [x] 8.2 `export_result`: writes rows already in the frontend to a path chosen in a save dialog.
+- [x] 8.3 `export_table`: streams a whole table (with current filter and sort) from the database to a file without holding it in memory, with progress over a Tauri channel and cancellation. Integration test with a table larger than memory budget for a page.
 - [ ] 8.4 Frontend: export dialog (format, options, destination), progress, cancel, "reveal in file manager" on completion.
 - [ ] 8.5 Copy selection as TSV (default), CSV, JSON or `INSERT`; copy with headers.
 

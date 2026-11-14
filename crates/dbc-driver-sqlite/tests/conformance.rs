@@ -209,3 +209,10 @@ async fn apply_changes_group() {
         .await
         .unwrap();
 }
+
+#[tokio::test]
+async fn stream_group() {
+    conformance::stream_group(&SqliteHarness::default())
+        .await
+        .unwrap();
+}

@@ -69,7 +69,9 @@ Errors from `session_open` and `connection_test` carry `detail.stage`: `ssh_conn
 | `cell_full_value` | `{ sessionId, viewId, table, key, column }` | `Value`, untruncated; `unsupported` without a row key | 6 |
 | `changes_preview` | `{ sessionId, viewId, table, operations }` | `string[]`: the statements Apply runs, with literals, in order | 7 |
 | `changes_apply` | `{ sessionId, viewId, table, operations }` | `ApplyResult` (statements, rowsAffected); on failure `detail.operation` is the index of the failing operation | 7 |
-| `export_result` | `{ format, columns, rows, path, table? }` | `{ rowsWritten }` | 8 |
+| `export_result` | `{ sessionId, columns, rows, format, path }` | `ExportDone` (rowsWritten, path); refuses rows cut short for display | 8 |
+| `export_table` | `{ sessionId, viewId, table, filter?, key?, sort, format, path }` plus an `onProgress` channel of `ExportProgress` | `ExportDone`; streams on the view connection `viewId`, cancel with `query_cancel` | 8 |
+| `export_text` | `{ sessionId, columns, rows, format }` | `string`: the rows as CSV, JSON or `INSERT`, for copying | 8 |
 | `export_table` | `{ sessionId, table, filter?, sort?, format, path }` | `{ rowsWritten }` | 8 |
 | `saved_query_list` / `_save` / `_delete` | | | 8 |
 | `settings_get` / `settings_set` | | | 8 |

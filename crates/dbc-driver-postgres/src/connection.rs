@@ -6,7 +6,9 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use dbc_core::driver::{CancelHandle, Connection, ConnectionConfig, Endpoint, TlsMode};
-use dbc_core::result::{ColumnMeta, ExecuteOptions, ResultSet, StatementOutcome};
+use dbc_core::result::{
+    ColumnMeta, ExecuteOptions, ResultSet, STREAM_BATCH, StatementOutcome, StreamEvent,
+};
 use dbc_core::schema::{
     CompletionSchema, Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef,
 };
@@ -15,6 +17,7 @@ use futures_util::{StreamExt, pin_mut};
 use rustls::ClientConfig;
 use secrecy::ExposeSecret;
 use tokio::net::TcpStream;
+use tokio::sync::mpsc;
 use tokio_postgres::config::SslMode;
 use tokio_postgres::tls::MakeTlsConnect;
 use tokio_postgres::types::{ToSql, Type};
@@ -343,6 +346,52 @@ impl Connection for PostgresConnection {
             .read_rows(&client, &statement, &texts, sql, options.row_limit)
             .await?;
         Ok(StatementOutcome::Rows(result))
+    }
+
+    async fn stream_rows(
+        &self,
+        sql: &str,
+        params: &[Value],
+        rows: mpsc::Sender<StreamEvent>,
+    ) -> Result<u64, DbError> {
+        let client = self.client()?;
+        let texts = params
+            .iter()
+            .map(crate::params::as_text)
+            .collect::<Result<Vec<_>, _>>()?;
+        let statement = client
+            .prepare_typed(sql, &vec![Type::TEXT; texts.len()])
+            .await
+            .map_err(|e| map_error(&e, sql))?;
+        let columns = statement.columns().iter().map(column_meta).collect();
+        if rows.send(StreamEvent::Columns(columns)).await.is_err() {
+            return Ok(0);
+        }
+        let stream = client
+            .query_raw(&statement, texts.iter().map(|p| p as &(dyn ToSql + Sync)))
+            .await
+            .map_err(|e| map_error(&e, sql))?;
+        pin_mut!(stream);
+        let mut sent = 0u64;
+        let mut batch = Vec::with_capacity(STREAM_BATCH);
+        while let Some(row) = stream.next().await {
+            batch.push(decode_row(&row.map_err(|e| map_error(&e, sql))?));
+            if batch.len() == STREAM_BATCH {
+                let full = std::mem::replace(&mut batch, Vec::with_capacity(STREAM_BATCH));
+                let count = full.len() as u64;
+                if rows.send(StreamEvent::Rows(full)).await.is_err() {
+                    // Nobody reads any more: stop the statement rather than drain it.
+                    self.stop_early(&client, stream.as_mut(), sql).await?;
+                    return Ok(sent);
+                }
+                sent += count;
+            }
+        }
+        let count = batch.len() as u64;
+        if !batch.is_empty() && rows.send(StreamEvent::Rows(batch)).await.is_ok() {
+            sent += count;
+        }
+        Ok(sent)
     }
 
     async fn estimate_rows(&self, table: &TableRef) -> Result<Option<u64>, DbError> {

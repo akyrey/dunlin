@@ -249,3 +249,28 @@ fn row_counts_serialise_with_their_kind() {
         serde_json::from_value(serde_json::json!({"kind": "exact", "rows": "7"})).unwrap();
     assert_eq!(exact, RowCount::Exact(7));
 }
+
+#[test]
+fn a_whole_table_selects_named_columns_without_a_limit() {
+    let keyed = info(Some(&["order_id", "line"]));
+
+    let all = select_sql(&Pg, &keyed, &request(), None).unwrap();
+    let named = select_sql(
+        &Pg,
+        &keyed,
+        &request(),
+        Some(&["sku".to_owned(), "line".to_owned()]),
+    )
+    .unwrap();
+    let unknown = select_sql(&Pg, &keyed, &request(), Some(&["nope".to_owned()])).unwrap_err();
+
+    assert_eq!(
+        all.sql,
+        format!(r#"SELECT * FROM {TABLE} ORDER BY "order_id", "line""#)
+    );
+    assert_eq!(
+        named.sql,
+        format!(r#"SELECT "sku", "line" FROM {TABLE} ORDER BY "order_id", "line""#)
+    );
+    assert_eq!(unknown.code, DbErrorCode::NotFound);
+}

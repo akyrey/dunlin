@@ -18,6 +18,7 @@ use crate::ipc::{
     SessionIdArgs, SessionInfo, SqlSplitArgs, SshKnownHostRemoveArgs, SshTrustHostArgs,
     StatementRange, TabArgs, TableSnippets,
 };
+use crate::ipc::{ExportDone, ExportProgress, ExportResultArgs, ExportTableArgs, ExportTextArgs};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -192,6 +193,37 @@ pub async fn changes_apply(
     args: ChangesArgs,
 ) -> Result<ApplyResult, AppError> {
     commands::changes_apply(&state, args).await
+}
+
+#[tauri::command]
+pub async fn export_text(
+    state: State<'_, AppState>,
+    args: ExportTextArgs,
+) -> Result<String, AppError> {
+    commands::export_text(&state, args).await
+}
+
+#[tauri::command]
+pub async fn export_result(
+    state: State<'_, AppState>,
+    args: ExportResultArgs,
+) -> Result<ExportDone, AppError> {
+    commands::export_result(&state, args).await
+}
+
+#[tauri::command]
+pub async fn export_table(
+    state: State<'_, AppState>,
+    args: ExportTableArgs,
+    on_progress: tauri::ipc::Channel<ExportProgress>,
+) -> Result<ExportDone, AppError> {
+    commands::export_table(&state, args, move |rows| {
+        // A closed channel means the window went away; the export itself carries on.
+        let _ = on_progress.send(ExportProgress {
+            rows_written: rows.to_string(),
+        });
+    })
+    .await
 }
 
 #[tauri::command]

@@ -150,6 +150,22 @@ pub fn page_sql<D: Dialect + ?Sized>(
     info: &TableInfo,
     request: &TablePageRequest,
 ) -> Result<BoundSql, DbError> {
+    let mut bound = select_sql(dialect, info, request, None)?;
+    let limit = request.limit.clamp(1, MAX_PAGE_SIZE);
+    bound
+        .sql
+        .push_str(&format!(" LIMIT {limit} OFFSET {}", request.offset));
+    Ok(bound)
+}
+
+/// The rows `request` selects (filter, key, sort), without `LIMIT`: a whole-table export
+/// (task 8.3). `columns` lists the columns to select, `*` when `None`.
+pub fn select_sql<D: Dialect + ?Sized>(
+    dialect: &D,
+    info: &TableInfo,
+    request: &TablePageRequest,
+    columns: Option<&[String]>,
+) -> Result<BoundSql, DbError> {
     let mut params = Vec::new();
     let where_clause = where_clause(
         dialect,
@@ -176,11 +192,19 @@ pub fn page_sql<D: Dialect + ?Sized>(
     } else {
         format!(" ORDER BY {}", order.join(", "))
     };
-    let limit = request.limit.clamp(1, MAX_PAGE_SIZE);
+    let list = match columns {
+        Some(names) => {
+            let quoted = names
+                .iter()
+                .map(|name| column_type(info, name).map(|_| dialect.quote_identifier(name)))
+                .collect::<Result<Vec<_>, _>>()?;
+            quoted.join(", ")
+        }
+        None => "*".to_owned(),
+    };
     let sql = format!(
-        "SELECT * FROM {}{where_clause}{order_by} LIMIT {limit} OFFSET {}",
-        dialect.qualified_name(&request.table),
-        request.offset
+        "SELECT {list} FROM {}{where_clause}{order_by}",
+        dialect.qualified_name(&request.table)
     );
     Ok(BoundSql { sql, params })
 }

@@ -7,7 +7,9 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use dbc_core::driver::{CancelHandle, Connection, ConnectionConfig, Endpoint};
-use dbc_core::result::{ColumnMeta, ExecuteOptions, ResultSet, StatementOutcome};
+use dbc_core::result::{
+    ColumnMeta, ExecuteOptions, ResultSet, STREAM_BATCH, StatementOutcome, StreamEvent,
+};
 use dbc_core::schema::{
     CompletionSchema, Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef,
 };
@@ -171,6 +173,51 @@ fn to_sqlite(value: Value) -> Result<rusqlite::types::Value, DbError> {
     })
 }
 
+/// Sends the statement's rows in batches; stops when the receiver goes away.
+fn stream_statement(
+    connection: &rusqlite::Connection,
+    sql: &str,
+    params: &[rusqlite::types::Value],
+    sender: &tokio::sync::mpsc::Sender<StreamEvent>,
+) -> Result<u64, DbError> {
+    let mut statement = connection.prepare(sql).map_err(map_error)?;
+    let declared: Vec<(String, Option<String>)> = statement
+        .columns()
+        .map(|c| (c.name().to_owned(), c.decl_type().map(str::to_owned)))
+        .collect();
+    let columns = declared
+        .iter()
+        .map(|(name, declared)| column_meta(name.clone(), declared.clone(), &[], 0))
+        .collect();
+    if sender.blocking_send(StreamEvent::Columns(columns)).is_err() {
+        return Ok(0);
+    }
+    let mut rows = statement
+        .query(rusqlite::params_from_iter(params))
+        .map_err(map_error)?;
+    let mut sent = 0u64;
+    let mut batch = Vec::with_capacity(STREAM_BATCH);
+    while let Some(row) = rows.next().map_err(map_error)? {
+        let values = (0..declared.len())
+            .map(|i| row.get_ref(i).map(decode).map_err(map_error))
+            .collect::<Result<Vec<_>, _>>()?;
+        batch.push(values);
+        if batch.len() == STREAM_BATCH {
+            let full = std::mem::replace(&mut batch, Vec::with_capacity(STREAM_BATCH));
+            let count = full.len() as u64;
+            if sender.blocking_send(StreamEvent::Rows(full)).is_err() {
+                return Ok(sent);
+            }
+            sent += count;
+        }
+    }
+    let count = batch.len() as u64;
+    if !batch.is_empty() && sender.blocking_send(StreamEvent::Rows(batch)).is_ok() {
+        sent += count;
+    }
+    Ok(sent)
+}
+
 fn run_statement(
     connection: &rusqlite::Connection,
     sql: &str,
@@ -269,6 +316,22 @@ impl Connection for SqliteConnection {
         let sql = sql.to_owned();
         let row_limit = options.row_limit;
         self.call(move |c| run_statement(c, &sql, &[], row_limit))
+            .await
+    }
+
+    async fn stream_rows(
+        &self,
+        sql: &str,
+        params: &[Value],
+        rows: tokio::sync::mpsc::Sender<StreamEvent>,
+    ) -> Result<u64, DbError> {
+        let sql = sql.to_owned();
+        let params = params
+            .iter()
+            .cloned()
+            .map(to_sqlite)
+            .collect::<Result<Vec<_>, _>>()?;
+        self.call(move |c| stream_statement(c, &sql, &params, &rows))
             .await
     }
 

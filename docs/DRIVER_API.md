@@ -34,6 +34,8 @@ pub trait Connection: Send + Sync {
     // dialect and run through `query_params` (D-022).
     async fn query_params(&self, sql: &str, params: &[Value], options: &ExecuteOptions) -> Result<StatementOutcome, DbError>;
     async fn estimate_rows(&self, table: &TableRef) -> Result<Option<u64>, DbError>;   // default Ok(None)
+    // Exports (Phase 8): rows in batches over a bounded channel; a dropped receiver cancels.
+    async fn stream_rows(&self, sql: &str, params: &[Value], rows: mpsc::Sender<StreamEvent>) -> Result<u64, DbError>;
 
     // Edits (Phase 7) need no method of their own: `dbc_core::changes::apply` runs them through
     // `execute` (BEGIN/COMMIT/ROLLBACK) and `query_params` (D-023).

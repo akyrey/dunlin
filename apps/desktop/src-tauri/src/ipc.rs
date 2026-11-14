@@ -3,6 +3,7 @@
 use dbc_core::WireValue;
 use dbc_core::data::SortKey;
 use dbc_core::driver::{Capabilities, DriverKind};
+use dbc_core::export::ExportFormat;
 use dbc_core::result::ColumnMeta;
 use dbc_core::schema::{NamespaceRef, TableRef};
 use dbc_core::sql::StatementClass;
@@ -230,6 +231,59 @@ pub struct ApplyResult {
     #[ts(type = "number")]
     pub statements: usize,
     pub rows_affected: String,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportResultArgs {
+    /// The session the rows came from (its dialect writes `INSERT` literals).
+    pub session_id: String,
+    pub columns: Vec<ColumnMeta>,
+    pub rows: Vec<Vec<WireValue>>,
+    pub format: ExportFormat,
+    /// Absolute path chosen in the save dialog.
+    pub path: String,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportTextArgs {
+    pub session_id: String,
+    pub columns: Vec<ColumnMeta>,
+    pub rows: Vec<Vec<WireValue>>,
+    pub format: ExportFormat,
+}
+
+/// A whole table, streamed on the view's connection `viewId` (cancel with `query_cancel`).
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportTableArgs {
+    pub session_id: String,
+    pub view_id: String,
+    pub table: TableRef,
+    #[serde(default)]
+    #[ts(optional)]
+    pub filter: Option<String>,
+    #[serde(default)]
+    pub key: Vec<KeyArg>,
+    #[serde(default)]
+    pub sort: Vec<SortKey>,
+    pub format: ExportFormat,
+    pub path: String,
+}
+
+/// Sent on the progress channel of `export_table` after each batch.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportProgress {
+    pub rows_written: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportDone {
+    pub rows_written: String,
+    pub path: String,
 }
 
 #[derive(Debug, Clone, Deserialize, TS)]

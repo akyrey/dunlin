@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::dialect::Dialect;
 use crate::error::DbError;
-use crate::result::{ExecuteOptions, StatementOutcome};
+use crate::result::{ExecuteOptions, StatementOutcome, StreamEvent};
 use crate::schema::{
     CompletionSchema, Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef,
 };
@@ -218,6 +218,18 @@ pub trait Connection: Send + Sync {
         _options: &ExecuteOptions,
     ) -> Result<StatementOutcome, DbError> {
         Err(DbError::unsupported("query_params"))
+    }
+
+    /// Runs one statement and sends its rows in batches of `STREAM_BATCH` to `rows`, without
+    /// holding the result in memory (exports, task 8.3). When the receiver goes away the driver
+    /// stops reading and cancels the statement (D-017). Returns the number of rows sent.
+    async fn stream_rows(
+        &self,
+        _sql: &str,
+        _params: &[Value],
+        _rows: tokio::sync::mpsc::Sender<StreamEvent>,
+    ) -> Result<u64, DbError> {
+        Err(DbError::unsupported("stream_rows"))
     }
 
     /// A cheap row count from statistics, without scanning; `None` when there is none.

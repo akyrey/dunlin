@@ -7,6 +7,7 @@ pub mod data;
 pub mod dialect;
 pub mod driver;
 pub mod error;
+pub mod export;
 pub mod result;
 pub mod schema;
 pub mod sql;
