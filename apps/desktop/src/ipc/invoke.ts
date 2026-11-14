@@ -26,3 +26,17 @@ export async function call<T>(command: string, args?: object): Promise<T> {
     throw toAppError(error);
   }
 }
+
+/** Like `call`, with extra top-level parameters such as a progress `Channel`. */
+export async function callWith<T>(
+  command: string,
+  args: object,
+  extra: Record<string, unknown>,
+): Promise<T> {
+  try {
+    return await invoke<T>(command, { args, ...extra });
+  } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/only-throw-error
+    throw toAppError(error);
+  }
+}

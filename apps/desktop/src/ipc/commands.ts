@@ -1,5 +1,10 @@
 /** One thin typed wrapper per backend command (docs/IPC.md). */
 import type {
+  ExportDone,
+  ExportProgress,
+  ExportResultArgs,
+  ExportTableArgs,
+  ExportTextArgs,
   ApplyResult,
   ChangesArgs,
   ConnectionDraft,
@@ -30,7 +35,9 @@ import type {
   TableSnippets,
   Value,
 } from "./generated";
-import { call } from "./invoke";
+import { Channel } from "@tauri-apps/api/core";
+
+import { call, callWith } from "./invoke";
 
 export const driverList = (): Promise<DriverInfo[]> => call("driver_list");
 
@@ -118,3 +125,20 @@ export const changesPreview = (args: ChangesArgs): Promise<string[]> =>
 
 export const changesApply = (args: ChangesArgs): Promise<ApplyResult> =>
   call("changes_apply", args);
+
+export const exportText = (args: ExportTextArgs): Promise<string> => call("export_text", args);
+
+export const exportResult = (args: ExportResultArgs): Promise<ExportDone> =>
+  call("export_result", args);
+
+/** Streams a whole table to a file; `onProgress` receives the rows written so far. */
+export function exportTable(
+  args: ExportTableArgs,
+  onProgress: (rows: number) => void,
+): Promise<ExportDone> {
+  const channel = new Channel<ExportProgress>();
+  channel.onmessage = (progress) => {
+    onProgress(Number(progress.rowsWritten));
+  };
+  return callWith("export_table", args, { onProgress: channel });
+}

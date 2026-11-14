@@ -80,3 +80,16 @@ test("a foreign key leads to the referenced row", async ({ page }) => {
   await expect(page.getByRole("gridcell", { name: "Grace" })).toBeVisible();
   await expect(page.getByRole("gridcell", { name: "Ada" })).toHaveCount(0);
 });
+
+test("export a whole table to CSV", async ({ page }) => {
+  await openTable(page, "events");
+
+  await page.getByRole("button", { name: "Export…" }).click();
+  const dialog = page.getByRole("dialog", { name: "Export" });
+  await expect(dialog.getByLabel(/whole table/)).toBeChecked();
+  await dialog.getByRole("button", { name: "Export…" }).click();
+
+  await expect(dialog.getByRole("status")).toHaveText(/Wrote 450 rows to \/mock\/new.db/);
+  await dialog.getByRole("button", { name: "Done" }).click();
+  await expect(dialog).toBeHidden();
+});

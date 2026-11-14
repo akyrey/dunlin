@@ -1,6 +1,8 @@
 import { type ReactNode, useMemo, useState } from "react";
 
-import type { SortKey, Value } from "../../ipc";
+import type { ColumnMeta, SortKey, Value } from "../../ipc";
+import { CopyAs } from "../export/CopyAs";
+import { ExportDialog, type TableSource } from "../export/ExportDialog";
 import { rowsToJson } from "../../lib/json";
 import { ReadOnlyCode } from "../editor/ReadOnlyCode";
 import { CellViewer } from "./CellViewer";
@@ -24,12 +26,22 @@ type Props = {
   resetKey?: unknown;
   onSelectionChange?: (range: Range | null) => void;
   edit?: GridEditing;
+  /** Copy-as and export (task 8.4, 8.5); absent where rows cannot be exported. */
+  exportSource?: ExportSource;
+};
+
+export type ExportSource = {
+  sessionId: string;
+  name: string;
+  columns: ColumnMeta[];
+  table?: TableSource;
 };
 
 /** A result as a grid or as JSON, with the cell viewer for the selected cell (6.9, 6.10, 6.13). */
 export function ResultView({
   resetKey,
   onSelectionChange,
+  exportSource,
   edit,
   columns,
   rows,
@@ -44,6 +56,8 @@ export function ResultView({
   const [mode, setMode] = useState<ViewMode>("grid");
   const [viewer, setViewer] = useState(false);
   const [focus, setFocus] = useState<CellPos | null>(null);
+  const [selection, setSelection] = useState<Range | null>(null);
+  const [exporting, setExporting] = useState(false);
   /** The viewer was opened to edit (JSON, XML, long text). */
   const [editingLong, setEditingLong] = useState(false);
   const gridEdit: GridEditing | undefined = edit && {
@@ -100,8 +114,45 @@ export function ResultView({
         >
           Cell viewer
         </button>
+        {exportSource && (
+          <>
+            <CopyAs
+              sessionId={exportSource.sessionId}
+              columns={exportSource.columns}
+              rows={rows}
+              selection={selection}
+              insertTable={
+                exportSource.table?.table ?? {
+                  namespace: { catalog: null, schema: null },
+                  name: exportSource.name,
+                }
+              }
+            />
+            <button
+              type="button"
+              className="rounded px-2 py-0.5 text-zinc-400 hover:text-zinc-200"
+              onClick={() => {
+                setExporting(true);
+              }}
+            >
+              Export…
+            </button>
+          </>
+        )}
         {toolbar}
       </div>
+      {exporting && exportSource && (
+        <ExportDialog
+          sessionId={exportSource.sessionId}
+          name={exportSource.name}
+          columns={exportSource.columns}
+          rows={rows}
+          table={exportSource.table}
+          onClose={() => {
+            setExporting(false);
+          }}
+        />
+      )}
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1">
           {mode === "grid" ? (
@@ -113,7 +164,10 @@ export function ResultView({
               onSort={onSort}
               onFollow={onFollow}
               resetKey={resetKey}
-              onSelectionChange={onSelectionChange}
+              onSelectionChange={(range) => {
+                setSelection(range);
+                onSelectionChange?.(range);
+              }}
               edit={gridEdit}
               onFocusCell={(cell) => {
                 setFocus(cell);

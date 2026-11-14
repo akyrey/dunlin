@@ -364,6 +364,18 @@ export function TableData({
             columns={columns}
             rows={shownRows}
             resetKey={page}
+            exportSource={{
+              sessionId,
+              name: table.name,
+              columns: page.columns,
+              table: {
+                viewId,
+                table,
+                filter: query.filter || undefined,
+                key: query.match,
+                sort: query.sort,
+              },
+            }}
             onSelectionChange={editing.setSelection}
             edit={editing.edit}
             rowOffset={query.offset}

@@ -1,4 +1,5 @@
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 const SQLITE_FILTERS = [
   { name: "SQLite database", extensions: ["db", "sqlite", "sqlite3", "db3"] },
@@ -31,4 +32,26 @@ export async function pickDatabaseFile(): Promise<string | null> {
 /** Asks where to create a new SQLite file. Resolves `null` when cancelled. */
 export async function pickNewDatabaseFile(): Promise<string | null> {
   return save({ filters: SQLITE_FILTERS, defaultPath: "database.db" });
+}
+
+export type ExportKind = "csv" | "json" | "insert";
+
+const EXPORT_FILTERS: Record<ExportKind, { name: string; extensions: string[] }> = {
+  csv: { name: "CSV", extensions: ["csv"] },
+  json: { name: "JSON", extensions: ["json"] },
+  insert: { name: "SQL", extensions: ["sql"] },
+};
+
+/** Asks where to save an export. Resolves `null` when cancelled. */
+export async function pickExportFile(
+  kind: ExportKind,
+  defaultName: string,
+): Promise<string | null> {
+  const filter = EXPORT_FILTERS[kind];
+  return save({ filters: [filter], defaultPath: `${defaultName}.${filter.extensions[0] ?? kind}` });
+}
+
+/** Shows a file in Finder (or the platform's file manager). */
+export function revealFile(path: string): Promise<void> {
+  return revealItemInDir(path);
 }

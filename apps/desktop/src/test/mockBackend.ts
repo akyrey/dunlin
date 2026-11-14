@@ -341,6 +341,10 @@ export function createMockBackend() {
   /** Pending sleeps by tab, resolved by `query_cancel`. */
   const sleeping = new Map<string, () => void>();
   const knownHosts: KnownHost[] = [];
+  /** Paths exports were written to. */
+  const exports: string[] = [];
+  /** Top-level parameters besides `args` of the current call (a progress channel). */
+  let extras: Record<string, unknown> = {};
   /** This backend's own copy of the tables, so edits stay in one test. */
   let tables: Tables = structuredClone(TABLE_ROWS);
 
@@ -604,6 +608,41 @@ export function createMockBackend() {
       history.splice(0, history.length, ...keep);
       return null;
     },
+    export_text: (a) => {
+      const format = a.format as { kind: string };
+      const rows = a.rows as Value[][];
+      if (format.kind === "json") return JSON.stringify(rows.map((r) => r.map(rawText)));
+      return rows.map((r) => r.map(rawText).join(",")).join("\n");
+    },
+    export_result: (a) => {
+      const rows = a.rows as Value[][];
+      if (rows.some((r) => r.some((v) => "truncated" in v && v.truncated === true))) {
+        return reject(
+          "invalid_argument",
+          "Some values were cut short for display; export the table to write them whole",
+        );
+      }
+      exports.push(a.path as string);
+      return { rowsWritten: String(rows.length), path: a.path };
+    },
+    export_table: (a) => {
+      const found = tableRows(a, tables);
+      if (!Array.isArray(found)) return Promise.reject(found);
+      const channel = extras.onProgress as
+        { onmessage?: (p: { rowsWritten: string }) => void } | undefined;
+      if (typeof a.filter === "string" && SLEEP.test(a.filter)) {
+        return new Promise((_resolve, rejectSleep) => {
+          channel?.onmessage?.({ rowsWritten: "1000" });
+          sleeping.set(a.viewId as string, () => {
+            rejectSleep({ code: "cancelled", message: "canceling statement due to user request" });
+          });
+        });
+      }
+      channel?.onmessage?.({ rowsWritten: String(found.length) });
+      exports.push(a.path as string);
+      return { rowsWritten: String(found.length), path: a.path };
+    },
+    "plugin:opener|reveal_item_in_dir": () => null,
     changes_preview: (a) => {
       const result = applyChanges(a, true);
       return Array.isArray(result) ? result : Promise.reject(result);
@@ -713,7 +752,8 @@ export function createMockBackend() {
   return (cmd: string, payload?: unknown): unknown => {
     const handler = handlers[cmd];
     if (!handler) return reject("internal", `Mock backend has no command ${cmd}`);
-    const envelope = (payload ?? {}) as { args?: Args; options?: Args };
+    const envelope = (payload ?? {}) as { args?: Args; options?: Args } & Record<string, unknown>;
+    extras = envelope;
     try {
       const args = envelope.args ?? envelope.options ?? {};
       return oneAtATime(cmd, args, () => handler(args));

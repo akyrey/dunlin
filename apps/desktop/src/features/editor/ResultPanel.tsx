@@ -62,7 +62,12 @@ export function ResultPanel({ tab, onShow, onJumpTo }: Props) {
       </div>
       <div role="tabpanel" className="min-h-0 flex-1">
         {statement ? (
-          <StatementView statement={statement} text={tab.text} onJumpTo={onJumpTo} />
+          <StatementView
+            statement={statement}
+            text={tab.text}
+            sessionId={tab.sessionId}
+            onJumpTo={onJumpTo}
+          />
         ) : (
           <Messages run={run} />
         )}
@@ -96,10 +101,12 @@ function SubTab(props: {
 function StatementView({
   statement,
   text,
+  sessionId,
   onJumpTo,
 }: {
   statement: StatementRun;
   text: string;
+  sessionId: string;
   onJumpTo: (offset: number) => void;
 }) {
   return (
@@ -111,7 +118,12 @@ function StatementView({
         {statement.sql}
       </p>
       <div className="min-h-0 flex-1">
-        <StatementBody statement={statement} text={text} onJumpTo={onJumpTo} />
+        <StatementBody
+          statement={statement}
+          text={text}
+          sessionId={sessionId}
+          onJumpTo={onJumpTo}
+        />
       </div>
     </div>
   );
@@ -120,10 +132,12 @@ function StatementView({
 function StatementBody({
   statement,
   text,
+  sessionId,
   onJumpTo,
 }: {
   statement: StatementRun;
   text: string;
+  sessionId: string;
   onJumpTo: (offset: number) => void;
 }) {
   switch (statement.status) {
@@ -149,11 +163,13 @@ function StatementBody({
         />
       ) : null;
     case "done":
-      return statement.result ? <StatementResult result={statement.result} /> : null;
+      return statement.result ? (
+        <StatementResult result={statement.result} sessionId={sessionId} />
+      ) : null;
   }
 }
 
-function StatementResult({ result }: { result: QueryResult }) {
+function StatementResult({ result, sessionId }: { result: QueryResult; sessionId: string }) {
   const { outcome } = result;
   if (outcome.kind === "affected") {
     const noun = outcome.rows === "1" ? "row" : "rows";
@@ -175,6 +191,7 @@ function StatementResult({ result }: { result: QueryResult }) {
           columns={outcome.columns}
           rows={outcome.rows}
           loadFull={null}
+          exportSource={{ sessionId, name: "result", columns: outcome.columns }}
           noFullReason="Results of a statement in the editor cannot be fetched again by row; open the table from the tree to load whole values."
         />
       </div>
