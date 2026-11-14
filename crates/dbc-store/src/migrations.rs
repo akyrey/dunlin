@@ -55,6 +55,15 @@ const MIGRATIONS: &[&str] = &[
      CREATE INDEX query_history_by_connection ON query_history (connection_id, id);",
     // 5: always show the SQL preview before applying edits on this connection (task 7.11).
     "ALTER TABLE connections ADD COLUMN always_preview INTEGER NOT NULL DEFAULT 0;",
+    // 6: saved queries, for one connection (deleted with it) or for all (task 8.6).
+    "CREATE TABLE saved_queries (
+        id            TEXT PRIMARY KEY NOT NULL,
+        connection_id TEXT REFERENCES connections (id) ON DELETE CASCADE,
+        name          TEXT NOT NULL,
+        sql           TEXT NOT NULL,
+        created_at    INTEGER NOT NULL,
+        updated_at    INTEGER NOT NULL
+     );",
 ];
 
 pub(crate) fn latest_version() -> u32 {

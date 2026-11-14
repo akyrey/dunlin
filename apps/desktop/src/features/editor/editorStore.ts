@@ -45,11 +45,18 @@ export type EditorTab = {
   confirmation: Confirmation | null;
   /** The result sub-tab shown: a statement index, or the Messages log. */
   shown: number | "messages";
+  /** The saved query this tab was opened from or saved as; saving writes back to it. */
+  savedQueryId: string | null;
   /** `sql_split` of `text`, cached per document (task 5.5). */
   split: { text: string; ranges: StatementRange[] } | null;
 };
 
-export type NewTab = { title?: string; text?: string; rowLimit?: number };
+export type NewTab = {
+  title?: string;
+  text?: string;
+  rowLimit?: number;
+  savedQueryId?: string | null;
+};
 
 type EditorState = {
   tabs: Record<string, EditorTab>;
@@ -59,6 +66,8 @@ type EditorState = {
   /** Adds text after what the tab holds (e.g. a statement from history). */
   insertText: (tabId: string, text: string) => void;
   rename: (tabId: string, title: string) => void;
+  /** The tab now belongs to a saved query (and takes its name). */
+  linkSaved: (tabId: string, savedQueryId: string, title: string) => void;
   setRowLimit: (tabId: string, rowLimit: number) => void;
   show: (tabId: string, shown: number | "messages") => void;
   /** Splits the tab's text unless the cached split is for the same text. */
@@ -251,6 +260,7 @@ export const useEditor = create<EditorState>()((set, get) => {
         confirmation: null,
         shown: 0,
         split: null,
+        savedQueryId: init.savedQueryId ?? null,
       };
       set({ tabs: { ...get().tabs, [tabId]: tab } });
       useWorkspace.getState().openEditor(sessionId, tabId);
@@ -271,6 +281,10 @@ export const useEditor = create<EditorState>()((set, get) => {
     rename: (tabId, title) => {
       const trimmed = title.trim();
       if (trimmed) update(tabId, { title: trimmed });
+    },
+
+    linkSaved: (tabId, savedQueryId, title) => {
+      update(tabId, { savedQueryId, title });
     },
 
     setRowLimit: (tabId, rowLimit) => {

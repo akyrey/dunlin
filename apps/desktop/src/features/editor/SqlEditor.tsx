@@ -37,6 +37,7 @@ type Props = {
   onChange: (text: string) => void;
   onRun: (selection: Selection, mode: RunMode) => void;
   onCancel: () => void;
+  onSave: () => void;
   handleRef: RefObject<EditorHandle | null>;
 };
 
@@ -121,6 +122,13 @@ export function SqlEditor(props: Props) {
       keymap.of([
         { key: "Mod-Enter", run: run("statement") },
         { key: "Mod-Shift-Enter", run: run("script") },
+        {
+          key: "Mod-s",
+          run: () => {
+            callbacks.current.onSave();
+            return true;
+          },
+        },
       ]),
     );
     // Default precedence, so Escape first closes an open autocomplete list.

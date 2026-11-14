@@ -47,7 +47,9 @@ describe("tab persistence", () => {
     const tabId = useEditor.getState().openTab("s1");
     useEditor.getState().setText(tabId, "SELECT 42");
     vi.advanceTimersByTime(500);
-    expect(loadTabs("c1")).toEqual([{ title: "Query 1", text: "SELECT 42", rowLimit: 1000 }]);
+    expect(loadTabs("c1")).toEqual([
+      { title: "Query 1", text: "SELECT 42", rowLimit: 1000, savedQueryId: null },
+    ]);
 
     stop();
     useEditor.getState().setText(tabId, "changed");

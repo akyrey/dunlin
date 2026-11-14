@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "../../components/Button";
-import type { ConnectionProfile, SessionInfo } from "../../ipc";
+import { type ConnectionProfile, type SessionInfo, toAppError } from "../../ipc";
 import type { Span } from "../../lib/text";
 import { HistoryPanel } from "../history/HistoryPanel";
+import { SaveQueryDialog } from "../saved/SaveQueryDialog";
+import { useSavedQueries } from "../saved/savedQueriesStore";
 import { DangerDialog } from "./DangerDialog";
 import { ElapsedTimer } from "./ElapsedTimer";
 import { ResultPanel } from "./ResultPanel";
@@ -34,6 +36,8 @@ export function EditorPane({ tabId, session, profile }: Props) {
   const actions = useEditor.getState();
   const editor = useRef<EditorHandle | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const text = tab?.text;
 
   useEffect(() => {
@@ -60,6 +64,23 @@ export function EditorPane({ tabId, session, profile }: Props) {
     void actions.run(tabId, selection, mode);
   };
   const steps = tab.run ? progress(tab.run) : null;
+
+  /** ⌘S: back to the tab's saved query, or a new one. */
+  const save = async () => {
+    setSaveError(null);
+    const linked = tab.savedQueryId
+      ? useSavedQueries.getState().queries.find((q) => q.id === tab.savedQueryId)
+      : undefined;
+    if (!linked) {
+      setSaving(true);
+      return;
+    }
+    try {
+      await useSavedQueries.getState().save({ ...linked, sql: tab.text });
+    } catch (caught) {
+      setSaveError(toAppError(caught).message);
+    }
+  };
 
   return (
     <div className="flex h-full">
@@ -107,6 +128,18 @@ export function EditorPane({ tabId, session, profile }: Props) {
                 actions.setRowLimit(tabId, limit);
               }}
             />
+            {saveError && (
+              <span role="alert" className="text-xs text-rose-300">
+                {saveError}
+              </span>
+            )}
+            <Button
+              variant="ghost"
+              title="Save the SQL as a named query (⌘S)"
+              onClick={() => void save()}
+            >
+              {tab.savedQueryId ? "Save" : "Save as…"}
+            </Button>
             <Button
               variant="ghost"
               aria-pressed={showHistory}
@@ -138,6 +171,7 @@ export function EditorPane({ tabId, session, profile }: Props) {
             }}
             onRun={(selection, mode) => void actions.run(tabId, selection, mode)}
             onCancel={() => void actions.cancel(tabId)}
+            onSave={() => void save()}
           />
         </div>
         <section aria-label="Results" className="min-h-0 flex-[2]" tabIndex={-1} data-results>
@@ -161,6 +195,25 @@ export function EditorPane({ tabId, session, profile }: Props) {
           }}
           onClose={() => {
             setShowHistory(false);
+          }}
+        />
+      )}
+      {saving && (
+        <SaveQueryDialog
+          initialName={tab.title}
+          connectionName={profile?.name ?? "this connection"}
+          onSave={async (name, everywhere) => {
+            const saved = await useSavedQueries.getState().save({
+              id: null,
+              connectionId: everywhere ? null : (profile?.id ?? null),
+              name,
+              sql: tab.text,
+            });
+            actions.linkSaved(tabId, saved.id, saved.name);
+            setSaving(false);
+          }}
+          onCancel={() => {
+            setSaving(false);
           }}
         />
       )}

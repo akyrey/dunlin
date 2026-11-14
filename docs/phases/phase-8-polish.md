@@ -34,8 +34,8 @@ Everything in the roadmap's deferred list, auto-update, Linux and Windows builds
 
 ### Saved queries
 
-- [ ] 8.6 Store migration and CRUD for `saved_queries`; commands.
-- [ ] 8.7 Frontend: save tab as named query, saved queries list in the sidebar (per connection and global), open, rename, delete; a tab opened from a saved query saves back to it.
+- [x] 8.6 Store migration and CRUD for `saved_queries`; commands.
+- [x] 8.7 Frontend: save tab as named query, saved queries list in the sidebar (per connection and global), open, rename, delete; a tab opened from a saved query saves back to it.
 
 ### Settings
 

@@ -11,6 +11,8 @@ import { QuitGuard } from "./features/edit/quitGuard";
 import { draftFromProfile, emptyDraft } from "./features/connections/draft";
 import { shownResult, useEditor } from "./features/editor/editorStore";
 import { persistTabs } from "./features/editor/persistence";
+import { SavedQueries } from "./features/saved/SavedQueries";
+import { useSavedQueries } from "./features/saved/savedQueriesStore";
 import { SchemaTree } from "./features/schema/SchemaTree";
 import { useSessions } from "./features/sessions/sessionsStore";
 import { HostKeyDialog } from "./features/ssh/HostKeyDialog";
@@ -52,6 +54,7 @@ export function App() {
 
   useEffect(() => {
     void useConnections.getState().load();
+    void useSavedQueries.getState().load();
   }, []);
 
   const activeProfile = profiles.find((p) => p.id === activeConnectionId) ?? null;
@@ -168,6 +171,7 @@ export function App() {
             </p>
           )}
           <SchemaTree sessions={treeSessions} />
+          <SavedQueries activeConnectionId={activeConnectionId} />
           {notice && (
             <p
               role="alert"

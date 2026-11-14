@@ -7,7 +7,7 @@ use dbc_core::export::ExportFormat;
 use dbc_core::result::ColumnMeta;
 use dbc_core::schema::{NamespaceRef, TableRef};
 use dbc_core::sql::StatementClass;
-use dbc_store::{ConnectionDraft, SecretKind};
+use dbc_store::{ConnectionDraft, SavedQueryDraft, SecretKind};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -231,6 +231,18 @@ pub struct ApplyResult {
     #[ts(type = "number")]
     pub statements: usize,
     pub rows_affected: String,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedQuerySaveArgs {
+    pub query: SavedQueryDraft,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedQueryIdArgs {
+    pub id: String,
 }
 
 #[derive(Debug, Clone, Deserialize, TS)]

@@ -14,6 +14,8 @@ import type {
   HistoryListArgs,
   KeyArg,
   OperationArg,
+  SavedQuery,
+  SavedQueryDraft,
   SortKey,
   TablePage,
   KnownHost,
@@ -341,6 +343,7 @@ export function createMockBackend() {
   /** Pending sleeps by tab, resolved by `query_cancel`. */
   const sleeping = new Map<string, () => void>();
   const knownHosts: KnownHost[] = [];
+  const savedQueries: SavedQuery[] = [];
   /** Paths exports were written to. */
   const exports: string[] = [];
   /** Top-level parameters besides `args` of the current call (a progress channel). */
@@ -606,6 +609,28 @@ export function createMockBackend() {
     history_clear: (a) => {
       const keep = history.filter((e) => e.connectionId !== a.connectionId);
       history.splice(0, history.length, ...keep);
+      return null;
+    },
+    saved_query_list: () => [...savedQueries],
+    saved_query_save: (a) => {
+      const draft = a.query as SavedQueryDraft;
+      if (!draft.name.trim()) return reject("invalid_argument", "The query needs a name");
+      const saved: SavedQuery = {
+        id: draft.id ?? `q${savedQueries.length + 1}`,
+        connectionId: draft.connectionId ?? null,
+        name: draft.name.trim(),
+        sql: draft.sql,
+        updatedAt: Date.now(),
+      };
+      const index = savedQueries.findIndex((q) => q.id === saved.id);
+      if (index >= 0) savedQueries.splice(index, 1, saved);
+      else savedQueries.push(saved);
+      return saved;
+    },
+    saved_query_delete: (a) => {
+      const index = savedQueries.findIndex((q) => q.id === a.id);
+      if (index < 0) return reject("not_found", "The saved query was not found");
+      savedQueries.splice(index, 1);
       return null;
     },
     export_text: (a) => {

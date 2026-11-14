@@ -5,6 +5,7 @@ mod history;
 mod known_hosts;
 mod migrations;
 mod profile;
+mod saved_queries;
 mod secrets;
 
 use std::path::Path;
@@ -17,6 +18,7 @@ pub use known_hosts::KnownHost;
 pub use profile::{
     ConnectionDraft, ConnectionProfile, SshAuthMethod, SshHostSettings, SshSettings, TlsSettings,
 };
+pub use saved_queries::{SavedQuery, SavedQueryDraft};
 pub use secrets::{
     KEYCHAIN_SERVICE, KeychainSecretStore, MemorySecretStore, SecretKind, SecretStore,
 };

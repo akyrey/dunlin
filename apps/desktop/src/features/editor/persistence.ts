@@ -2,12 +2,17 @@
  * tab-strip order) are kept in localStorage. This is editor content the user typed, never
  * results or secrets. */
 import { useWorkspace, workspaceOf } from "../workspace/workspaceStore";
-import { type EditorTab, type NewTab, useEditor } from "./editorStore";
+import { type EditorTab, useEditor } from "./editorStore";
 
 const PREFIX = "dunlin.tabs.";
 const SAVE_DELAY_MS = 300;
 
-export type SavedTab = Required<NewTab>;
+export type SavedTab = {
+  title: string;
+  text: string;
+  rowLimit: number;
+  savedQueryId?: string | null;
+};
 
 function isSavedTab(value: unknown): value is SavedTab {
   if (typeof value !== "object" || value === null) return false;
@@ -51,7 +56,7 @@ export function snapshot(
     const saved = Object.values(tabs)
       .filter((t) => t.sessionId === sessionId)
       .sort((a, b) => order.indexOf(a.tabId) - order.indexOf(b.tabId))
-      .map(({ title, text, rowLimit }) => ({ title, text, rowLimit }));
+      .map(({ title, text, rowLimit, savedQueryId }) => ({ title, text, rowLimit, savedQueryId }));
     byConnection.set(connectionId, saved);
   }
   return byConnection;

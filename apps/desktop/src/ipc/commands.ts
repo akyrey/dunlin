@@ -1,5 +1,7 @@
 /** One thin typed wrapper per backend command (docs/IPC.md). */
 import type {
+  SavedQuery,
+  SavedQueryDraft,
   ExportDone,
   ExportProgress,
   ExportResultArgs,
@@ -142,3 +144,10 @@ export function exportTable(
   };
   return callWith("export_table", args, { onProgress: channel });
 }
+
+export const savedQueryList = (): Promise<SavedQuery[]> => call("saved_query_list");
+
+export const savedQuerySave = (query: SavedQueryDraft): Promise<SavedQuery> =>
+  call("saved_query_save", { query });
+
+export const savedQueryDelete = (id: string): Promise<void> => call("saved_query_delete", { id });

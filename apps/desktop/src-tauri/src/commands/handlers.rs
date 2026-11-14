@@ -19,6 +19,7 @@ use crate::ipc::{
     StatementRange, TabArgs, TableSnippets,
 };
 use crate::ipc::{ExportDone, ExportProgress, ExportResultArgs, ExportTableArgs, ExportTextArgs};
+use crate::ipc::{SavedQueryIdArgs, SavedQuerySaveArgs};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -224,6 +225,29 @@ pub async fn export_table(
         });
     })
     .await
+}
+
+#[tauri::command]
+pub async fn saved_query_list(
+    state: State<'_, AppState>,
+) -> Result<Vec<dbc_store::SavedQuery>, AppError> {
+    commands::saved_query_list(&state).await
+}
+
+#[tauri::command]
+pub async fn saved_query_save(
+    state: State<'_, AppState>,
+    args: SavedQuerySaveArgs,
+) -> Result<dbc_store::SavedQuery, AppError> {
+    commands::saved_query_save(&state, args).await
+}
+
+#[tauri::command]
+pub async fn saved_query_delete(
+    state: State<'_, AppState>,
+    args: SavedQueryIdArgs,
+) -> Result<(), AppError> {
+    commands::saved_query_delete(&state, args).await
 }
 
 #[tauri::command]
