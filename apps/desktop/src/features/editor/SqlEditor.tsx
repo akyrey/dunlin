@@ -146,7 +146,13 @@ export function SqlEditor(props: Props) {
           languageSlot.current.of(language(callbacks.current.driver, callbacks.current.completion)),
           marksField,
           marksDecorations,
-          EditorView.contentAttributes.of({ "aria-label": "SQL editor" }),
+          EditorView.contentAttributes.of({
+            "aria-label": "SQL editor",
+            // No smart quotes, dashes or spelling fixes in SQL.
+            autocorrect: "off",
+            autocapitalize: "off",
+            spellcheck: "false",
+          }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) callbacks.current.onChange(update.state.doc.toString());
           }),

@@ -175,7 +175,36 @@ function describe(value: Value, category: GridColumn["category"]): Content {
         }
       : { kind: "code", text: pretty, language: "xml", note: null };
   }
-  return { kind: "code", text, language: "text", note: null };
+  return detect(text, value.t === "text" && value.truncated === true);
+}
+
+/** Text that holds JSON or XML is shown as such: JSON is tried first, then XML, then plain text.
+ * A value cut short cannot parse, so it stays text. */
+function detect(text: string, truncated: boolean): Content {
+  const plain: Content = { kind: "code", text, language: "text", note: null };
+  const start = text.trimStart()[0];
+  if (truncated || start === undefined) return plain;
+  if (start === "{" || start === "[") {
+    const json = prettyJson(text);
+    if (json !== null)
+      return {
+        kind: "code",
+        text: json,
+        language: "json",
+        note: "Text that holds JSON, shown as JSON.",
+      };
+  }
+  if (start === "<") {
+    const xml = prettyXml(text);
+    if (xml !== null)
+      return {
+        kind: "code",
+        text: xml,
+        language: "xml",
+        note: "Text that holds XML, shown as XML.",
+      };
+  }
+  return plain;
 }
 
 function Binary({ base64, size }: { base64: string; size: number }) {

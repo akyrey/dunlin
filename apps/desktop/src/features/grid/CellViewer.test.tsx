@@ -83,6 +83,32 @@ describe("CellViewer", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it.each([
+    ['{"a":1}', '"a": 1', "holds JSON"],
+    ["[1, 2]", "1,", "holds JSON"],
+    ["<root><item>x</item></root>", "<item>x</item>", "holds XML"],
+  ])("detects %s in a text column", (raw, shown, note) => {
+    show(text, { t: "text", v: raw });
+
+    expect(screen.getByLabelText("Cell value")).toHaveTextContent(shown);
+    expect(screen.getByText(new RegExp(note))).toBeInTheDocument();
+  });
+
+  it.each(["{not json", "<not xml", "plain words", "  "])(
+    "keeps %j in a text column as text",
+    (raw) => {
+      show(text, { t: "text", v: raw });
+
+      expect(screen.queryByText(/holds/)).toBeNull();
+    },
+  );
+
+  it("does not try to parse a text value that was cut short", () => {
+    show(text, { t: "text", v: '{"a": 1}', truncated: true });
+
+    expect(screen.queryByText(/holds JSON/)).toBeNull();
+  });
+
   it("shows NULL as NULL", () => {
     show(text, { t: "null" });
 

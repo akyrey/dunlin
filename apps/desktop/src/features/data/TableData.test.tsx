@@ -7,16 +7,25 @@ import { TableData } from "./TableData";
 
 const main = { catalog: null, schema: "main" };
 let calls: { cmd: string; args: Record<string, unknown> }[] = [];
+/** Statements the backend refused because the view's connection was busy. */
+let refused = 0;
 
 beforeEach(() => {
   calls = [];
+  refused = 0;
   const backend = createMockBackend();
   mockIPC((cmd, payload) => {
     calls.push({
       cmd,
       args: (payload as { args?: Record<string, unknown> } | undefined)?.args ?? {},
     });
-    return backend(cmd, payload);
+    const result = backend(cmd, payload);
+    if (result instanceof Promise) {
+      result.catch((error: unknown) => {
+        if ((error as { message?: string }).message?.includes("already running")) refused++;
+      });
+    }
+    return result;
   });
   vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(400);
   vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
@@ -107,9 +116,11 @@ describe("TableData", () => {
         "descending",
       );
     });
-    expect(calls.filter((c) => c.cmd === "table_page").at(-1)?.args.sort).toEqual([
-      { column: "id", descending: true },
-    ]);
+    await waitFor(() => {
+      expect(calls.filter((c) => c.cmd === "table_page").at(-1)?.args.sort).toEqual([
+        { column: "id", descending: true },
+      ]);
+    });
 
     await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
     await userEvent.type(screen.getByLabelText("Filter"), "pg_sleep(30) > 0{Enter}");
@@ -119,10 +130,37 @@ describe("TableData", () => {
     expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
   });
 
+  it("supersedes a loading page instead of running two at once", async () => {
+    show("events");
+    await screen.findByText(/Rows 1–200/);
+
+    for (let i = 0; i < 4; i++) fireEvent.click(screen.getByRole("button", { name: "Sort by id" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("columnheader", { name: "id" })).toHaveAttribute(
+        "aria-sort",
+        "ascending",
+      );
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(refused).toBe(0);
+  });
+
+  it("warns about typographic quotes and straightens them", async () => {
+    show("events");
+    await userEvent.type(screen.getByLabelText("Filter"), "kind = \u201Clogin\u201D");
+
+    await userEvent.click(screen.getByRole("button", { name: "Use straight quotes" }));
+
+    expect(screen.getByLabelText("Filter")).toHaveValue('kind = "login"');
+    expect(screen.getByLabelText("Filter")).toHaveAttribute("spellcheck", "false");
+    expect(screen.queryByRole("button", { name: "Use straight quotes" })).toBeNull();
+  });
+
   it("shows a match as a removable chip and follows foreign keys", async () => {
     const { onFollow } = show("people", [{ column: "id", value: { t: "int", v: "2" } }]);
     expect(await screen.findByText("id = 2")).toBeInTheDocument();
-    expect(screen.getByRole("gridcell", { name: "Grace" })).toBeInTheDocument();
+    expect(await screen.findByRole("gridcell", { name: "Grace" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Show every row" }));
     expect(await screen.findByRole("gridcell", { name: "Ada" })).toBeInTheDocument();
     expect(onFollow).not.toHaveBeenCalled();
@@ -146,7 +184,9 @@ describe("TableData", () => {
     await userEvent.dblClick(cell);
     const viewer = screen.getByRole("complementary", { name: "Cell viewer" });
     await userEvent.click(within(viewer).getByRole("button", { name: "Load the whole value" }));
-    expect(await within(viewer).findByLabelText("Cell value")).toHaveTextContent('"items": [');
+    await waitFor(() => {
+      expect(within(viewer).getByLabelText("Cell value")).toHaveTextContent('"items": [');
+    });
     unmount();
 
     await waitFor(() => {

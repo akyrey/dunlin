@@ -330,6 +330,8 @@ export const MOCK_DROP_TUNNEL = "SELECT drop_tunnel()";
 /** A statement that runs until it is cancelled, like `SELECT pg_sleep(30)`. */
 const SLEEP = /sleep\(/i;
 
+const VIEW_STATEMENT_MS = 5;
+
 export function createMockBackend() {
   const profiles = new Map<string, ConnectionProfile>();
   const sessions = new Map<string, ConnectionProfile>();
@@ -608,12 +610,31 @@ export function createMockBackend() {
     "plugin:dialog|save": () => MOCK_NEW_DATABASE_PATH,
   };
 
+  /** View connections with a statement in flight; a second one is refused, as by the backend. */
+  const busyViews = new Set<string>();
+  const oneAtATime = (cmd: string, args: Args, run: () => unknown): unknown => {
+    const view = ["table_page", "table_count", "cell_full_value"].includes(cmd)
+      ? (args.viewId as string)
+      : null;
+    if (!view) return run();
+    if (busyViews.has(view))
+      return reject("internal", "A statement is already running in this tab");
+    busyViews.add(view);
+    // A real statement takes a moment; without this, requests could never overlap here.
+    return new Promise((resolve) => setTimeout(resolve, VIEW_STATEMENT_MS))
+      .then(run)
+      .finally(() => {
+        busyViews.delete(view);
+      });
+  };
+
   return (cmd: string, payload?: unknown): unknown => {
     const handler = handlers[cmd];
     if (!handler) return reject("internal", `Mock backend has no command ${cmd}`);
     const envelope = (payload ?? {}) as { args?: Args; options?: Args };
     try {
-      return handler(envelope.args ?? envelope.options ?? {});
+      const args = envelope.args ?? envelope.options ?? {};
+      return oneAtATime(cmd, args, () => handler(args));
     } catch (error) {
       return Promise.reject(error);
     }

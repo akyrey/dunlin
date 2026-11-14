@@ -17,6 +17,8 @@ import {
   tablePage,
   toAppError,
 } from "../../ipc";
+import { serialQueue } from "../../lib/serial";
+import { NO_TEXT_SUBSTITUTION, hasTypographicQuotes, straightenQuotes } from "../../lib/quotes";
 import { ResultView } from "../grid/ResultView";
 import { tableKey } from "../workspace/workspaceStore";
 import { loadFilters, rememberFilter } from "./filterHistory";
@@ -77,6 +79,9 @@ export function TableData({
   const [recent, setRecent] = useState(() => loadFilters(historyKey));
   const [reload, setReload] = useState(0);
   const request = useRef(0);
+  // Each of the view's connections runs one statement at a time.
+  const pages = useMemo(() => serialQueue(), []);
+  const aux = useMemo(() => serialQueue(), []);
 
   // The view's connections close with the view.
   useEffect(
@@ -117,44 +122,56 @@ export function TableData({
       limit: query.pageSize,
       offset: query.offset,
     };
-    tablePage(args).then(
-      (loaded) => {
-        if (id !== request.current) return;
-        setPage(loaded);
-        setError(null);
-        setLoading(false);
-      },
-      (caught: unknown) => {
-        if (id !== request.current) return;
-        // The previous page stays visible under the error (task 6.8).
-        setError(toAppError(caught));
-        setLoading(false);
-      },
-    );
-  }, [sessionId, viewId, table, query, reload]);
+    // A page still loading is superseded: cancel it, and start this one when it has ended.
+    if (pages.busy()) {
+      queryCancel(sessionId, viewId).catch(() => {
+        // Nothing to cancel any more.
+      });
+    }
+    pages
+      .run(() => tablePage(args))
+      .then(
+        (loaded) => {
+          if (id !== request.current) return;
+          setPage(loaded);
+          setError(null);
+          setLoading(false);
+        },
+        (caught: unknown) => {
+          if (id !== request.current) return;
+          // The previous page stays visible under the error (task 6.8).
+          setError(toAppError(caught));
+          setLoading(false);
+        },
+      );
+  }, [sessionId, viewId, table, query, reload, pages]);
 
   // An estimate right away for the unfiltered table; filtered counts are exact, on request.
   useEffect(() => {
     let stale = false;
-    tableCount({
-      sessionId,
-      viewId: auxId,
-      table,
-      filter: query.filter || undefined,
-      key: query.match,
-      exact: false,
-    }).then(
-      (estimate) => {
-        if (!stale) setCount(estimate);
-      },
-      () => {
-        if (!stale) setCount(null);
-      },
-    );
+    aux
+      .run(() =>
+        tableCount({
+          sessionId,
+          viewId: auxId,
+          table,
+          filter: query.filter || undefined,
+          key: query.match,
+          exact: false,
+        }),
+      )
+      .then(
+        (estimate) => {
+          if (!stale) setCount(estimate);
+        },
+        () => {
+          if (!stale) setCount(null);
+        },
+      );
     return () => {
       stale = true;
     };
-  }, [sessionId, auxId, table, query.filter, query.match]);
+  }, [sessionId, auxId, table, query.filter, query.match, aux]);
 
   const change = (patch: Partial<Query>) => {
     setLoading(true);
@@ -168,14 +185,16 @@ export function TableData({
     setCounting(true);
     try {
       setCount(
-        await tableCount({
-          sessionId,
-          viewId: auxId,
-          table,
-          filter: query.filter || undefined,
-          key: query.match,
-          exact: true,
-        }),
+        await aux.run(() =>
+          tableCount({
+            sessionId,
+            viewId: auxId,
+            table,
+            filter: query.filter || undefined,
+            key: query.match,
+            exact: true,
+          }),
+        ),
       );
     } catch (caught) {
       setError(toAppError(caught));
@@ -209,6 +228,7 @@ export function TableData({
             className="input min-w-0 flex-1 py-0.5 font-mono text-xs"
             placeholder="a filter expression, e.g. total > 100"
             aria-label="Filter"
+            {...NO_TEXT_SUBSTITUTION}
             value={draft}
             onChange={(e) => {
               setDraft(e.target.value);
@@ -270,6 +290,21 @@ export function TableData({
           </Button>
         )}
       </div>
+      {hasTypographicQuotes(draft) && (
+        <p className="flex items-center gap-2 border-b border-amber-900 bg-amber-950/50 px-3 py-1 text-xs text-amber-300">
+          The filter has typographic quotes (“ ” ‘ ’), which SQL does not accept; macOS smart quotes
+          may have typed them.
+          <Button
+            variant="ghost"
+            className="px-1 py-0 text-xs"
+            onClick={() => {
+              setDraft(straightenQuotes(draft));
+            }}
+          >
+            Use straight quotes
+          </Button>
+        </p>
+      )}
       {error && (
         <p
           role="alert"
@@ -299,7 +334,8 @@ export function TableData({
               const column = names[cell.col];
               const key = row ? rowKeyOf(info, names, row) : null;
               if (!key || !column) return null;
-              return () => cellFullValue({ sessionId, viewId: auxId, table, key, column });
+              return () =>
+                aux.run(() => cellFullValue({ sessionId, viewId: auxId, table, key, column }));
             }}
             noFullReason="The table has no primary key or unique not-null key, so the row cannot be fetched again."
             toolbar={
