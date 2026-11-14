@@ -1,16 +1,20 @@
 //! Open sessions. `SessionManager` is the only shared mutable state in the backend.
 
+mod schema;
+
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use dbc_core::dialect::Dialect;
 use dbc_core::driver::{Capabilities, Connection, ConnectionConfig, Driver, DriverKind};
 use dbc_core::result::{ExecuteOptions, StatementOutcome};
+use dbc_core::schema::{Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef};
 use dbc_core::{DbError, DbErrorCode};
 use dbc_tunnel::Tunnel;
 use tokio::sync::{Mutex, RwLock};
 
 use crate::error::AppError;
+use schema::SchemaCache;
 
 /// An opened connection profile: a metadata connection plus one connection per editor tab.
 pub struct Session {
@@ -22,7 +26,9 @@ pub struct Session {
     pub dialect: Arc<dyn Dialect>,
     driver: Arc<dyn Driver>,
     config: ConnectionConfig,
-    metadata: Arc<dyn Connection>,
+    /// Serves the schema browser; reopened on next use after it is lost.
+    metadata: Mutex<Option<Arc<dyn Connection>>>,
+    schema: SchemaCache,
     tabs: Mutex<HashMap<String, Arc<dyn Connection>>>,
     /// Tabs with a statement in flight; only these can be cancelled.
     running: std::sync::Mutex<HashSet<String>>,
@@ -134,6 +140,78 @@ impl Session {
         self.tabs.lock().await.len()
     }
 
+    /// The metadata connection, reconnected if it was lost.
+    async fn metadata(&self) -> Result<Arc<dyn Connection>, DbError> {
+        let mut slot = self.metadata.lock().await;
+        if let Some(connection) = slot.as_ref() {
+            return Ok(Arc::clone(connection));
+        }
+        let connection = self.driver.connect(&self.config).await?;
+        *slot = Some(Arc::clone(&connection));
+        Ok(connection)
+    }
+
+    /// Drops a lost metadata connection so the next call reconnects.
+    async fn check_metadata<T>(
+        &self,
+        connection: &Arc<dyn Connection>,
+        result: Result<T, DbError>,
+    ) -> Result<T, DbError> {
+        if let Err(error) = &result
+            && error.code == DbErrorCode::ConnectionLost
+        {
+            let mut slot = self.metadata.lock().await;
+            if slot
+                .as_ref()
+                .is_some_and(|current| Arc::ptr_eq(current, connection))
+            {
+                *slot = None;
+            }
+            drop(slot);
+            // Closing a lost connection only releases local resources.
+            let _ = connection.close().await;
+        }
+        result
+    }
+
+    pub async fn schema_namespaces(&self) -> Result<Vec<Namespace>, DbError> {
+        let connection = self.metadata().await?;
+        let result = self.schema.namespaces(connection.list_namespaces()).await;
+        self.check_metadata(&connection, result).await
+    }
+
+    pub async fn schema_objects(
+        &self,
+        namespace: &NamespaceRef,
+    ) -> Result<Vec<ObjectSummary>, DbError> {
+        let connection = self.metadata().await?;
+        let result = self
+            .schema
+            .objects(namespace, connection.list_objects(namespace))
+            .await;
+        self.check_metadata(&connection, result).await
+    }
+
+    pub async fn schema_table(&self, table: &TableRef) -> Result<TableInfo, DbError> {
+        let connection = self.metadata().await?;
+        let result = self
+            .schema
+            .table(table, connection.describe_table(table))
+            .await;
+        self.check_metadata(&connection, result).await
+    }
+
+    pub async fn schema_table_ddl(&self, table: &TableRef) -> Result<String, DbError> {
+        let connection = self.metadata().await?;
+        let result = self.schema.ddl(table, connection.table_ddl(table)).await;
+        self.check_metadata(&connection, result).await
+    }
+
+    /// Forgets all cached metadata: on refresh, and after DDL ran in this session.
+    pub fn invalidate_schema(&self) {
+        self.schema.clear();
+    }
+
     /// The tunnel's loopback address, while the session has one.
     pub fn tunnel_addr(&self) -> Option<std::net::SocketAddr> {
         self.tunnel
@@ -166,7 +244,10 @@ impl Session {
                 first_error.get_or_insert(error);
             }
         }
-        if let Err(error) = self.metadata.close().await {
+        let metadata = self.metadata.lock().await.take();
+        if let Some(metadata) = metadata
+            && let Err(error) = metadata.close().await
+        {
             first_error.get_or_insert(error);
         }
         first_error.map_or(Ok(()), Err)
@@ -205,7 +286,8 @@ impl SessionManager {
             dialect: driver.dialect(),
             driver,
             config,
-            metadata,
+            metadata: Mutex::new(Some(metadata)),
+            schema: SchemaCache::default(),
             tabs: Mutex::new(HashMap::new()),
             running: std::sync::Mutex::new(HashSet::new()),
             tunnel: std::sync::Mutex::new(tunnel),

@@ -1,6 +1,7 @@
 //! Tauri command wrappers. Each one only forwards to the implementation in `commands`.
 
 use dbc_core::driver::DriverInfo;
+use dbc_core::schema::{Namespace, ObjectSummary, TableInfo};
 use dbc_store::ConnectionProfile;
 use tauri::State;
 
@@ -8,8 +9,8 @@ use crate::commands;
 use crate::error::AppError;
 use crate::ipc::{
     ConnectionIdArgs, ConnectionSaveArgs, ConnectionTestArgs, ConnectionTestResult,
-    QueryExecuteArgs, QueryResult, SessionIdArgs, SessionInfo, SqlSplitArgs,
-    SshKnownHostRemoveArgs, SshTrustHostArgs, StatementRange, TabArgs,
+    QueryExecuteArgs, QueryResult, SchemaObjectsArgs, SchemaTableArgs, SessionIdArgs, SessionInfo,
+    SqlSplitArgs, SshKnownHostRemoveArgs, SshTrustHostArgs, StatementRange, TabArgs,
 };
 use crate::state::AppState;
 
@@ -89,6 +90,46 @@ pub async fn query_cancel(state: State<'_, AppState>, args: TabArgs) -> Result<(
 #[tauri::command]
 pub async fn tab_close(state: State<'_, AppState>, args: TabArgs) -> Result<(), AppError> {
     commands::tab_close(&state, args).await
+}
+
+#[tauri::command]
+pub async fn schema_namespaces(
+    state: State<'_, AppState>,
+    args: SessionIdArgs,
+) -> Result<Vec<Namespace>, AppError> {
+    commands::schema_namespaces(&state, args).await
+}
+
+#[tauri::command]
+pub async fn schema_objects(
+    state: State<'_, AppState>,
+    args: SchemaObjectsArgs,
+) -> Result<Vec<ObjectSummary>, AppError> {
+    commands::schema_objects(&state, args).await
+}
+
+#[tauri::command]
+pub async fn schema_table(
+    state: State<'_, AppState>,
+    args: SchemaTableArgs,
+) -> Result<TableInfo, AppError> {
+    commands::schema_table(&state, args).await
+}
+
+#[tauri::command]
+pub async fn schema_table_ddl(
+    state: State<'_, AppState>,
+    args: SchemaTableArgs,
+) -> Result<String, AppError> {
+    commands::schema_table_ddl(&state, args).await
+}
+
+#[tauri::command]
+pub async fn schema_refresh(
+    state: State<'_, AppState>,
+    args: SessionIdArgs,
+) -> Result<(), AppError> {
+    commands::schema_refresh(&state, args).await
 }
 
 #[tauri::command]

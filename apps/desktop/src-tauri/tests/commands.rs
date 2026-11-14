@@ -1,109 +1,20 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)] // test code
 
-use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+mod common;
+
+use common::{Fixture, draft};
+
+use std::path::Path;
 
 use dbc_core::WireValue;
-use dbc_core::conformance::SQLITE_FIXTURE;
 use dbc_core::driver::DriverKind;
 use dbc_core::sql::StatementClass;
-use dbc_store::{ConnectionDraft, ConnectionProfile, MemorySecretStore, TlsSettings};
+use dbc_store::ConnectionDraft;
 use dunlin_lib::commands::{self, MAX_ROW_LIMIT};
 use dunlin_lib::ipc::{
     ConnectionIdArgs, ConnectionSaveArgs, ConnectionTestArgs, QueryExecuteArgs, QueryOutcome,
-    QueryResult, SessionIdArgs, SessionInfo, SqlSplitArgs, StatementRange, TabArgs,
+    QueryResult, SessionIdArgs, SqlSplitArgs, StatementRange, TabArgs,
 };
-use dunlin_lib::state::AppState;
-use tempfile::TempDir;
-
-struct Fixture {
-    dir: TempDir,
-    state: AppState,
-}
-
-impl Fixture {
-    fn new() -> Self {
-        let dir = tempfile::tempdir().unwrap();
-        let secrets = Arc::new(MemorySecretStore::default());
-        let state = AppState::open(&dir.path().join("store.db"), secrets).unwrap();
-        Self { dir, state }
-    }
-
-    fn database(&self) -> PathBuf {
-        let path = self.dir.path().join(format!("{}.db", uuid::Uuid::new_v4()));
-        rusqlite::Connection::open(&path)
-            .unwrap()
-            .execute_batch(SQLITE_FIXTURE)
-            .unwrap();
-        path
-    }
-
-    async fn saved(&self, path: &Path, read_only: bool) -> ConnectionProfile {
-        let profile = ConnectionDraft {
-            read_only,
-            ..draft(path)
-        };
-        commands::connection_save(
-            &self.state,
-            ConnectionSaveArgs {
-                profile,
-                secrets: None,
-            },
-        )
-        .await
-        .unwrap()
-    }
-
-    async fn session(&self, read_only: bool) -> SessionInfo {
-        let profile = self.saved(&self.database(), read_only).await;
-        let args = ConnectionIdArgs {
-            connection_id: profile.id,
-        };
-        commands::session_open(&self.state, args).await.unwrap()
-    }
-
-    async fn run(&self, session: &SessionInfo, sql: &str) -> Result<QueryResult, String> {
-        self.run_with(session, sql, 1000, None).await
-    }
-
-    async fn run_with(
-        &self,
-        session: &SessionInfo,
-        sql: &str,
-        row_limit: usize,
-        confirmed: Option<bool>,
-    ) -> Result<QueryResult, String> {
-        let args = QueryExecuteArgs {
-            session_id: session.session_id.clone(),
-            tab_id: "tab-1".into(),
-            sql: sql.into(),
-            row_limit,
-            confirmed,
-        };
-        commands::query_execute(&self.state, args)
-            .await
-            .map_err(|e| e.code)
-    }
-}
-
-fn draft(path: &Path) -> ConnectionDraft {
-    ConnectionDraft {
-        id: None,
-        name: "fixture".into(),
-        driver: DriverKind::Sqlite,
-        color: None,
-        read_only: false,
-        host: None,
-        port: None,
-        database: None,
-        user: None,
-        file_path: Some(path.to_string_lossy().into_owned()),
-        options: BTreeMap::new(),
-        tls: TlsSettings::default(),
-        ssh: None,
-    }
-}
 
 fn rows(result: QueryResult) -> (Vec<Vec<WireValue>>, bool) {
     match result.outcome {

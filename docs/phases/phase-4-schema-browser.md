@@ -40,7 +40,7 @@ Use the system catalogs rather than `information_schema` on PostgreSQL: they are
 - [x] 4.4 PostgreSQL: `table_ddl` reconstruction (columns, defaults, constraints, indexes, comments), labelled as reconstructed. Snapshot tests.
 - [x] 4.5 MySQL: all four methods. Test on MySQL and MariaDB (check constraints differ by version).
 - [x] 4.6 SQLite: all four methods, including attached databases and `WITHOUT ROWID` tables.
-- [ ] 4.7 `schema_*` commands using the metadata connection; per-session cache keyed by namespace and table, invalidated by refresh and after any `Ddl`-class statement runs in that session.
+- [x] 4.7 `schema_*` commands using the metadata connection; per-session cache keyed by namespace and table, invalidated by refresh and after any `Ddl`-class statement runs in that session.
 - [ ] 4.8 Frontend: sidebar tree (session → namespace → Tables / Views → object), lazy loading per node, loading and error states per node, filter box, refresh action, "show system objects" toggle.
 - [ ] 4.9 Frontend: table detail tab with sub-tabs Columns, Indexes, Constraints (primary key, foreign keys, unique, check), DDL (read-only CodeMirror). Foreign keys link to the referenced table's detail tab.
 - [ ] 4.10 Context actions on a table: open details, copy name, copy qualified name, generate `SELECT` into a new editor tab.

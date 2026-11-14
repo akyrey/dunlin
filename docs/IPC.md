@@ -59,6 +59,7 @@ Errors from `session_open` and `connection_test` carry `detail.stage`: `ssh_conn
 | `schema_objects` | `{ sessionId, namespace }` | `ObjectSummary[]` | 4 |
 | `schema_table` | `{ sessionId, table }` | `TableInfo` | 4 |
 | `schema_table_ddl` | `{ sessionId, table }` | `string` | 4 |
+| `schema_refresh` | `{ sessionId }` | none (clears the session's metadata cache) | 4 |
 | `schema_completion` | `{ sessionId, namespace }` | `CompletionSchema` | 5 |
 | `history_list` | `{ connectionId, search?, limit, before? }` | `HistoryEntry[]` | 5 |
 | `history_clear` | `{ connectionId }` | none | 5 |
@@ -94,3 +95,7 @@ The window gets the minimum capability set: the app's own commands, the dialog p
 ## Long-running calls
 
 A command call is one request and one response. Progress for long operations (exports, multi-statement scripts) is reported through a Tauri `Channel` passed as an argument, when a phase needs it. v1 result sets are bounded by the row limit and returned in one response.
+
+## Schema browser
+
+`schema_*` commands run on the session's metadata connection, never on a tab's, so a long statement in an editor tab does not hold up the tree. Results are cached per session, keyed by namespace and table; the cache is cleared by `schema_refresh` and after any statement classified as `ddl` runs in the session (whether or not it succeeded, since MySQL DDL can apply part of its work). The frontend sees `statementClass: "ddl"` in the `QueryResult` (or the error) and reloads the nodes it has open. Errors are per call, so a namespace the user may not read fails on its own node with `permission`, and a table dropped elsewhere fails with `not_found`. A lost metadata connection is reopened on the next call; a lost SSH tunnel closes the session with `tunnel_lost`, as for queries.

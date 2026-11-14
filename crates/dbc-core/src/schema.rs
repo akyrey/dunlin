@@ -73,8 +73,10 @@ pub struct Key {
     pub columns: Vec<String>,
 }
 
+/// Exported to TypeScript as `TableIndex`: `Index.ts` would clash with the generated
+/// `index.ts` on case-insensitive file systems.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(rename = "TableIndex"))]
 #[serde(rename_all = "camelCase")]
 pub struct Index {
     pub name: String,

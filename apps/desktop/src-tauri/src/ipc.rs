@@ -3,6 +3,7 @@
 use dbc_core::WireValue;
 use dbc_core::driver::{Capabilities, DriverKind};
 use dbc_core::result::ColumnMeta;
+use dbc_core::schema::{NamespaceRef, TableRef};
 use dbc_core::sql::StatementClass;
 use dbc_store::{ConnectionDraft, SecretKind};
 use serde::{Deserialize, Serialize};
@@ -131,6 +132,20 @@ pub struct SessionInfo {
 #[serde(rename_all = "camelCase")]
 pub struct SessionIdArgs {
     pub session_id: String,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaObjectsArgs {
+    pub session_id: String,
+    pub namespace: NamespaceRef,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaTableArgs {
+    pub session_id: String,
+    pub table: TableRef,
 }
 
 #[derive(Debug, Clone, Deserialize, TS)]

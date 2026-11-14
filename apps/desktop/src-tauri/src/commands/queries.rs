@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use dbc_core::DEFAULT_DISPLAY_LIMIT;
 use dbc_core::result::{ExecuteOptions, StatementOutcome};
-use dbc_core::sql::{self, byte_to_utf16};
+use dbc_core::sql::{self, StatementClass, byte_to_utf16};
 
 use crate::error::AppError;
 use crate::ipc::{
@@ -61,7 +61,12 @@ pub async fn query_execute(
     let options = ExecuteOptions {
         row_limit: args.row_limit,
     };
-    let outcome = match session.execute(&args.tab_id, &args.sql, &options).await {
+    let executed = session.execute(&args.tab_id, &args.sql, &options).await;
+    // DDL can change what the schema browser shows, even when it fails part-way (MySQL).
+    if classification.class == StatementClass::Ddl {
+        session.invalidate_schema();
+    }
+    let outcome = match executed {
         Ok(outcome) => outcome,
         Err(_) if session.tunnel_lost() => return Err(tunnel_lost(state, &session.id).await),
         Err(error) => return Err(AppError::from_db(error, &args.sql)),
@@ -76,7 +81,7 @@ pub async fn query_execute(
 
 /// The session's SSH tunnel dropped: the session is closed so it can be reopened cleanly once
 /// the server is back (task 3.8).
-async fn tunnel_lost(state: &AppState, session_id: &str) -> AppError {
+pub(super) async fn tunnel_lost(state: &AppState, session_id: &str) -> AppError {
     // The session is unusable either way; a failure to close it changes nothing for the user.
     let _ = state.sessions.close(session_id).await;
     AppError::from(dbc_tunnel::TunnelError::Lost)

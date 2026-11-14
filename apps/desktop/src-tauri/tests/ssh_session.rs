@@ -340,3 +340,38 @@ async fn losing_the_ssh_server_reports_tunnel_lost_and_reopening_works_when_it_i
     let reopened = reopened.unwrap();
     assert!(world.run(&reopened, "SELECT 1").await.is_ok());
 }
+
+#[tokio::test]
+#[ignore = "needs Docker"]
+async fn the_schema_browser_reports_tunnel_lost_too() {
+    let world = World::start("lost-schema").await;
+    let profile = world.save(world.draft(world.ssh.port)).await;
+    let unknown = world.open(&profile).await.err().unwrap();
+    world.trust(&unknown).await;
+    let session = world.open(&profile).await.unwrap();
+    let id = || dunlin_lib::ipc::SessionIdArgs {
+        session_id: session.session_id.clone(),
+    };
+    assert!(
+        commands::schema_namespaces(&world.state, id())
+            .await
+            .is_ok()
+    );
+
+    world.ssh.container.stop().await.unwrap();
+    let mut code = String::new();
+    for _ in 0..40 {
+        // Each attempt skips the cache, so it has to reach the server.
+        let _ = commands::schema_refresh(&world.state, id()).await;
+        match commands::schema_namespaces(&world.state, id()).await {
+            Err(error) if error.code == "tunnel_lost" || error.code == "not_found" => {
+                code = error.code;
+                break;
+            }
+            _ => tokio::time::sleep(Duration::from_millis(250)).await,
+        }
+    }
+
+    assert_eq!(code, "tunnel_lost");
+    assert!(world.state.sessions.get(&session.session_id).await.is_err());
+}
