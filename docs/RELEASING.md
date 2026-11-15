@@ -39,4 +39,10 @@ Needs an Apple Developer Program membership. Set these repository secrets once:
 
 The Tauri CLI imports the certificate, signs with the hardened runtime and notarises when these
 are present. Without them the build is unsigned: it runs after right-click → Open, and the
-workflow skips the `codesign`/`spctl` checks.
+workflow skips the `codesign`/`spctl` checks. The build step removes empty `APPLE_*` variables
+first: Tauri tries to sign whenever `APPLE_CERTIFICATE` exists, even when it is empty.
+
+If the import fails with `SecKeychainItemImport: Unable to decode the provided data`, the
+`APPLE_CERTIFICATE` secret is not a base64 `.p12`. Re-create it with `base64 -i cert.p12 | pbcopy`;
+the export must include the private key ("Developer ID Application" with its key, from Keychain
+Access → My Certificates). Also check that `APPLE_CERTIFICATE_PASSWORD` is the export password.
