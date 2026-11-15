@@ -91,11 +91,9 @@ fn invalid(code: DbErrorCode, message: impl Into<String>) -> DbError {
     DbError::new(code, message)
 }
 
-fn column_type<'a>(info: &'a TableInfo, column: &str) -> Result<&'a str, DbError> {
-    info.columns
-        .iter()
-        .find(|c| c.name == column)
-        .map(|c| c.type_name.as_str())
+fn column_type(info: &TableInfo, column: &str) -> Result<String, DbError> {
+    info.column_named(column)
+        .map(|c| c.type_name)
         .ok_or_else(|| {
             invalid(
                 DbErrorCode::NotFound,
@@ -133,7 +131,7 @@ fn where_clause<D: Dialect + ?Sized>(
         params.push(value.clone());
         conditions.push(format!(
             "{quoted} = {}",
-            dialect.placeholder(params.len(), type_name)
+            dialect.placeholder(params.len(), &type_name)
         ));
     }
     Ok(if conditions.is_empty() {
@@ -151,6 +149,16 @@ pub fn page_sql<D: Dialect + ?Sized>(
     request: &TablePageRequest,
 ) -> Result<BoundSql, DbError> {
     let mut bound = select_sql(dialect, info, request, None)?;
+    // Rows addressed by an implicit row id need it in the page: `SELECT "rowid", * ...`.
+    if info.uses_row_id()
+        && let Some(id) = &info.row_id
+    {
+        bound.sql = bound.sql.replacen(
+            "SELECT *",
+            &format!("SELECT {}, *", dialect.quote_identifier(id)),
+            1,
+        );
+    }
     let limit = request.limit.clamp(1, MAX_PAGE_SIZE);
     bound
         .sql

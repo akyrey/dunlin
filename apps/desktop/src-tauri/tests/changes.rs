@@ -222,3 +222,83 @@ async fn refuses_what_cannot_be_edited() {
         assert_eq!(error.code, code, "{table}: {}", error.message);
     }
 }
+
+#[tokio::test]
+async fn a_table_without_a_key_is_edited_by_rowid() {
+    let fixture = Fixture::new();
+    let session = fixture.session(false).await;
+    let page_args = || TablePageArgs {
+        session_id: session.session_id.clone(),
+        view_id: "view-2".into(),
+        table: table("event_log"),
+        filter: None,
+        key: Vec::new(),
+        sort: Vec::new(),
+        limit: 50,
+        offset: 0,
+    };
+    let before = commands::table_page(&fixture.state, page_args())
+        .await
+        .unwrap();
+    assert_eq!(before.columns[0].name, "rowid");
+    let first = before.rows[0][0].clone();
+
+    let preview = commands::changes_preview(
+        &fixture.state,
+        args(
+            &session,
+            "event_log",
+            vec![OperationArg::Update {
+                key: vec![kv("rowid", first.clone())],
+                set: vec![kv("message", text("edited"))],
+            }],
+        ),
+    )
+    .await
+    .unwrap();
+    commands::changes_apply(
+        &fixture.state,
+        args(
+            &session,
+            "event_log",
+            vec![
+                OperationArg::Update {
+                    key: vec![kv("rowid", first.clone())],
+                    set: vec![kv("message", text("edited"))],
+                },
+                OperationArg::Delete {
+                    key: vec![kv("rowid", before.rows[1][0].clone())],
+                },
+            ],
+        ),
+    )
+    .await
+    .unwrap();
+    let writing_rowid = commands::changes_preview(
+        &fixture.state,
+        args(
+            &session,
+            "event_log",
+            vec![OperationArg::Update {
+                key: vec![kv("rowid", first.clone())],
+                set: vec![kv("rowid", int(99))],
+            }],
+        ),
+    )
+    .await
+    .unwrap_err();
+    let after = commands::table_page(&fixture.state, page_args())
+        .await
+        .unwrap();
+
+    assert_eq!(
+        preview,
+        [format!(
+            "UPDATE \"main\".\"event_log\" SET \"message\" = 'edited' WHERE \"rowid\" = {}",
+            1
+        )]
+    );
+    assert_eq!(after.rows.len(), before.rows.len() - 1);
+    assert_eq!(after.rows[0][2], text("edited"));
+    assert_eq!(writing_rowid.code, "invalid_argument");
+}

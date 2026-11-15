@@ -526,7 +526,12 @@ fn check_table(
         "primary key",
         format!("got {primary_key:?}"),
     )?;
-    let row_key = info.row_key.as_deref().map(names);
+    // An implicit row id (SQLite's rowid) is not part of the schema; drivers test it themselves.
+    let row_key = info
+        .row_key
+        .as_deref()
+        .filter(|_| !info.uses_row_id())
+        .map(names);
     ensure(
         row_key == expected.row_key.map(<[&str]>::to_vec),
         "row key",

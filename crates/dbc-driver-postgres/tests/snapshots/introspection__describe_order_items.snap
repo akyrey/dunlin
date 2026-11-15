@@ -87,5 +87,6 @@ expression: info
   "rowKey": [
     "order_id",
     "line"
-  ]
+  ],
+  "rowId": null
 }

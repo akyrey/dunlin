@@ -152,7 +152,14 @@ pub(crate) fn describe_table(
         unique_constraints,
         check_constraints: ddl.checks,
         row_key: None,
+        row_id: None,
     };
+    if kind == ObjectKind::Table && !without_rowid {
+        info.row_id = ["rowid", "_rowid_", "oid"]
+            .into_iter()
+            .find(|id| !info.columns.iter().any(|c| c.name.eq_ignore_ascii_case(id)))
+            .map(str::to_owned);
+    }
     info.row_key = info.choose_row_key();
     Ok(info)
 }

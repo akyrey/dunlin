@@ -11,4 +11,10 @@ export type TableInfo = { table: TableRef, kind: ObjectKind, comment: string | n
 /**
  * Columns used to address a row for editing; `None` means the table is read-only.
  */
-rowKey: Array<string> | null, };
+rowKey: Array<string> | null, 
+/**
+ * An implicit column that addresses rows when no key does: SQLite's `rowid` (or `_rowid_`,
+ * `oid` when a real column takes the name). Not among `columns`; table pages select it
+ * first when it is the row key.
+ */
+rowId: string | null, };

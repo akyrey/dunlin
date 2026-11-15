@@ -39,5 +39,6 @@ expression: info
   "foreignKeys": [],
   "uniqueConstraints": [],
   "checkConstraints": [],
-  "rowKey": null
+  "rowKey": null,
+  "rowId": null
 }

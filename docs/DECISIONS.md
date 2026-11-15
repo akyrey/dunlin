@@ -193,3 +193,9 @@ Format: context, decision, consequences. Keep entries short.
 **Decision.** `dbc-tunnel` parses the file as OpenSSH resolves it (first value wins, `Host` patterns with `*`, `?` and `!`, global settings first) for `HostName`, `User`, `Port`, `IdentityFile` and the first `ProxyJump` hop. The connection form offers the aliases and copies the values into the profile; a `ProxyJump` naming another alias becomes the jump host. `Match` blocks are skipped and `Include` is not followed.
 **Consequences.** A saved connection never changes behind the user's back when the file does, and works the same on a machine without it. Settings the tunnel does not support (`ProxyCommand`, `LocalForward`, certificates) are ignored.
 
+## D-031 SQLite tables without a key are edited by `rowid` (2026-11-15)
+
+**Context.** Deferred feature 9: a SQLite table with no primary key or unique not-null key was read-only, although every rowid table has a stable address.
+**Decision.** `TableInfo::row_id` names an implicit addressing column that is not among `columns`. The SQLite driver sets it for rowid tables (not `WITHOUT ROWID`, not views) to the first of `rowid`, `_rowid_`, `oid` that no real column shadows. `choose_row_key` falls back to it after real keys. Table pages then select it first (`SELECT "rowid", * ...`) and order by it, and edits address rows with `WHERE "rowid" = ?`. It is an `INTEGER` that cannot be written. The shared conformance suite ignores the implicit key, and SQLite's own tests cover it.
+**Consequences.** Such tables show a leading `rowid` column marked as the key. A `VACUUM` may renumber rowids of tables without an `INTEGER PRIMARY KEY`, so a page read before one and edited after can address the wrong rows; this matches what other SQLite tools do and is rare in practice. Other drivers leave `row_id` empty (PostgreSQL's `ctid` changes on every update).
+

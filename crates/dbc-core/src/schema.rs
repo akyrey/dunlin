@@ -156,6 +156,11 @@ pub struct TableInfo {
     pub check_constraints: Vec<Check>,
     /// Columns used to address a row for editing; `None` means the table is read-only.
     pub row_key: Option<Vec<String>>,
+    /// An implicit column that addresses rows when no key does: SQLite's `rowid` (or `_rowid_`,
+    /// `oid` when a real column takes the name). Not among `columns`; table pages select it
+    /// first when it is the row key.
+    #[serde(default)]
+    pub row_id: Option<String>,
 }
 
 impl TableInfo {
@@ -183,7 +188,39 @@ impl TableInfo {
                 .map(|index| &index.columns)
                 .find(|columns| not_null(columns))
         };
-        from_constraints.or_else(from_indexes).cloned()
+        from_constraints
+            .or_else(from_indexes)
+            .cloned()
+            .or_else(|| self.row_id.clone().map(|id| vec![id]))
+    }
+
+    /// The implicit row id as a column: an integer that cannot be written.
+    pub fn row_id_column(&self) -> Option<Column> {
+        self.row_id.as_ref().map(|name| Column {
+            name: name.clone(),
+            type_name: "INTEGER".to_owned(),
+            category: crate::result::TypeCategory::Integer,
+            nullable: false,
+            default: None,
+            comment: None,
+            ordinal: 0,
+            generated: true,
+        })
+    }
+
+    /// `name` among the columns, or as the implicit row id.
+    pub fn column_named(&self, name: &str) -> Option<Column> {
+        self.columns
+            .iter()
+            .find(|c| c.name == name)
+            .cloned()
+            .or_else(|| self.row_id_column().filter(|c| c.name == name))
+    }
+
+    /// The row id, when it is what addresses rows (no real key).
+    pub fn uses_row_id(&self) -> bool {
+        self.row_id.is_some()
+            && self.row_key.as_deref() == self.row_id.as_ref().map(std::slice::from_ref)
     }
 }
 
@@ -255,6 +292,7 @@ mod tests {
             unique_constraints: Vec::new(),
             check_constraints: Vec::new(),
             row_key: None,
+            row_id: None,
         }
     }
 

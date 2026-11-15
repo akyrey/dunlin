@@ -186,6 +186,7 @@ pub(crate) async fn describe_table(
         unique_constraints,
         check_constraints: checks(conn, flavour, table).await?,
         row_key: None,
+        row_id: None,
     };
     info.row_key = info.choose_row_key();
     Ok(info)

@@ -35,7 +35,10 @@ export function gridColumns(page: ColumnMeta[], info: TableInfo | null): GridCol
       name: column.name,
       typeName: described?.typeName ?? column.typeName,
       category: described?.category ?? column.category,
-      primaryKey: info?.primaryKey?.columns.includes(column.name) ?? false,
+      // The implicit row id (SQLite's rowid) is shown as the key it is.
+      primaryKey:
+        (info?.primaryKey?.columns.includes(column.name) ?? false) ||
+        (info?.rowId !== null && info?.rowId === column.name),
       references: fk ? qualified(fk.referencedTable) : undefined,
     };
   });

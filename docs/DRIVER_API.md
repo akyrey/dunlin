@@ -194,7 +194,9 @@ pub struct TableInfo {
     pub foreign_keys: Vec<ForeignKey>,   // name, columns, referenced table + columns, on_update, on_delete
     pub unique_constraints: Vec<Key>,
     pub check_constraints: Vec<Check>,   // name, expression
-    pub row_key: Option<Vec<String>>,    // columns used to address a row for editing; None = read-only
+    pub row_key: Option<Vec<String>>,
+    /// Implicit addressing column when no key exists (SQLite `rowid`); see D-031.
+    pub row_id: Option<String>,    // columns used to address a row for editing; None = read-only
 }
 ```
 

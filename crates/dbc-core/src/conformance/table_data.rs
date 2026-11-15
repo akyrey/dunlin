@@ -356,6 +356,7 @@ pub fn page_sql_cases(
         unique_constraints: Vec::new(),
         check_constraints: Vec::new(),
         row_key,
+        row_id: None,
     };
     let keyed = table("Order Items", Some(vec!["id".into(), "select".into()]));
     let unkeyed = table("event_log", None);

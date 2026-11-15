@@ -12,6 +12,13 @@ describe("resultEditReason", () => {
     expect(resultEditReason(info, ["name", "id"])).toBeNull();
   });
 
+  it("accepts the implicit row id as the key", () => {
+    const keyless = { ...info, rowKey: ["rowid"], rowId: "rowid" } as TableInfo;
+
+    expect(resultEditReason(keyless, ["rowid", "name"])).toBeNull();
+    expect(resultEditReason(keyless, ["name"])).toMatch(/select rowid too/);
+  });
+
   it("explains a missing key, a foreign column and a repeated one", () => {
     expect(resultEditReason(info, ["name"])).toMatch(/select id too/);
     expect(resultEditReason(info, ["id", "nick"])).toMatch(/nick is not a column of people/);

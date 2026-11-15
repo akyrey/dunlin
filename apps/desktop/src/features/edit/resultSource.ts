@@ -5,7 +5,7 @@ import type { TableInfo } from "../../ipc";
  * row key so every row can be addressed. */
 export function resultEditReason(info: TableInfo | null, columnNames: string[]): string | null {
   if (!info) return null;
-  const known = new Set(info.columns.map((c) => c.name));
+  const known = new Set([...info.columns.map((c) => c.name), ...(info.rowId ? [info.rowId] : [])]);
   const unknown = columnNames.find((name) => !known.has(name));
   if (unknown !== undefined) return `Read-only: ${unknown} is not a column of ${info.table.name}.`;
   if (new Set(columnNames).size !== columnNames.length)

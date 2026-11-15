@@ -58,6 +58,7 @@ fn info(row_key: Option<&[&str]>) -> TableInfo {
         unique_constraints: Vec::new(),
         check_constraints: Vec::new(),
         row_key: row_key.map(|k| k.iter().map(|c| (*c).to_owned()).collect()),
+        row_id: None,
     }
 }
 
@@ -273,4 +274,52 @@ fn a_whole_table_selects_named_columns_without_a_limit() {
         format!(r#"SELECT "sku", "line" FROM {TABLE} ORDER BY "order_id", "line""#)
     );
     assert_eq!(unknown.code, DbErrorCode::NotFound);
+}
+
+#[test]
+fn an_implicit_row_id_is_selected_first_ordered_by_and_addresses_cells() {
+    let info = TableInfo {
+        row_id: Some("rowid".into()),
+        row_key: Some(vec!["rowid".into()]),
+        ..info(None)
+    };
+
+    let page = page_sql(&Pg, &info, &request()).unwrap();
+    let cell = cell_sql(
+        &Pg,
+        &info,
+        &[KeyValue {
+            column: "rowid".into(),
+            value: Value::Int(7),
+        }],
+        "sku",
+    )
+    .unwrap();
+
+    assert_eq!(
+        page.sql,
+        format!(r#"SELECT "rowid", * FROM {TABLE} ORDER BY "rowid" LIMIT 200 OFFSET 0"#)
+    );
+    assert!(
+        cell.sql.contains(r#""rowid" = $1::text::INTEGER"#),
+        "{}",
+        cell.sql
+    );
+}
+
+#[test]
+fn a_real_key_wins_over_the_row_id() {
+    let info = TableInfo {
+        row_id: Some("rowid".into()),
+        ..info(Some(&["order_id"]))
+    };
+
+    assert_eq!(info.choose_row_key(), Some(vec!["order_id".to_owned()]));
+    assert!(!info.uses_row_id());
+    assert!(
+        page_sql(&Pg, &info, &request())
+            .unwrap()
+            .sql
+            .starts_with("SELECT * ")
+    );
 }

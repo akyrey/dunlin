@@ -156,5 +156,6 @@ expression: info
   "checkConstraints": [],
   "rowKey": [
     "id"
-  ]
+  ],
+  "rowId": "rowid"
 }

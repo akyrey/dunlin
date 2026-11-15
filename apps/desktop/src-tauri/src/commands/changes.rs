@@ -38,14 +38,10 @@ fn values(
     pairs
         .into_iter()
         .map(|KeyArg { column, value }| {
-            let described = info
-                .columns
-                .iter()
-                .find(|c| c.name == column)
-                .ok_or_else(|| {
-                    AppError::invalid(format!("{} has no column {column}", info.table.name))
-                })?;
-            if writing && !writable(described) {
+            let described = info.column_named(&column).ok_or_else(|| {
+                AppError::invalid(format!("{} has no column {column}", info.table.name))
+            })?;
+            if writing && !writable(&described) {
                 return Err(AppError::invalid(format!(
                     "{column} is generated and cannot be written"
                 )));
@@ -109,6 +105,7 @@ async fn change_set(
         columns: info
             .columns
             .iter()
+            .chain(info.row_id_column().as_ref())
             .map(|c| ColumnType {
                 name: c.name.clone(),
                 type_name: c.type_name.clone(),

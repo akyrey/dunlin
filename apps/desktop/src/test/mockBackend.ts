@@ -165,6 +165,7 @@ function mockTable(table: TableRef): TableInfo {
     uniqueConstraints: [],
     checkConstraints: [],
     rowKey: null,
+    rowId: null,
   };
   switch (table.name) {
     case "people":
@@ -188,6 +189,7 @@ function mockTable(table: TableRef): TableInfo {
         ],
         checkConstraints: [{ name: "balance_ok", expression: "balance >= 0" }],
         rowKey: ["id"],
+        rowId: null,
       };
     case "orders":
       return {
@@ -205,6 +207,7 @@ function mockTable(table: TableRef): TableInfo {
           },
         ],
         rowKey: ["id"],
+        rowId: null,
       };
     case "events":
       return {
@@ -212,6 +215,7 @@ function mockTable(table: TableRef): TableInfo {
         columns: [column("id", "INTEGER", false, 1), column("kind", "TEXT", false, 2)],
         primaryKey: { name: null, columns: ["id"] },
         rowKey: ["id"],
+        rowId: null,
       };
     case "documents":
       return {
@@ -222,6 +226,7 @@ function mockTable(table: TableRef): TableInfo {
         ],
         primaryKey: { name: null, columns: ["id"] },
         rowKey: ["id"],
+        rowId: null,
       };
     default:
       return { ...base, kind: "view", columns: [column("name", "TEXT", true, 1)] };

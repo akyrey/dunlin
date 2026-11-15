@@ -147,5 +147,6 @@ expression: info
   ],
   "rowKey": [
     "id"
-  ]
+  ],
+  "rowId": "rowid"
 }

@@ -59,7 +59,7 @@ Roughly in order of likely value:
 6. Import from CSV
 7. Profile import/export
 8. ~~MySQL `DELIMITER` support in the splitter~~ (done)
-9. SQLite `rowid` addressing for tables without a primary key
+9. ~~SQLite `rowid` addressing for tables without a primary key~~ (done, D-031)
 10. More drivers (MariaDB-specific features, SQL Server, DuckDB, ClickHouse)
 11. ER diagrams, schema diff
 12. Linux and Windows packaging

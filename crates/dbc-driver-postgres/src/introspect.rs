@@ -143,6 +143,7 @@ pub(crate) async fn describe_table(
         unique_constraints: Vec::new(),
         check_constraints: Vec::new(),
         row_key: None,
+        row_id: None,
     };
     for constraint in constraints {
         let name = Some(constraint.name);

@@ -54,6 +54,7 @@ const info: TableInfo = {
   uniqueConstraints: [],
   checkConstraints: [],
   rowKey: ["id"],
+  rowId: null,
 };
 const page: ColumnMeta[] = ["id", "order_id", "line"].map((name) => ({
   name,

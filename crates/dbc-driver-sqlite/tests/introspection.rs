@@ -210,3 +210,39 @@ async fn explain_returns_the_query_plan_as_a_tree_without_running_the_statement(
         "EXPLAIN must not run the DELETE"
     );
 }
+
+#[tokio::test]
+async fn tables_without_a_key_are_addressed_by_their_rowid() {
+    let databases = TempDatabases::default();
+    let connection = open(&databases).await;
+    connection
+        .execute(
+            "CREATE TABLE shadow (rowid TEXT, value TEXT)",
+            &ExecuteOptions::default(),
+        )
+        .await
+        .unwrap();
+
+    let events = connection
+        .describe_table(&in_schema("main", "event_log"))
+        .await
+        .unwrap();
+    let settings = connection
+        .describe_table(&in_schema("main", "settings"))
+        .await
+        .unwrap();
+    let shadow = connection
+        .describe_table(&in_schema("main", "shadow"))
+        .await
+        .unwrap();
+    let orders = connection
+        .describe_table(&in_schema("main", "orders"))
+        .await
+        .unwrap();
+
+    assert_eq!(events.row_id.as_deref(), Some("rowid"));
+    assert_eq!(events.row_key, Some(vec!["rowid".to_owned()]));
+    assert_eq!(settings.row_id, None, "WITHOUT ROWID tables have no rowid");
+    assert_eq!(shadow.row_id.as_deref(), Some("_rowid_"));
+    assert!(!orders.uses_row_id(), "a real key wins");
+}
