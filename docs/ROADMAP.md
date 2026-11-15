@@ -62,4 +62,4 @@ Roughly in order of likely value:
 9. ~~SQLite `rowid` addressing for tables without a primary key~~ (done, D-031)
 10. More drivers (MariaDB-specific features, SQL Server, DuckDB, ClickHouse)
 11. ER diagrams, schema diff
-12. Linux and Windows packaging
+12. ~~Linux packaging~~ (done, D-035); Windows packaging

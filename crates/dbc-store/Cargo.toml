@@ -25,6 +25,10 @@ uuid.workspace = true
 [target.'cfg(target_os = "macos")'.dependencies]
 apple-native-keyring-store = { version = "1", features = ["keychain"] }
 
+# The freedesktop Secret Service (GNOME Keyring, KWallet), over zbus: no libdbus or OpenSSL.
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus-secret-service-keyring-store = { version = "1", features = ["rt-tokio-crypto-rust"] }
+
 [dev-dependencies]
 rstest.workspace = true
 tempfile.workspace = true

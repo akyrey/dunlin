@@ -4,10 +4,25 @@
 2. Set that version in the workspace `Cargo.toml` and in `apps/desktop/package.json` (the
    `packaging` test fails if they differ), and commit.
 3. Tag `vX.Y.Z` and push the tag. `.github/workflows/release.yml` builds the universal macOS
-   app and dmg, checks both architectures, and creates a draft release with the dmg and the
+   app and dmg (and checks both architectures), and the Linux deb, rpm and AppImage for x86_64
+   and arm64. Then it creates a draft release with every package, a `SHA256SUMS` file and the
    changelog section. Review the draft and publish it.
 
-`workflow_dispatch` runs the same build without a release, as a downloadable artifact.
+`workflow_dispatch` runs the same builds without a release; the packages are downloadable
+artifacts of the run (kept 14 days).
+
+## Linux packages
+
+Built on Ubuntu 22.04 runners, so they need glibc 2.35 or newer. `tauri.linux.conf.json` picks
+the targets; Tauri adds the WebKitGTK and GTK dependencies to the deb and rpm. The job checks that
+the binary and the desktop entry are in both packages, installs the deb, and starts the app under
+Xvfb with no keyring running: it must still be running after 15 seconds.
+
+The arm64 job uses the `ubuntu-22.04-arm` runner, which is free for public repositories. A
+private repository needs an arm64 runner of its own (a larger runner, or a self-hosted one), or
+remove that matrix entry.
+
+The packages are not signed. An apt or dnf repository, which would sign them, is not set up.
 
 ## Signing and notarisation
 

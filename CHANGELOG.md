@@ -22,6 +22,10 @@ All notable changes to Dunlin. The format follows [Keep a Changelog](https://kee
 
 - Editing the rows of a plain single-table query; manual transaction mode with Commit and Rollback; visual `EXPLAIN` for every driver.
 - SSH settings filled from `~/.ssh/config`; MySQL `DELIMITER` scripts; SQLite tables without a key edited by `rowid`; connection export and import without secrets.
+- Redis and Valkey: a command console, a key browser, and editing values, TTLs and keys with a preview of the commands.
+- Keyset pagination: next and previous pages of large tables seek instead of using `OFFSET`.
+- CSV import into a table, with a column mapping, in one transaction.
+- Linux packages (deb, rpm, AppImage for x86_64 and arm64); passwords in the Secret Service (GNOME Keyring, KWallet).
 
 ### Security
 

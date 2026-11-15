@@ -37,3 +37,25 @@ fn the_bundle_is_named_and_identified_once() {
         assert!(std::path::Path::new(&path).is_file(), "{path}");
     }
 }
+
+#[test]
+fn linux_builds_deb_rpm_and_appimage_without_overriding_the_identity() {
+    let linux = json("tauri.linux.conf.json");
+
+    let targets: Vec<&str> = linux["bundle"]["targets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t.as_str().unwrap())
+        .collect();
+    assert_eq!(targets, ["deb", "rpm", "appimage"]);
+    for key in ["productName", "identifier", "version"] {
+        assert!(linux.get(key).is_none(), "{key} comes from tauri.conf.json");
+    }
+    let conf = json("tauri.conf.json");
+    let icons = conf["bundle"]["icon"].as_array().unwrap();
+    assert!(
+        icons.iter().any(|i| i == "icons/icon.png"),
+        "Linux packages take the large PNG icon"
+    );
+}

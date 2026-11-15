@@ -3,7 +3,7 @@
 A desktop database client written in Rust, in the spirit of DBeaver but much smaller.
 Product name: **Dunlin**. Crate prefix `dbc-` (see DECISIONS D-012, D-014).
 
-**Status:** all eight phases are implemented; release packaging (signed macOS build) and the acceptance run are in progress. See [docs/ROADMAP.md](docs/ROADMAP.md) and [CHANGELOG.md](CHANGELOG.md).
+**Status:** all eight phases are implemented; Linux packages (deb, rpm, AppImage) are built by CI; signing the macOS build and the acceptance run are in progress. See [docs/ROADMAP.md](docs/ROADMAP.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ![The SQL editor with a result grid](docs/screenshots/editor.png)
 
@@ -14,7 +14,7 @@ Product name: **Dunlin**. Crate prefix `dbc-` (see DECISIONS D-012, D-014).
 - Schema browser: tables, columns, indexes, constraints, DDL.
 - Results as a grid or as JSON, with a viewer for JSON and XML cells.
 - Inline editing, row insert and row delete, staged and previewed as SQL before applying.
-- Export to CSV, JSON or `INSERT` statements, streamed so large tables keep memory flat.
+- Export to CSV, JSON or `INSERT` statements, streamed so large tables keep memory flat; import from CSV.
 - Saved queries, query history, a command palette and rebindable shortcuts.
 - Restores its window, open connections and tabs on start.
 
@@ -22,12 +22,26 @@ Product name: **Dunlin**. Crate prefix `dbc-` (see DECISIONS D-012, D-014).
 
 ## Install
 
-Download the `.dmg` from the latest release, open it and drag Dunlin to Applications. Signed and notarised builds come from CI (Phase 8, task 8.20); until the first release, build from source:
+**macOS:** download the `.dmg` from the latest release, open it and drag Dunlin to Applications. Signed and notarised builds come from CI (Phase 8, task 8.20).
+
+**Linux** (x86_64 and arm64, glibc 2.35 or newer: Ubuntu 22.04, Debian 12, Fedora 36 and later):
+
+```sh
+sudo apt install ./Dunlin_<version>_amd64.deb        # Debian, Ubuntu
+sudo dnf install ./Dunlin-<version>-1.x86_64.rpm     # Fedora, RHEL
+chmod +x Dunlin_<version>_amd64.AppImage && ./Dunlin_<version>_amd64.AppImage   # anywhere else
+```
+
+Passwords are kept by the Secret Service, so a keyring must be running in your session: GNOME Keyring (standard on GNOME, `sudo apt install gnome-keyring` elsewhere) or KWallet. Without one, Dunlin still runs, but saving a password reports that the keychain is not available.
+
+Until the first release, build from source:
 
 ```sh
 pnpm --dir apps/desktop install
-pnpm --dir apps/desktop tauri build          # app and dmg in target/release/bundle/
+pnpm --dir apps/desktop tauri build          # packages in target/release/bundle/
 ```
+
+On Linux the build needs `libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf`; it makes a deb, an rpm and an AppImage (`tauri.linux.conf.json`).
 
 ## First connection
 

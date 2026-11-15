@@ -39,7 +39,13 @@ jobs:
       - name: Tests (includes the generated TypeScript staleness check)
         run: cargo test --workspace
       - name: Integration tests (Docker)
-        run: cargo test --workspace -- --ignored
+        run: cargo test --workspace -- --ignored --skip keychain_round_trip
+      - name: Keychain on Linux (Secret Service from GNOME Keyring)
+        run: |
+          sudo apt-get install -y gnome-keyring dbus-x11
+          dbus-run-session -- sh -c 'echo -n ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null &&
+            cargo test -p dbc-store --lib keychain_round_trip -- --ignored'
+
       - name: Coverage per crate (80% lines)
         run: |
           for crate in dbc-core dbc-driver-sqlite dbc-store; do

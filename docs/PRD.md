@@ -98,7 +98,7 @@ A single developer on their own machine, comfortable with SQL, working against l
 | NFR-2 | The UI never blocks on a database or network call |
 | NFR-3 | Scrolling a 1000-row, 50-column result stays smooth (virtualised rendering) |
 | NFR-4 | No secret is written to disk outside the OS keychain, or to logs |
-| NFR-5 | Runs on macOS first; nothing in the design prevents Linux and Windows |
+| NFR-5 | Runs on macOS and Linux (deb, rpm, AppImage; D-035); nothing in the design prevents Windows |
 | NFR-6 | A new driver requires no change to `dbc-core` traits or to the frontend beyond registering the dialect |
 
 ## Success criteria
