@@ -433,6 +433,51 @@ pub struct ImportReport {
 
 #[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+pub struct KvScanArgs {
+    pub session_id: String,
+    /// A `SCAN MATCH` glob; `*` when absent or empty.
+    #[serde(default)]
+    #[ts(optional)]
+    pub pattern: Option<String>,
+    /// The `cursor` of the previous page; absent to start.
+    #[serde(default)]
+    #[ts(optional)]
+    pub cursor: Option<String>,
+    #[serde(default)]
+    #[ts(optional)]
+    pub count: Option<usize>,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct KvReadArgs {
+    pub session_id: String,
+    /// The key's `id` (base64 of its bytes).
+    pub key: String,
+    #[serde(default)]
+    #[ts(optional)]
+    pub limit: Option<usize>,
+}
+
+/// A key's content as a grid (D-032).
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyContentIpc {
+    pub key: dbc_core::kv::KeyName,
+    pub key_type: String,
+    #[ts(type = "number | null")]
+    pub ttl_ms: Option<i64>,
+    /// Elements in the whole value (bytes for a string).
+    #[ts(type = "number")]
+    pub length: u64,
+    pub columns: Vec<ColumnMeta>,
+    pub rows: Vec<Vec<WireValue>>,
+    /// Fewer rows than `length` are shown.
+    pub truncated: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct QueryExplainArgs {
     pub session_id: String,
     pub tab_id: String,

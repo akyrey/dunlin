@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "./components/Button";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { PanelBoundary } from "./components/PanelBoundary";
+import { KeyBrowser } from "./features/keys/KeyBrowser";
 import { StatusBar } from "./components/StatusBar";
 import { Toaster } from "./components/Toaster";
 import { toast } from "./components/toastStore";
@@ -92,6 +93,16 @@ export function App() {
   );
   const editingSavedSecrets = profiles.find((p) => p.id === editing?.id)?.savedSecrets ?? [];
   const firstDriver = drivers[0];
+  const keySessions = useMemo(
+    () =>
+      profiles.flatMap((profile) => {
+        const session = sessions[profile.id];
+        return session?.capabilities.keyValue
+          ? [{ connectionId: profile.id, sessionId: session.sessionId, label: profile.name }]
+          : [];
+      }),
+    [profiles, sessions],
+  );
   const treeSessions = useMemo(
     () =>
       profiles.flatMap((profile) => {
@@ -253,6 +264,9 @@ export function App() {
               {loadError ? loadError.message : actionError && describeConnectError(actionError)}
             </p>
           )}
+          <PanelBoundary name="key browser">
+            <KeyBrowser sessions={keySessions} />
+          </PanelBoundary>
           <PanelBoundary name="schema tree">
             <SchemaTree sessions={treeSessions} />
           </PanelBoundary>

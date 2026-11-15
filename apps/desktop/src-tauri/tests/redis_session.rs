@@ -8,8 +8,8 @@ use dbc_core::driver::DriverKind;
 use dbc_store::{ConnectionDraft, TlsSettings};
 use dunlin_lib::commands;
 use dunlin_lib::ipc::{
-    ConnectionIdArgs, ConnectionSaveArgs, QueryExecuteArgs, QueryOutcome, SessionInfo,
-    SqlSplitArgs, TransactionModeArgs,
+    ConnectionIdArgs, ConnectionSaveArgs, KvReadArgs, KvScanArgs, QueryExecuteArgs, QueryOutcome,
+    SessionInfo, SqlSplitArgs, TransactionModeArgs,
 };
 use testcontainers_modules::redis::Redis;
 use testcontainers_modules::testcontainers::ImageExt;
@@ -129,4 +129,83 @@ async fn the_console_splits_by_line_and_guards_writes() {
     .await
     .unwrap_err();
     assert_eq!(manual.code, "invalid_argument");
+}
+
+#[tokio::test]
+#[ignore = "needs Docker"]
+async fn the_key_browser_lists_and_reads_keys() {
+    let server = Redis::default().with_tag("7.4").start().await.unwrap();
+    let port = server.get_host_port_ipv4(6379).await.unwrap();
+    let fixture = Fixture::new();
+    let session = open(&fixture, port, true).await;
+    let writer = open(&fixture, port, false).await;
+    run(&fixture, &writer, "HSET user:1 name Ada", None)
+        .await
+        .unwrap();
+    run(&fixture, &writer, "SET counter 3", None).await.unwrap();
+
+    let page = commands::kv_scan(
+        &fixture.state,
+        KvScanArgs {
+            session_id: session.session_id.clone(),
+            pattern: Some("user:*".into()),
+            cursor: None,
+            count: None,
+        },
+    )
+    .await
+    .unwrap();
+    let content = commands::kv_read(
+        &fixture.state,
+        KvReadArgs {
+            session_id: session.session_id.clone(),
+            key: page.keys[0].key.id.clone(),
+            limit: None,
+        },
+    )
+    .await
+    .unwrap();
+    let bad = commands::kv_read(
+        &fixture.state,
+        KvReadArgs {
+            session_id: session.session_id.clone(),
+            key: "not base64!".into(),
+            limit: None,
+        },
+    )
+    .await
+    .unwrap_err();
+
+    assert_eq!(page.keys.len(), 1);
+    assert_eq!(page.keys[0].key_type, "hash");
+    assert_eq!(
+        content
+            .columns
+            .iter()
+            .map(|c| c.name.as_str())
+            .collect::<Vec<_>>(),
+        ["field", "value"]
+    );
+    assert_eq!(content.length, 1);
+    assert_eq!(bad.code, "invalid_argument");
+}
+
+#[tokio::test]
+async fn sql_connections_have_no_key_browser() {
+    let fixture = Fixture::new();
+    let session = fixture.session(false).await;
+
+    let error = commands::kv_scan(
+        &fixture.state,
+        KvScanArgs {
+            session_id: session.session_id.clone(),
+            pattern: None,
+            cursor: None,
+            count: None,
+        },
+    )
+    .await
+    .unwrap_err();
+
+    assert_eq!(error.code, "unsupported");
 }

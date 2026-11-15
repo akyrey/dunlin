@@ -1,6 +1,7 @@
 //! Open sessions. `SessionManager` is the only shared mutable state in the backend.
 
 mod health;
+mod kv;
 mod schema;
 mod transaction;
 

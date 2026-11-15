@@ -41,6 +41,8 @@ import type {
   PlanNode,
   SshConfigEntry,
   ImportReport,
+  KeyContentIpc,
+  ScanPage,
 } from "./generated";
 import { Channel } from "@tauri-apps/api/core";
 
@@ -93,6 +95,18 @@ export const connectionsExport = (path: string, ids?: string[]): Promise<number>
 /** Adds every valid connection of the file as a new one; the rest are listed as skipped. */
 export const connectionsImport = (path: string): Promise<ImportReport> =>
   call("connections_import", { path });
+
+/** One `SCAN` step over the keys matching `pattern` (key-value connections). */
+export const kvScan = (
+  sessionId: string,
+  pattern: string,
+  cursor?: string,
+  count?: number,
+): Promise<ScanPage> => call("kv_scan", { sessionId, pattern, cursor, count });
+
+/** A key's type, TTL and content as a grid; `key` is the key's base64 `id`. */
+export const kvRead = (sessionId: string, key: string, limit?: number): Promise<KeyContentIpc> =>
+  call("kv_read", { sessionId, key, limit });
 
 /** Host aliases from `~/.ssh/config`, read now; nothing is stored. */
 export const sshConfigHosts = (): Promise<SshConfigEntry[]> => call("ssh_config_hosts");

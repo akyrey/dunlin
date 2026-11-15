@@ -11,6 +11,7 @@ import { useEdits } from "../edit/editStore";
 import { TableDetails } from "../schema/TableDetails";
 import { useSessions } from "../sessions/sessionsStore";
 import { matchShortcut } from "../shortcuts/registry";
+import { KeyView } from "../keys/KeyView";
 import { TabStrip } from "./TabStrip";
 import { type View, useWorkspace, workspaceOf } from "./workspaceStore";
 
@@ -124,6 +125,14 @@ export function Workspace({ session, profile }: Props) {
             onOpenTable={(table) => {
               useWorkspace.getState().openTable(sessionId, table);
             }}
+          />
+        )}
+        {active?.kind === "key" && (
+          <KeyView
+            key={`${sessionId}:${active.key}`}
+            sessionId={sessionId}
+            id={active.id}
+            name={active.name}
           />
         )}
         {active?.kind === "editor" && (

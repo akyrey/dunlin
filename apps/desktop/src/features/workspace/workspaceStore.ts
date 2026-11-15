@@ -7,7 +7,9 @@ export type View =
   | { kind: "editor"; key: string }
   | { kind: "table"; key: string; table: TableRef }
   /** A table's rows; `match` limits them to one key (foreign key navigation). */
-  | { kind: "data"; key: string; table: TableRef; match: KeyArg[] };
+  | { kind: "data"; key: string; table: TableRef; match: KeyArg[] }
+  /** A key of a key-value store (D-032): `id` is its base64 bytes, `name` its display text. */
+  | { kind: "key"; key: string; id: string; name: string };
 
 export type Workspace = { views: View[]; active: string | null };
 
@@ -20,6 +22,8 @@ type WorkspaceState = {
   openTable: (sessionId: string, table: TableRef) => void;
   /** Opens (or focuses) a table's rows, optionally only those matching `match`. */
   openData: (sessionId: string, table: TableRef, match?: KeyArg[]) => void;
+  /** Opens (or focuses) a key of a key-value store. */
+  openKey: (sessionId: string, id: string, name: string) => void;
   activate: (sessionId: string, key: string) => void;
   /** Focuses the next (`1`) or previous (`-1`) view, wrapping around. */
   cycle: (sessionId: string, step: 1 | -1) => void;
@@ -69,6 +73,10 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     openData: (sessionId, table, match = []) => {
       const key = `data:${tableKey(table)}:${JSON.stringify(match)}`;
       add(sessionId, { kind: "data", key, table, match });
+    },
+
+    openKey: (sessionId, id, name) => {
+      add(sessionId, { kind: "key", key: `key:${id}`, id, name });
     },
 
     activate: (sessionId, key) => {

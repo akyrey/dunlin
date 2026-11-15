@@ -221,6 +221,11 @@ pub trait Connection: Send + Sync {
         false
     }
 
+    /// The key browser's view of the connection, for key-value drivers.
+    fn key_value(&self) -> Option<&dyn crate::kv::KeyValueStore> {
+        None
+    }
+
     /// Runs one statement with bound parameters for the placeholders the dialect produced
     /// (`Dialect::placeholder`). Used for table pages and, later, edits.
     async fn query_params(

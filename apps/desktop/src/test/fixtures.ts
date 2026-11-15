@@ -54,6 +54,22 @@ export const mysqlDriver: DriverInfo = {
   options: [],
 };
 
+export const redisDriver: DriverInfo = {
+  kind: "redis",
+  label: "Redis / Valkey",
+  endpoint: "tcp",
+  defaultPort: 6379,
+  tlsModes: ["disable", "require", "verify-ca", "verify-full"],
+  capabilities: {
+    ...networkCapabilities,
+    explain: false,
+    transactionalDdl: false,
+    readOnlySession: false,
+    keyValue: true,
+  },
+  options: [],
+};
+
 export function sqliteProfile(overrides: Partial<ConnectionProfile> = {}): ConnectionProfile {
   return {
     id: "c1",
@@ -98,7 +114,7 @@ export function sessionFor(profile: ConnectionProfile, sessionId = "s1"): Sessio
     sessionId,
     connectionId: profile.id,
     driver: profile.driver,
-    capabilities: sqliteCapabilities,
+    capabilities: profile.driver === "redis" ? redisDriver.capabilities : sqliteCapabilities,
     readOnly: profile.readOnly,
     defaultNamespace: { catalog: null, schema: "main" },
   };

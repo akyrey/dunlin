@@ -33,7 +33,7 @@ import type {
 import { BOUNDS, DEFAULT_SETTINGS } from "../features/settings/defaults";
 import { SECRET_KINDS, type SecretField } from "../features/connections/draft";
 import { rawText } from "../lib/value";
-import { mysqlDriver, postgresDriver, sessionFor, sqliteDriver } from "./fixtures";
+import { mysqlDriver, postgresDriver, redisDriver, sessionFor, sqliteDriver } from "./fixtures";
 
 export const MOCK_DATABASE_PATH = "/mock/people.db";
 export const MOCK_NEW_DATABASE_PATH = "/mock/new.db";
@@ -131,6 +131,57 @@ function split(text: string): StatementRange[] {
 
 const MAIN = { catalog: null, schema: "main" };
 const NO_TRANSACTION = { manual: false, open: false };
+
+const textCell = (v: string): Value => ({ t: "text", v, truncated: false });
+const keyName = (name: string) => ({ name, id: btoa(name) });
+/** The mock Redis keyspace. */
+const MOCK_KEYS = [
+  {
+    key: keyName("user:1"),
+    keyType: "hash",
+    content: {
+      key: keyName("user:1"),
+      keyType: "hash",
+      ttlMs: null,
+      length: 2,
+      columns: [
+        { name: "field", typeName: "", category: "text", nullable: false },
+        { name: "value", typeName: "", category: "text", nullable: false },
+      ],
+      rows: [
+        [textCell("name"), textCell("Ada")],
+        [textCell("lang"), textCell("en")],
+      ],
+      truncated: false,
+    },
+  },
+  {
+    key: keyName("user:2"),
+    keyType: "hash",
+    content: {
+      key: keyName("user:2"),
+      keyType: "hash",
+      ttlMs: null,
+      length: 0,
+      columns: [],
+      rows: [],
+      truncated: false,
+    },
+  },
+  {
+    key: keyName("session:abc"),
+    keyType: "string",
+    content: {
+      key: keyName("session:abc"),
+      keyType: "string",
+      ttlMs: 90_000,
+      length: 5,
+      columns: [{ name: "value", typeName: "", category: "text", nullable: false }],
+      rows: [[textCell("token")]],
+      truncated: false,
+    },
+  },
+];
 const MOCK_NAMESPACES: Namespace[] = [
   { namespace: MAIN, name: "main", system: false },
   { namespace: { catalog: null, schema: "temp" }, name: "temp", system: true },
@@ -580,7 +631,7 @@ export function createMockBackend() {
   };
 
   const handlers: Record<string, (args: Args) => unknown> = {
-    driver_list: () => [postgresDriver, mysqlDriver, sqliteDriver],
+    driver_list: () => [postgresDriver, mysqlDriver, sqliteDriver, redisDriver],
     connection_list: () => [...profiles.values()],
     connection_save: (a) =>
       save(a.profile as ConnectionDraft, a.secrets as ConnectionSecrets | undefined),
@@ -659,6 +710,24 @@ export function createMockBackend() {
       JSON.stringify(a).includes("dunlin-connections")
         ? "/mock/connections.json"
         : MOCK_NEW_DATABASE_PATH,
+    kv_scan: (a) => {
+      const pattern = new RegExp(
+        `^${(a.pattern as string)
+          .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+          .replace(/\*/g, ".*")
+          .replace(/\?/g, ".")}$`,
+      );
+      // Two keys per step, so paging is exercised.
+      const start = Number(a.cursor ?? "0");
+      const all = MOCK_KEYS.filter((k) => pattern.test(k.key.name));
+      const next = start + 2;
+      return { keys: all.slice(start, next), cursor: next < all.length ? String(next) : null };
+    },
+    kv_read: (a) => {
+      const found = MOCK_KEYS.find((k) => k.key.id === a.key);
+      if (!found) return reject("not_found", "The key no longer exists");
+      return found.content;
+    },
     ssh_config_hosts: () => [
       {
         alias: "bastion",

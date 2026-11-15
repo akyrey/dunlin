@@ -151,6 +151,22 @@ pub async fn connections_import(
 }
 
 #[tauri::command]
+pub async fn kv_scan(
+    state: State<'_, AppState>,
+    args: crate::ipc::KvScanArgs,
+) -> Result<dbc_core::kv::ScanPage, AppError> {
+    logged("kv_scan", commands::kv_scan(&state, args)).await
+}
+
+#[tauri::command]
+pub async fn kv_read(
+    state: State<'_, AppState>,
+    args: crate::ipc::KvReadArgs,
+) -> Result<crate::ipc::KeyContentIpc, AppError> {
+    logged("kv_read", commands::kv_read(&state, args)).await
+}
+
+#[tauri::command]
 pub async fn ssh_config_hosts() -> Result<Vec<crate::ipc::SshConfigEntry>, AppError> {
     logged("ssh_config_hosts", commands::ssh_config_hosts()).await
 }

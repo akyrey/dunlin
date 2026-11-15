@@ -168,6 +168,24 @@ impl RedisConnection {
         }
     }
 
+    /// Several commands in one round trip; their replies in order.
+    pub async fn pipeline(&self, commands: Vec<Vec<Vec<u8>>>) -> Result<Vec<Reply>, DbError> {
+        let mut pipe = redis::pipe();
+        for args in &commands {
+            let Some((name, rest)) = args.split_first() else {
+                continue;
+            };
+            let command = pipe.cmd(&String::from_utf8_lossy(name));
+            for arg in rest {
+                command.arg(arg.as_slice());
+            }
+        }
+        let mut conn = self.conn.clone();
+        pipe.query_async::<Vec<Reply>>(&mut conn)
+            .await
+            .map_err(|e| map_error(&e))
+    }
+
     /// One command given as arguments (the key browser and editors, which never quote).
     pub async fn command(&self, args: Vec<Vec<u8>>) -> Result<Reply, DbError> {
         self.run(args).await
@@ -214,6 +232,10 @@ impl Connection for RedisConnection {
 
     fn cancel_handle(&self) -> Arc<dyn CancelHandle> {
         Arc::clone(&self.cancel) as Arc<dyn CancelHandle>
+    }
+
+    fn key_value(&self) -> Option<&dyn dbc_core::kv::KeyValueStore> {
+        Some(self)
     }
 
     fn is_broken(&self) -> bool {

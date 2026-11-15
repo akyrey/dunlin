@@ -4,6 +4,7 @@
 mod command;
 mod connection;
 mod errors;
+mod kv;
 mod reply;
 mod tls;
 
