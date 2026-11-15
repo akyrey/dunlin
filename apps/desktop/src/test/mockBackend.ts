@@ -639,6 +639,24 @@ export function createMockBackend() {
       else if (state?.manual) state.open = true;
       return record(args, execute(args));
     },
+    ssh_config_hosts: () => [
+      {
+        alias: "bastion",
+        hostName: "bastion.example.com",
+        user: "ops",
+        port: 2222,
+        identityFile: null,
+        proxyJump: null,
+      },
+      {
+        alias: "db-prod",
+        hostName: "db.internal",
+        user: "admin",
+        port: null,
+        identityFile: "/home/me/.ssh/id_ed25519",
+        proxyJump: "bastion",
+      },
+    ],
     query_explain: (a) => {
       const sql = a.sql as string;
       if (/FRM/.test(sql)) return reject("syntax", 'near "FRM": syntax error');

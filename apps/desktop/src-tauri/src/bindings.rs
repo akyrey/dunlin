@@ -78,6 +78,7 @@ fn export_all(dir: &Path) {
     crate::session::TransactionState::export_all(&config).unwrap();
     crate::ipc::TransactionModeArgs::export_all(&config).unwrap();
     crate::ipc::QueryExplainArgs::export_all(&config).unwrap();
+    crate::ipc::SshConfigEntry::export_all(&config).unwrap();
     dbc_core::plan::PlanNode::export_all(&config).unwrap();
     crate::ipc::TransactionFinishArgs::export_all(&config).unwrap();
     SettingsSetArgs::export_all(&config).unwrap();

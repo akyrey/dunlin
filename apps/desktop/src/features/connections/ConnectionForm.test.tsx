@@ -23,6 +23,7 @@ vi.mock("../../ipc", async (importOriginal) => {
     pickPemFile: vi.fn(),
     pickPrivateKeyFile: vi.fn(),
     sshTrustHost: vi.fn(),
+    sshConfigHosts: vi.fn(),
   };
 });
 
@@ -30,6 +31,7 @@ const drivers = [postgresDriver, mysqlDriver, sqliteDriver];
 
 beforeEach(() => {
   vi.mocked(ipc.connectionTest).mockReset();
+  vi.mocked(ipc.sshConfigHosts).mockResolvedValue([]);
 });
 
 function renderForm(
@@ -246,6 +248,43 @@ describe("ConnectionForm SSH tunnel", () => {
     renderForm(draftFromProfile(sqliteProfile()));
 
     expect(screen.queryByText("SSH tunnel")).toBeNull();
+  });
+
+  it("fills the tunnel from a ~/.ssh/config alias, with its jump host", async () => {
+    vi.mocked(ipc.sshConfigHosts).mockResolvedValue([
+      {
+        alias: "gw",
+        hostName: "gw.example.com",
+        user: "ops",
+        port: 2222,
+        identityFile: null,
+        proxyJump: null,
+      },
+      {
+        alias: "db",
+        hostName: "db.internal",
+        user: "admin",
+        port: null,
+        identityFile: "/home/me/.ssh/id",
+        proxyJump: "gw",
+      },
+    ]);
+    const onSave = renderForm(draftFromProfile(postgresProfile()));
+
+    await userEvent.click(screen.getByLabelText("Connect through an SSH server"));
+    await userEvent.selectOptions(await screen.findByLabelText("Fill from ~/.ssh/config"), "db");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(savedDraft(onSave)?.ssh).toEqual({
+      server: {
+        host: "db.internal",
+        port: 22,
+        user: "admin",
+        auth: "key_file",
+        keyFile: "/home/me/.ssh/id",
+      },
+      jump: { host: "gw.example.com", port: 2222, user: "ops", auth: "agent", keyFile: null },
+    });
   });
 
   it("saves a key-file tunnel behind a jump host with each hop's secret", async () => {

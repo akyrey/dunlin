@@ -52,6 +52,7 @@ Errors from `session_open` and `connection_test` carry `detail.stage`: `ssh_conn
 | `session_close` | `{ sessionId }` | none | 1 |
 | `sql_split` | `{ sessionId, text }` | `StatementRange[]` (UTF-16 start/end, and `danger`: why it needs confirmation, or null) | 1 |
 | `query_execute` | `{ sessionId, tabId, sql, rowLimit (1..=100000), confirmed? }` | `QueryResult`; `source` names the table when the statement is a plain single-table `SELECT` (see D-027) | 1 |
+| `ssh_config_hosts` | none | `SshConfigEntry[]`: each concrete alias of `~/.ssh/config` with `hostName`, `user`, `port`, `identityFile` (`~` expanded) and the first `proxyJump` hop; empty without the file; read when asked, never stored | after v1 |
 | `query_explain` | `{ sessionId, tabId, sql }` | `PlanNode` tree (`operation`, `relation`, `details`, `estimatedRows`, `cost`, `children`) on the tab's connection; never `ANALYZE`, so nothing runs, also on read-only connections | after v1 |
 | `transaction_status` | `{ sessionId, tabId }` | `TransactionState` `{ manual, open }` | after v1 |
 | `transaction_mode_set` | `{ sessionId, tabId, manual }` | `TransactionState`; leaving manual mode with a transaction open is `invalid_argument` | after v1 |

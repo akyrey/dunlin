@@ -1,12 +1,16 @@
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { Button } from "../../../components/Button";
 import {
   type SshAuthMethod,
   type SshHostSettings,
+  type SshConfigEntry,
   type SshSettings,
   pickPrivateKeyFile,
+  sshConfigHosts,
+  toAppError,
 } from "../../../ipc";
+import { settingsFromConfig } from "../sshConfig";
 import {
   DEFAULT_SSH_PORT,
   type PasswordChange,
@@ -33,6 +37,56 @@ type Props = {
   stored: (field: SecretField) => boolean;
 };
 
+/** Fills the section from a host alias of `~/.ssh/config` (deferred feature 4). The values
+ * are copied: later edits to the file do not change the saved connection. */
+function FromSshConfig({ onPick }: { onPick: (ssh: SshSettings) => void }) {
+  const id = useId();
+  const [entries, setEntries] = useState<SshConfigEntry[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let stale = false;
+    sshConfigHosts().then(
+      (found) => {
+        if (!stale) setEntries(found);
+      },
+      (caught: unknown) => {
+        if (!stale) setError(toAppError(caught).message);
+      },
+    );
+    return () => {
+      stale = true;
+    };
+  }, []);
+  if (error) return <p className="text-xs text-amber-400">{error}</p>;
+  if (!entries || entries.length === 0) return null;
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <label htmlFor={id} className="text-zinc-400">
+        Fill from ~/.ssh/config
+      </label>
+      <select
+        id={id}
+        className="input py-0.5 text-xs"
+        value=""
+        onChange={(e) => {
+          const settings = settingsFromConfig(e.target.value, entries);
+          if (settings) onPick(settings);
+        }}
+      >
+        <option value="" disabled>
+          Choose a host…
+        </option>
+        {entries.map((entry) => (
+          <option key={entry.alias} value={entry.alias}>
+            {entry.alias}
+            {entry.hostName && entry.hostName !== entry.alias ? ` (${entry.hostName})` : ""}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 /** The SSH tunnel section: off, one server, or a server behind a jump host. */
 export function SshFields({ ssh, onChange, secrets, onSecretChange, stored }: Props) {
   const secretProps = (field: SecretField) => ({
@@ -57,6 +111,7 @@ export function SshFields({ ssh, onChange, secrets, onSecretChange, stored }: Pr
       </label>
       {ssh && (
         <>
+          <FromSshConfig onPick={onChange} />
           <SshHostFields
             title="SSH server"
             value={ssh.server}

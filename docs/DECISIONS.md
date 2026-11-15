@@ -187,3 +187,9 @@ Format: context, decision, consequences. Keep entries short.
 **Decision.** `Connection::explain` returns a `dbc_core::plan::PlanNode` tree (operation, relation, details, estimated rows, total cost). PostgreSQL reads `EXPLAIN (FORMAT JSON)`; MySQL reads `EXPLAIN FORMAT=TREE` and falls back to the classic tabular `EXPLAIN` (one step per table) where the server refuses the format (MariaDB, MySQL before 8.0.16); SQLite builds the tree from `EXPLAIN QUERY PLAN`'s parent ids. Only plain `EXPLAIN` is offered, so the statement never runs, and it is allowed on read-only connections. The plan runs on the tab's connection, so it sees the tab's `search_path`, `USE` and open transaction.
 **Consequences.** Costs are the server's estimates in its own units and are not comparable across servers; MariaDB and SQLite plans carry no cost. `EXPLAIN ANALYZE` stays available by typing it, with the usual safeguards.
 
+## D-030 `~/.ssh/config` fills the SSH form; it is not linked (2026-11-15)
+
+**Context.** Deferred feature 4: reuse the host aliases people already keep in `~/.ssh/config`.
+**Decision.** `dbc-tunnel` parses the file as OpenSSH resolves it (first value wins, `Host` patterns with `*`, `?` and `!`, global settings first) for `HostName`, `User`, `Port`, `IdentityFile` and the first `ProxyJump` hop. The connection form offers the aliases and copies the values into the profile; a `ProxyJump` naming another alias becomes the jump host. `Match` blocks are skipped and `Include` is not followed.
+**Consequences.** A saved connection never changes behind the user's back when the file does, and works the same on a machine without it. Settings the tunnel does not support (`ProxyCommand`, `LocalForward`, certificates) are ignored.
+

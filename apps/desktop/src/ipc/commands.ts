@@ -39,6 +39,7 @@ import type {
   Value,
   TransactionState,
   PlanNode,
+  SshConfigEntry,
 } from "./generated";
 import { Channel } from "@tauri-apps/api/core";
 
@@ -83,6 +84,9 @@ export const queryExecute = (args: QueryExecuteArgs): Promise<QueryResult> =>
 
 export const queryCancel = (sessionId: string, tabId: string): Promise<void> =>
   call("query_cancel", { sessionId, tabId });
+
+/** Host aliases from `~/.ssh/config`, read now; nothing is stored. */
+export const sshConfigHosts = (): Promise<SshConfigEntry[]> => call("ssh_config_hosts");
 
 /** The plan for one statement on the tab's connection; the statement is not run. */
 export const queryExplain = (sessionId: string, tabId: string, sql: string): Promise<PlanNode> =>

@@ -1334,6 +1334,7 @@ name = "dbc-tunnel"
 version = "0.1.0"
 dependencies = [
  "dbc-tunnel",
+ "proptest",
  "rstest",
  "russh",
  "secrecy",

@@ -32,5 +32,5 @@ pub use schema::{
 };
 pub use sessions::{session_close, session_open, tab_close};
 pub use settings::{settings_get, settings_set};
-pub use ssh::{ssh_known_host_remove, ssh_known_hosts_list, ssh_trust_host};
+pub use ssh::{ssh_config_hosts, ssh_known_host_remove, ssh_known_hosts_list, ssh_trust_host};
 pub use table_data::{PAGE_DISPLAY_LIMIT, cell_full_value, table_count, table_page};

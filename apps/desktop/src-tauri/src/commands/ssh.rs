@@ -1,7 +1,7 @@
 use dbc_store::KnownHost;
 
 use crate::error::AppError;
-use crate::ipc::{SshKnownHostRemoveArgs, SshTrustHostArgs};
+use crate::ipc::{SshConfigEntry, SshKnownHostRemoveArgs, SshTrustHostArgs};
 use crate::state::AppState;
 
 /// Stores a host key the user accepted after seeing its fingerprint. Never replaces a
@@ -41,6 +41,16 @@ fn check_host_key(args: &SshTrustHostArgs) -> Result<(), AppError> {
         return Err(AppError::invalid("The SSH host key is not valid"));
     }
     Ok(())
+}
+
+/// The host aliases of `~/.ssh/config`, to fill a connection's SSH settings from. Read when
+/// asked, never stored; a missing file has none.
+pub async fn ssh_config_hosts() -> Result<Vec<SshConfigEntry>, AppError> {
+    let hosts = tokio::task::spawn_blocking(dbc_tunnel::user_ssh_config)
+        .await
+        .map_err(|e| AppError::internal(e.to_string()))?
+        .map_err(|e| AppError::new("io", format!("~/.ssh/config could not be read: {e}")))?;
+    Ok(hosts.into_iter().map(SshConfigEntry::from).collect())
 }
 
 pub async fn ssh_known_hosts_list(state: &AppState) -> Result<Vec<KnownHost>, AppError> {

@@ -66,6 +66,7 @@ export type * from "./SettingsSetArgs";
 export type * from "./SortKey";
 export type * from "./SqlSplitArgs";
 export type * from "./SshAuthMethod";
+export type * from "./SshConfigEntry";
 export type * from "./SshHostSettings";
 export type * from "./SshKnownHostRemoveArgs";
 export type * from "./SshSettings";

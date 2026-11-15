@@ -89,6 +89,32 @@ pub struct SshTrustHostArgs {
     pub fingerprint: String,
 }
 
+/// A host alias from `~/.ssh/config` with the settings a tunnel needs (deferred feature 4).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SshConfigEntry {
+    pub alias: String,
+    pub host_name: Option<String>,
+    pub user: Option<String>,
+    pub port: Option<u16>,
+    pub identity_file: Option<String>,
+    /// The first hop: another alias, or `[user@]host[:port]`.
+    pub proxy_jump: Option<String>,
+}
+
+impl From<dbc_tunnel::SshConfigHost> for SshConfigEntry {
+    fn from(host: dbc_tunnel::SshConfigHost) -> Self {
+        Self {
+            alias: host.alias,
+            host_name: host.host_name,
+            user: host.user,
+            port: host.port,
+            identity_file: host.identity_file,
+            proxy_jump: host.proxy_jump,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SshKnownHostRemoveArgs {

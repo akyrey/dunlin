@@ -127,6 +127,11 @@ pub async fn query_cancel(state: State<'_, AppState>, args: TabArgs) -> Result<(
 }
 
 #[tauri::command]
+pub async fn ssh_config_hosts() -> Result<Vec<crate::ipc::SshConfigEntry>, AppError> {
+    logged("ssh_config_hosts", commands::ssh_config_hosts()).await
+}
+
+#[tauri::command]
 pub async fn query_explain(
     state: State<'_, AppState>,
     args: QueryExplainArgs,
