@@ -59,9 +59,9 @@ Everything in the roadmap's deferred list, auto-update, Linux and Windows builds
 
 ### Packaging
 
-- [ ] 8.19 App icon, name, bundle identifier, version from one source.
+- [x] 8.19 App icon, name, bundle identifier, version from one source.
 - [ ] 8.20 `pnpm tauri build` for macOS (universal binary) in CI; code signing and notarisation (needs an Apple Developer account; credentials as CI secrets).
-- [ ] 8.21 README: install, first connection, screenshots. Changelog started.
+- [x] 8.21 README: install, first connection, screenshots. Changelog started.
 
 ## Acceptance criteria
 
