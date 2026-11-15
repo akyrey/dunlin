@@ -259,3 +259,133 @@ async fn the_key_browser_scans_keys_and_reads_every_type() {
     let missing = store.read_key(b"nope", 10).await.unwrap_err();
     assert_eq!(missing.code, DbErrorCode::NotFound);
 }
+
+#[tokio::test]
+#[ignore = "needs Docker"]
+async fn edits_change_values_and_report_what_was_gone() {
+    use dbc_core::kv::KeyEdit;
+
+    let server = server(None).await;
+    let connection = RedisDriver
+        .connect(&config(&server, None, None).await)
+        .await
+        .unwrap();
+    rows(&connection, "SET s old PX 600000").await;
+    let store = connection.key_value().unwrap();
+    let apply = |key: &'static [u8], edit: KeyEdit| async move { store.edit_key(key, &edit).await };
+
+    apply(
+        b"s",
+        KeyEdit::SetString {
+            value: "new".into(),
+        },
+    )
+    .await
+    .unwrap();
+    apply(
+        b"h",
+        KeyEdit::HashSet {
+            field: "f".into(),
+            value: "v".into(),
+        },
+    )
+    .await
+    .unwrap();
+    apply(
+        b"l",
+        KeyEdit::ListPush {
+            value: "a".into(),
+            head: false,
+        },
+    )
+    .await
+    .unwrap();
+    apply(
+        b"l",
+        KeyEdit::ListPush {
+            value: "b".into(),
+            head: false,
+        },
+    )
+    .await
+    .unwrap();
+    apply(
+        b"l",
+        KeyEdit::ListSet {
+            index: 0,
+            value: "A".into(),
+        },
+    )
+    .await
+    .unwrap();
+    apply(b"l", KeyEdit::ListRemove { value: "b".into() })
+        .await
+        .unwrap();
+    apply(
+        b"z",
+        KeyEdit::ZsetAdd {
+            member: "m".into(),
+            score: 2.5,
+        },
+    )
+    .await
+    .unwrap();
+    apply(
+        b"h",
+        KeyEdit::Rename {
+            new_name: "h2".into(),
+        },
+    )
+    .await
+    .unwrap();
+    apply(b"h2", KeyEdit::Expire { ttl_ms: None })
+        .await
+        .unwrap();
+
+    let string = store.read_key(b"s", 10).await.unwrap();
+    assert_eq!(string.rows.rows[0][0], Value::Text("new".into()));
+    assert!(string.ttl_ms.is_some(), "KEEPTTL keeps the expiry");
+    assert_eq!(
+        store.read_key(b"l", 10).await.unwrap().rows.rows,
+        vec![vec![Value::Int(0), Value::Text("A".into())]]
+    );
+    assert_eq!(
+        store.read_key(b"z", 10).await.unwrap().rows.rows[0][1],
+        Value::Float(2.5)
+    );
+    assert_eq!(store.read_key(b"h2", 10).await.unwrap().key_type, "hash");
+
+    let gone = apply(
+        b"l",
+        KeyEdit::ListRemove {
+            value: "nope".into(),
+        },
+    )
+    .await
+    .unwrap_err();
+    rows(&connection, "SET taken 1").await;
+    let taken = apply(
+        b"h2",
+        KeyEdit::Rename {
+            new_name: "taken".into(),
+        },
+    )
+    .await
+    .unwrap_err();
+    let wrong_type = apply(
+        b"s",
+        KeyEdit::HashSet {
+            field: "f".into(),
+            value: "v".into(),
+        },
+    )
+    .await
+    .unwrap_err();
+    apply(b"h2", KeyEdit::Delete).await.unwrap();
+    let deleted_twice = apply(b"h2", KeyEdit::Delete).await.unwrap_err();
+
+    assert_eq!(gone.code, DbErrorCode::NotFound);
+    assert_eq!(taken.code, DbErrorCode::NotFound);
+    assert_eq!(wrong_type.code, DbErrorCode::Execution);
+    assert_eq!(deleted_twice.code, DbErrorCode::NotFound);
+}

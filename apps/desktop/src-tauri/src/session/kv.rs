@@ -1,7 +1,7 @@
 //! The key browser runs on the session's metadata connection, like the schema browser.
 
 use dbc_core::DbError;
-use dbc_core::kv::{KeyContent, ScanPage};
+use dbc_core::kv::{KeyContent, KeyEdit, ScanPage};
 
 use super::Session;
 
@@ -19,6 +19,25 @@ impl Session {
         let connection = self.metadata().await?;
         let result = match connection.key_value() {
             Some(store) => store.scan_keys(pattern, cursor, count).await,
+            None => Err(not_key_value()),
+        };
+        self.check_metadata(&connection, result).await
+    }
+
+    /// The commands of `edit`, then (unless `preview`) runs them.
+    pub async fn kv_edit(
+        &self,
+        key: &[u8],
+        edit: &KeyEdit,
+        preview: bool,
+    ) -> Result<Vec<String>, DbError> {
+        let connection = self.metadata().await?;
+        let result = match connection.key_value() {
+            Some(store) => match store.edit_preview(key, edit) {
+                Ok(commands) if preview => Ok(commands),
+                Ok(commands) => store.edit_key(key, edit).await.map(|()| commands),
+                Err(error) => Err(error),
+            },
             None => Err(not_key_value()),
         };
         self.check_metadata(&connection, result).await

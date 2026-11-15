@@ -8,8 +8,8 @@ use dbc_core::driver::DriverKind;
 use dbc_store::{ConnectionDraft, TlsSettings};
 use dunlin_lib::commands;
 use dunlin_lib::ipc::{
-    ConnectionIdArgs, ConnectionSaveArgs, KvReadArgs, KvScanArgs, QueryExecuteArgs, QueryOutcome,
-    SessionInfo, SqlSplitArgs, TransactionModeArgs,
+    ConnectionIdArgs, ConnectionSaveArgs, KvEditArgs, KvReadArgs, KvScanArgs, QueryExecuteArgs,
+    QueryOutcome, SessionInfo, SqlSplitArgs, TransactionModeArgs,
 };
 use testcontainers_modules::redis::Redis;
 use testcontainers_modules::testcontainers::ImageExt;
@@ -208,4 +208,51 @@ async fn sql_connections_have_no_key_browser() {
     .unwrap_err();
 
     assert_eq!(error.code, "unsupported");
+}
+
+#[tokio::test]
+#[ignore = "needs Docker"]
+async fn edits_are_previewed_then_run_and_read_only_connections_only_preview() {
+    use dbc_core::kv::{KeyEdit, KeyName};
+
+    let server = Redis::default().with_tag("7.4").start().await.unwrap();
+    let port = server.get_host_port_ipv4(6379).await.unwrap();
+    let fixture = Fixture::new();
+    let session = open(&fixture, port, false).await;
+    let read_only = open(&fixture, port, true).await;
+    let key = KeyName::from_bytes(b"user:9").id;
+    let edit = |session: &SessionInfo, preview: bool| KvEditArgs {
+        session_id: session.session_id.clone(),
+        key: key.clone(),
+        edit: KeyEdit::HashSet {
+            field: "name".into(),
+            value: "Grace Hopper".into(),
+        },
+        preview,
+    };
+
+    let previewed = commands::kv_edit(&fixture.state, edit(&read_only, true))
+        .await
+        .unwrap();
+    let refused = commands::kv_edit(&fixture.state, edit(&read_only, false))
+        .await
+        .unwrap_err();
+    let ran = commands::kv_edit(&fixture.state, edit(&session, false))
+        .await
+        .unwrap();
+    let content = commands::kv_read(
+        &fixture.state,
+        KvReadArgs {
+            session_id: session.session_id.clone(),
+            key: key.clone(),
+            limit: None,
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(previewed, [r#"HSET user:9 name "Grace Hopper""#]);
+    assert_eq!(refused.code, "read_only");
+    assert_eq!(ran, previewed);
+    assert_eq!(content.length, 1);
 }

@@ -23,7 +23,7 @@ pub use connections::{
 };
 pub use export::{export_result, export_table, export_text};
 pub use history::{history_clear, history_list};
-pub use kv::{kv_read, kv_scan};
+pub use kv::{kv_edit, kv_read, kv_scan};
 pub use queries::{
     MAX_ROW_LIMIT, query_cancel, query_execute, query_explain, sql_split, transaction_finish,
     transaction_mode_set, transaction_status,

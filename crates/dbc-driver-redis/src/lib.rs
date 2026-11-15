@@ -3,6 +3,7 @@
 
 mod command;
 mod connection;
+mod edit;
 mod errors;
 mod kv;
 mod reply;

@@ -133,6 +133,7 @@ export function Workspace({ session, profile }: Props) {
             sessionId={sessionId}
             id={active.id}
             name={active.name}
+            readOnly={session.readOnly}
           />
         )}
         {active?.kind === "editor" && (

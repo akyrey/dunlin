@@ -159,6 +159,14 @@ pub async fn kv_scan(
 }
 
 #[tauri::command]
+pub async fn kv_edit(
+    state: State<'_, AppState>,
+    args: crate::ipc::KvEditArgs,
+) -> Result<Vec<String>, AppError> {
+    logged("kv_edit", commands::kv_edit(&state, args)).await
+}
+
+#[tauri::command]
 pub async fn kv_read(
     state: State<'_, AppState>,
     args: crate::ipc::KvReadArgs,

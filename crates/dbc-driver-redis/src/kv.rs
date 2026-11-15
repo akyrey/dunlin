@@ -2,7 +2,7 @@
 //! in bounded steps (never `KEYS`, never a whole huge value).
 
 use async_trait::async_trait;
-use dbc_core::kv::{KeyContent, KeyName, KeySummary, KeyValueStore, ScanPage};
+use dbc_core::kv::{KeyContent, KeyEdit, KeyName, KeySummary, KeyValueStore, ScanPage};
 use dbc_core::result::{ColumnMeta, ResultSet, TypeCategory};
 use dbc_core::{DbError, DbErrorCode, Value};
 use redis::Value as Reply;
@@ -248,6 +248,23 @@ impl RedisConnection {
 
 #[async_trait]
 impl KeyValueStore for RedisConnection {
+    fn edit_preview(&self, key: &[u8], edit: &KeyEdit) -> Result<Vec<String>, DbError> {
+        Ok(crate::edit::plan(key, edit)?
+            .iter()
+            .map(crate::edit::render)
+            .collect())
+    }
+
+    async fn edit_key(&self, key: &[u8], edit: &KeyEdit) -> Result<(), DbError> {
+        for command in crate::edit::plan(key, edit)? {
+            let reply = self.command(command).await?;
+            if let Some(reason) = crate::edit::changed_nothing(edit, &reply) {
+                return Err(DbError::new(DbErrorCode::NotFound, reason));
+            }
+        }
+        Ok(())
+    }
+
     async fn scan_keys(
         &self,
         pattern: &str,

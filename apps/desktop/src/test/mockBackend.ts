@@ -13,6 +13,9 @@ import type {
   HistoryEntry,
   HistoryListArgs,
   KeyArg,
+  KeyContentIpc,
+  KeyEdit,
+  KeyName,
   OperationArg,
   SavedQuery,
   SavedQueryDraft,
@@ -134,8 +137,9 @@ const NO_TRANSACTION = { manual: false, open: false };
 
 const textCell = (v: string): Value => ({ t: "text", v, truncated: false });
 const keyName = (name: string) => ({ name, id: btoa(name) });
+type MockKey = { key: KeyName; keyType: string; content: KeyContentIpc };
 /** The mock Redis keyspace. */
-const MOCK_KEYS = [
+const MOCK_KEYS: MockKey[] = [
   {
     key: keyName("user:1"),
     keyType: "hash",
@@ -182,6 +186,47 @@ const MOCK_KEYS = [
     },
   },
 ];
+
+/** The console text of a mock edit, close enough to the driver's for the tests. */
+function mockCommand(name: string, edit: KeyEdit): string {
+  switch (edit.kind) {
+    case "hash_set":
+      return `HSET ${name} ${edit.field} ${edit.value}`;
+    case "set_string":
+      return `SET ${name} ${edit.value} KEEPTTL`;
+    case "delete":
+      return `DEL ${name}`;
+    default:
+      return `${edit.kind.toUpperCase()} ${name}`;
+  }
+}
+
+/** The mock keyspace after an edit; only HSET, SET and DEL change it. */
+function applyMockEdit(keys: MockKey[], name: string, edit: KeyEdit): MockKey[] {
+  const others = keys.filter((k) => k.key.name !== name);
+  const found = keys.find((k) => k.key.name === name);
+  if (edit.kind === "delete") return others;
+  if (edit.kind === "set_string") {
+    const content: KeyContentIpc = {
+      key: keyName(name),
+      keyType: "string",
+      ttlMs: found?.content.ttlMs ?? null,
+      length: edit.value.length,
+      columns: [{ name: "value", typeName: "", category: "text", nullable: false }],
+      rows: [[textCell(edit.value)]],
+      truncated: false,
+    };
+    return [...others, { key: keyName(name), keyType: "string", content }];
+  }
+  if (edit.kind === "hash_set" && found) {
+    const kept = found.content.rows.filter((row) => rawText(row[0] ?? textCell("")) !== edit.field);
+    const rows = [...kept, [textCell(edit.field), textCell(edit.value)]];
+    const content = { ...found.content, rows, length: rows.length };
+    return keys.map((k) => (k === found ? { ...found, content } : k));
+  }
+  return keys;
+}
+
 const MOCK_NAMESPACES: Namespace[] = [
   { namespace: MAIN, name: "main", system: false },
   { namespace: { catalog: null, schema: "temp" }, name: "temp", system: true },
@@ -527,6 +572,7 @@ export function createMockBackend() {
     return outcome;
   };
   let nextId = 1;
+  let keys = MOCK_KEYS;
 
   const save = (draft: ConnectionDraft, secrets?: ConnectionSecrets): ConnectionProfile => {
     if (!draft.name.trim())
@@ -719,14 +765,22 @@ export function createMockBackend() {
       );
       // Two keys per step, so paging is exercised.
       const start = Number(a.cursor ?? "0");
-      const all = MOCK_KEYS.filter((k) => pattern.test(k.key.name));
+      const all = keys.filter((k) => pattern.test(k.key.name));
       const next = start + 2;
       return { keys: all.slice(start, next), cursor: next < all.length ? String(next) : null };
     },
     kv_read: (a) => {
-      const found = MOCK_KEYS.find((k) => k.key.id === a.key);
+      const found = keys.find((k) => k.key.id === a.key);
       if (!found) return reject("not_found", "The key no longer exists");
       return found.content;
+    },
+    kv_edit: (a) => {
+      const name = atob(a.key as string);
+      const edit = a.edit as KeyEdit;
+      const commands = [mockCommand(name, edit)];
+      if (a.preview) return commands;
+      keys = applyMockEdit(keys, name, edit);
+      return commands;
     },
     ssh_config_hosts: () => [
       {

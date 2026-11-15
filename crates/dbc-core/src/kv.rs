@@ -2,7 +2,7 @@
 //! frontend reuses its result grid and cell viewer.
 
 use async_trait::async_trait;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::DbError;
 use crate::result::ResultSet;
@@ -72,8 +72,69 @@ pub struct KeyContent {
     pub rows: ResultSet,
 }
 
+/// One change to a key (D-032). Values are text; a write to a missing key creates it.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum KeyEdit {
+    SetString {
+        value: String,
+    },
+    HashSet {
+        field: String,
+        value: String,
+    },
+    HashDelete {
+        field: String,
+    },
+    /// Replaces the item at `index` (0-based; negative counts from the end).
+    ListSet {
+        #[cfg_attr(feature = "ts", ts(type = "number"))]
+        index: i64,
+        value: String,
+    },
+    /// Appends (`head: false`) or prepends a value.
+    ListPush {
+        value: String,
+        head: bool,
+    },
+    /// Removes the first item equal to `value`.
+    ListRemove {
+        value: String,
+    },
+    SetAdd {
+        member: String,
+    },
+    SetRemove {
+        member: String,
+    },
+    ZsetAdd {
+        member: String,
+        score: f64,
+    },
+    ZsetRemove {
+        member: String,
+    },
+    /// `None` removes the expiry.
+    Expire {
+        #[cfg_attr(feature = "ts", ts(type = "number | null"))]
+        ttl_ms: Option<i64>,
+    },
+    /// Fails when `new_name` already exists, rather than overwriting it.
+    Rename {
+        new_name: String,
+    },
+    Delete,
+}
+
 #[async_trait]
 pub trait KeyValueStore: Send + Sync {
+    /// The commands `edit` runs, as they would be typed in the console.
+    fn edit_preview(&self, key: &[u8], edit: &KeyEdit) -> Result<Vec<String>, DbError>;
+
+    /// Runs `edit`. `NotFound` when it changed nothing it had to (a value no longer there).
+    async fn edit_key(&self, key: &[u8], edit: &KeyEdit) -> Result<(), DbError>;
+
     /// One `SCAN` step from `cursor` (`None` to start) over keys matching `pattern`.
     async fn scan_keys(
         &self,

@@ -459,6 +459,17 @@ pub struct KvReadArgs {
     pub limit: Option<usize>,
 }
 
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct KvEditArgs {
+    pub session_id: String,
+    /// The key's `id` (base64 of its bytes); a missing key is created by the first write.
+    pub key: String,
+    pub edit: dbc_core::kv::KeyEdit,
+    /// Only return the commands, without running them.
+    pub preview: bool,
+}
+
 /// A key's content as a grid (D-032).
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]

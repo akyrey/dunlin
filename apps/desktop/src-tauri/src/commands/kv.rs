@@ -4,7 +4,7 @@ use dbc_core::DEFAULT_DISPLAY_LIMIT;
 use dbc_core::kv::{KeyName, ScanPage};
 
 use crate::error::AppError;
-use crate::ipc::{KeyContentIpc, KvReadArgs, KvScanArgs};
+use crate::ipc::{KeyContentIpc, KvEditArgs, KvReadArgs, KvScanArgs};
 use crate::state::AppState;
 
 /// Keys per `SCAN` step unless asked otherwise; a hint to the server, not a promise.
@@ -25,6 +25,23 @@ pub async fn kv_scan(state: &AppState, args: KvScanArgs) -> Result<ScanPage, App
         .kv_scan(pattern, args.cursor.as_deref(), count)
         .await
         .map_err(AppError::from)
+}
+
+/// The commands an edit runs; with `preview: false` they run too. Read-only connections can
+/// preview but not run.
+pub async fn kv_edit(state: &AppState, args: KvEditArgs) -> Result<Vec<String>, AppError> {
+    let session = state.sessions.get(&args.session_id).await?;
+    if !args.preview && session.read_only {
+        return Err(AppError::read_only());
+    }
+    let key = KeyName::decode(&args.key).map_err(|e| AppError::invalid(e.message))?;
+    session
+        .kv_edit(&key, &args.edit, args.preview)
+        .await
+        .map_err(|e| match e.code {
+            dbc_core::DbErrorCode::Internal => AppError::invalid(e.message),
+            _ => AppError::from(e),
+        })
 }
 
 pub async fn kv_read(state: &AppState, args: KvReadArgs) -> Result<KeyContentIpc, AppError> {

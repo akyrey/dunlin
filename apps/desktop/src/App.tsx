@@ -98,7 +98,14 @@ export function App() {
       profiles.flatMap((profile) => {
         const session = sessions[profile.id];
         return session?.capabilities.keyValue
-          ? [{ connectionId: profile.id, sessionId: session.sessionId, label: profile.name }]
+          ? [
+              {
+                connectionId: profile.id,
+                sessionId: session.sessionId,
+                label: profile.name,
+                readOnly: session.readOnly,
+              },
+            ]
           : [];
       }),
     [profiles, sessions],
@@ -109,7 +116,14 @@ export function App() {
         const session = sessions[profile.id];
         // Key-value stores have no schema; the key browser shows them instead.
         return session && !session.capabilities.keyValue
-          ? [{ connectionId: profile.id, sessionId: session.sessionId, label: profile.name }]
+          ? [
+              {
+                connectionId: profile.id,
+                sessionId: session.sessionId,
+                label: profile.name,
+                readOnly: session.readOnly,
+              },
+            ]
           : [];
       }),
     [profiles, sessions],

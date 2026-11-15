@@ -81,6 +81,7 @@ fn export_all(dir: &Path) {
     crate::ipc::SshConfigEntry::export_all(&config).unwrap();
     crate::ipc::KvScanArgs::export_all(&config).unwrap();
     crate::ipc::KvReadArgs::export_all(&config).unwrap();
+    crate::ipc::KvEditArgs::export_all(&config).unwrap();
     crate::ipc::KeyContentIpc::export_all(&config).unwrap();
     dbc_core::kv::ScanPage::export_all(&config).unwrap();
     crate::ipc::ConnectionsExportArgs::export_all(&config).unwrap();

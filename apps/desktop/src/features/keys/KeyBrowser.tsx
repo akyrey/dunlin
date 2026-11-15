@@ -1,9 +1,16 @@
 import { useEffect, useState } from "react";
 
+import { toast } from "../../components/toastStore";
 import { useWorkspace } from "../workspace/workspaceStore";
 import { listOf, useKeys } from "./keysStore";
+import { NewKeyDialog } from "./NewKeyDialog";
 
-export type KeySessionInfo = { connectionId: string; sessionId: string; label: string };
+export type KeySessionInfo = {
+  connectionId: string;
+  sessionId: string;
+  label: string;
+  readOnly?: boolean;
+};
 
 const TYPE_STYLE: Record<string, string> = {
   string: "text-emerald-300",
@@ -18,6 +25,7 @@ function KeyList({ session }: { session: KeySessionInfo }) {
   const { sessionId, label } = session;
   const list = useKeys((s) => listOf(s, sessionId));
   const [pattern, setPattern] = useState(list.pattern);
+  const [creating, setCreating] = useState(false);
   useEffect(() => {
     void useKeys.getState().search(sessionId, "*");
   }, [sessionId]);
@@ -43,7 +51,34 @@ function KeyList({ session }: { session: KeySessionInfo }) {
           Scan
         </button>
       </form>
-      <p className="px-3 text-[11px] uppercase tracking-wide text-zinc-500">{label}</p>
+      <div className="flex items-center px-3">
+        <p className="flex-1 text-[11px] uppercase tracking-wide text-zinc-500">{label}</p>
+        {!session.readOnly && (
+          <button
+            type="button"
+            className="text-xs text-zinc-400 hover:text-zinc-100"
+            onClick={() => {
+              setCreating(true);
+            }}
+          >
+            New key
+          </button>
+        )}
+      </div>
+      {creating && (
+        <NewKeyDialog
+          sessionId={sessionId}
+          onClose={() => {
+            setCreating(false);
+          }}
+          onCreated={(id, name) => {
+            setCreating(false);
+            toast.success(`Created ${name}`);
+            void useKeys.getState().search(sessionId, list.pattern);
+            useWorkspace.getState().openKey(sessionId, id, name);
+          }}
+        />
+      )}
       {list.error && (
         <p role="alert" className="px-3 py-1 text-xs text-rose-300">
           {list.error.message}

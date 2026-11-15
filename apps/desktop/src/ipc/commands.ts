@@ -42,6 +42,7 @@ import type {
   SshConfigEntry,
   ImportReport,
   KeyContentIpc,
+  KeyEdit,
   ScanPage,
 } from "./generated";
 import { Channel } from "@tauri-apps/api/core";
@@ -107,6 +108,17 @@ export const kvScan = (
 /** A key's type, TTL and content as a grid; `key` is the key's base64 `id`. */
 export const kvRead = (sessionId: string, key: string, limit?: number): Promise<KeyContentIpc> =>
   call("kv_read", { sessionId, key, limit });
+
+/**
+ * One change to a key; `key` is its base64 `id`. With `preview`, only the commands it would run
+ * come back; otherwise they run and come back.
+ */
+export const kvEdit = (
+  sessionId: string,
+  key: string,
+  edit: KeyEdit,
+  preview: boolean,
+): Promise<string[]> => call("kv_edit", { sessionId, key, edit, preview });
 
 /** Host aliases from `~/.ssh/config`, read now; nothing is stored. */
 export const sshConfigHosts = (): Promise<SshConfigEntry[]> => call("ssh_config_hosts");
