@@ -37,6 +37,7 @@ type Props = {
   running: boolean;
   onChange: (text: string) => void;
   onRun: (selection: Selection, mode: RunMode) => void;
+  onExplain?: (selection: Selection) => void;
   onCancel: () => void;
   onSave: () => void;
   handleRef: RefObject<EditorHandle | null>;
@@ -126,6 +127,13 @@ export function SqlEditor(props: Props) {
       keymap.of([
         { key: bindingOf("run-statement"), run: run("statement") },
         { key: bindingOf("run-script"), run: run("script") },
+        {
+          key: bindingOf("explain"),
+          run: (target) => {
+            callbacks.current.onExplain?.(selectionOf(target));
+            return true;
+          },
+        },
         {
           key: bindingOf("save-query"),
           run: () => {

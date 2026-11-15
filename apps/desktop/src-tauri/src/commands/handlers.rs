@@ -19,8 +19,8 @@ use crate::ipc::{
     StatementRange, TabArgs, TableSnippets,
 };
 use crate::ipc::{ExportDone, ExportProgress, ExportResultArgs, ExportTableArgs, ExportTextArgs};
+use crate::ipc::{QueryExplainArgs, TransactionFinishArgs, TransactionModeArgs};
 use crate::ipc::{SavedQueryIdArgs, SavedQuerySaveArgs, SettingsSetArgs};
-use crate::ipc::{TransactionFinishArgs, TransactionModeArgs};
 use crate::logging::logged;
 use crate::session::TransactionState;
 use crate::state::AppState;
@@ -124,6 +124,14 @@ pub async fn query_execute(
 #[tauri::command]
 pub async fn query_cancel(state: State<'_, AppState>, args: TabArgs) -> Result<(), AppError> {
     logged("query_cancel", commands::query_cancel(&state, args)).await
+}
+
+#[tauri::command]
+pub async fn query_explain(
+    state: State<'_, AppState>,
+    args: QueryExplainArgs,
+) -> Result<dbc_core::plan::PlanNode, AppError> {
+    logged("query_explain", commands::query_explain(&state, args)).await
 }
 
 #[tauri::command]

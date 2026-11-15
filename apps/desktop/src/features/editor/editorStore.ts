@@ -6,6 +6,8 @@ import {
   type StatementRange,
   queryCancel,
   queryExecute,
+  queryExplain,
+  type PlanNode,
   sqlSplit,
   tabClose,
   toAppError,
@@ -32,6 +34,10 @@ import { currentSettings } from "../settings/settingsStore";
 
 export const MAX_ROW_LIMIT = 100_000;
 
+export type Shown = number | "messages" | "plan";
+
+export type Explained = { sql: string; plan: PlanNode | null; error: AppError | null };
+
 export type EditorTab = {
   tabId: string;
   sessionId: string;
@@ -47,8 +53,10 @@ export type EditorTab = {
   /** A problem before anything ran (nothing to run, split failed). */
   notice: AppError | null;
   confirmation: Confirmation | null;
-  /** The result sub-tab shown: a statement index, or the Messages log. */
-  shown: number | "messages";
+  /** The result sub-tab shown: a statement index, the Messages log, or the plan. */
+  shown: Shown;
+  /** The last `EXPLAIN` (deferred feature 3). */
+  explained: Explained | null;
   /** The saved query this tab was opened from or saved as; saving writes back to it. */
   savedQueryId: string | null;
   /** `sql_split` of `text`, cached per document (task 5.5). */
@@ -75,7 +83,9 @@ type EditorState = {
   /** The tab now belongs to a saved query (and takes its name). */
   linkSaved: (tabId: string, savedQueryId: string, title: string) => void;
   setRowLimit: (tabId: string, rowLimit: number) => void;
-  show: (tabId: string, shown: number | "messages") => void;
+  show: (tabId: string, shown: Shown) => void;
+  /** Shows the plan of the selection, or of the statement under the cursor, without running it. */
+  explain: (tabId: string, selection: Selection) => Promise<void>;
   /** Splits the tab's text unless the cached split is for the same text. */
   updateSplit: (tabId: string) => Promise<StatementRange[]>;
   run: (tabId: string, selection: Selection, mode: RunMode) => Promise<void>;
@@ -109,7 +119,7 @@ function noStatement(): AppError {
 
 /** The result the tab's results panel shows, for the status bar. */
 export function shownResult(tab: EditorTab | undefined): QueryResult | null {
-  if (!tab?.run || tab.shown === "messages") return null;
+  if (!tab?.run || typeof tab.shown !== "number") return null;
   return tab.run.statements[tab.shown]?.result ?? null;
 }
 
@@ -287,6 +297,7 @@ export const useEditor = create<EditorState>()((set, get) => {
         split: null,
         savedQueryId: init.savedQueryId ?? null,
         transaction: { manual: false, open: false },
+        explained: null,
       };
       set({ tabs: { ...get().tabs, [tabId]: tab } });
       useWorkspace.getState().openEditor(sessionId, tabId);
@@ -348,6 +359,41 @@ export const useEditor = create<EditorState>()((set, get) => {
         setStatement(tabId, index, { status: "done", result, error: null });
       } catch (caught) {
         failed(tabId, index, toAppError(caught));
+      }
+    },
+
+    explain: async (tabId, selection) => {
+      const tab = get().tabs[tabId];
+      if (!tab || tab.running) return;
+      let statements: StatementRun[];
+      try {
+        const selected = selection.from !== selection.to;
+        const ranges = selected ? [] : await get().updateSplit(tabId);
+        const selectionRanges = selected
+          ? await sqlSplit(tab.sessionId, tab.text.slice(selection.from, selection.to))
+          : [];
+        statements = plan(tab.text, selection, "statement", ranges, selectionRanges);
+      } catch (caught) {
+        update(tabId, { notice: toAppError(caught) });
+        return;
+      }
+      const [statement, ...more] = statements;
+      if (!statement || more.length > 0) {
+        update(tabId, {
+          notice: statement
+            ? { code: "invalid_argument", message: "Select one statement to explain" }
+            : noStatement(),
+        });
+        return;
+      }
+      update(tabId, { notice: null, running: true, startedAt: Date.now() });
+      try {
+        const planned = await queryExplain(tab.sessionId, tabId, statement.sql);
+        update(tabId, { explained: { sql: statement.sql, plan: planned, error: null } });
+      } catch (caught) {
+        update(tabId, { explained: { sql: statement.sql, plan: null, error: toAppError(caught) } });
+      } finally {
+        update(tabId, { running: false, startedAt: null, shown: "plan" });
       }
     },
 

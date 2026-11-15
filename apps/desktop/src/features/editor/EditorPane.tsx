@@ -9,6 +9,7 @@ import { SaveQueryDialog } from "../saved/SaveQueryDialog";
 import { useSavedQueries } from "../saved/savedQueriesStore";
 import { DangerDialog } from "./DangerDialog";
 import { ElapsedTimer } from "./ElapsedTimer";
+import { shortcutLabel } from "../shortcuts/registry";
 import { ResultPanel } from "./ResultPanel";
 import { TransactionControls } from "./TransactionControls";
 import { RowLimitSelect } from "./RowLimitSelect";
@@ -120,6 +121,18 @@ export function EditorPane({ tabId, session, profile }: Props) {
           >
             Run script
           </Button>
+          {session.capabilities.explain && (
+            <Button
+              disabled={tab.running}
+              title={`Show the plan of the selection or the statement under the cursor, without running it (${shortcutLabel("explain")})`}
+              onClick={() => {
+                const selection = editor.current?.selection() ?? { from: 0, to: 0, head: 0 };
+                guardEdits(() => void actions.explain(tabId, selection));
+              }}
+            >
+              Explain
+            </Button>
+          )}
           {tab.running && session.capabilities.cancel && (
             <Button
               variant="danger"
@@ -186,6 +199,13 @@ export function EditorPane({ tabId, session, profile }: Props) {
               actions.setText(tabId, next);
             }}
             onRun={runWith}
+            onExplain={
+              session.capabilities.explain
+                ? (selection) => {
+                    guardEdits(() => void actions.explain(tabId, selection));
+                  }
+                : undefined
+            }
             onCancel={() => void actions.cancel(tabId)}
             onSave={() => void save()}
           />

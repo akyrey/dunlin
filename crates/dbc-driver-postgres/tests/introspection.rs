@@ -202,3 +202,32 @@ async fn a_schema_without_usage_is_a_permission_error() {
     assert_eq!(missing.code, DbErrorCode::NotFound);
     assert!(public.is_ok());
 }
+
+#[tokio::test]
+#[ignore = "needs Docker"]
+async fn explain_reads_the_json_plan_without_running_the_statement() {
+    let server = Server::start().await;
+    let database = server.fresh_database().await;
+    let connection = connect(&server, &database).await;
+
+    let plan = connection
+        .explain("SELECT c.name FROM customers c JOIN orders o ON o.customer_id = c.id;")
+        .await
+        .unwrap();
+    connection.explain("DELETE FROM order_items").await.unwrap();
+    let remaining = connection
+        .execute("SELECT count(*) FROM order_items", &Default::default())
+        .await
+        .unwrap();
+
+    assert!(plan.cost.is_some(), "{plan:?}");
+    assert!(!plan.children.is_empty(), "{plan:?}");
+    let dbc_core::result::StatementOutcome::Rows(rows) = remaining else {
+        panic!("{remaining:?}")
+    };
+    assert_ne!(
+        rows.rows[0][0],
+        dbc_core::Value::Int(0),
+        "EXPLAIN must not run the DELETE"
+    );
+}

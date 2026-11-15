@@ -70,6 +70,7 @@ pub fn run() -> Result<(), tauri::Error> {
             handlers::sql_split,
             handlers::query_execute,
             handlers::query_cancel,
+            handlers::query_explain,
             handlers::transaction_status,
             handlers::transaction_mode_set,
             handlers::transaction_finish,

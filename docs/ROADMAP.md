@@ -53,7 +53,7 @@ Roughly in order of likely value:
 
 1. ~~Editing results of simple single-table ad-hoc queries~~ (done, D-027)
 2. ~~Manual transaction mode with a visible transaction indicator and commit/rollback buttons~~ (done, D-028)
-3. Visual `EXPLAIN`
+3. ~~Visual `EXPLAIN`~~ (done, D-029)
 4. Reading `~/.ssh/config`
 5. Keyset pagination for large tables
 6. Import from CSV

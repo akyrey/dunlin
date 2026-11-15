@@ -259,6 +259,11 @@ pub trait Connection: Send + Sync {
         Err(DbError::unsupported("table_ddl"))
     }
 
+    /// The server's plan for one statement, without running it (no `ANALYZE`).
+    async fn explain(&self, _statement: &str) -> Result<crate::plan::PlanNode, DbError> {
+        Err(DbError::unsupported("explain"))
+    }
+
     async fn completion_schema(
         &self,
         _namespace: &NamespaceRef,

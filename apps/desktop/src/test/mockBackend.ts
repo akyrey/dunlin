@@ -639,6 +639,35 @@ export function createMockBackend() {
       else if (state?.manual) state.open = true;
       return record(args, execute(args));
     },
+    query_explain: (a) => {
+      const sql = a.sql as string;
+      if (/FRM/.test(sql)) return reject("syntax", 'near "FRM": syntax error');
+      return {
+        operation: "Hash Join",
+        relation: null,
+        details: ["Hash Cond: (o.person = p.id)"],
+        estimatedRows: 120,
+        cost: 45.5,
+        children: [
+          {
+            operation: "Seq Scan",
+            relation: "people p",
+            details: [],
+            estimatedRows: 3,
+            cost: 1.03,
+            children: [],
+          },
+          {
+            operation: "Index Scan",
+            relation: "orders o",
+            details: ["Index Name: orders_person"],
+            estimatedRows: 40,
+            cost: 30,
+            children: [],
+          },
+        ],
+      };
+    },
     transaction_status: (a) => ({ ...(transactions.get(a.tabId as string) ?? NO_TRANSACTION) }),
     transaction_mode_set: (a) => {
       const current = transactions.get(a.tabId as string) ?? { ...NO_TRANSACTION };

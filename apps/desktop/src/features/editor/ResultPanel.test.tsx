@@ -22,6 +22,7 @@ function tab(patch: Partial<EditorTab>): EditorTab {
     shown: 0,
     split: null,
     transaction: { manual: false, open: false },
+    explained: null,
     savedQueryId: null,
     ...patch,
   };

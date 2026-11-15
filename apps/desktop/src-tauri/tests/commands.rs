@@ -521,3 +521,25 @@ async fn a_plain_single_table_select_reports_its_source_table() {
     assert_eq!(qualified.source, Some(main("customers")));
     assert_eq!(counted.source, None);
 }
+
+#[tokio::test]
+async fn explain_returns_a_plan_and_refuses_scripts() {
+    let fixture = Fixture::new();
+    let session = fixture.session(true).await;
+    let args = |sql: &str| dunlin_lib::ipc::QueryExplainArgs {
+        session_id: session.session_id.clone(),
+        tab_id: "t".into(),
+        sql: sql.into(),
+    };
+
+    // Read-only sessions can explain writes: nothing runs.
+    let plan = commands::query_explain(&fixture.state, args("DELETE FROM orders WHERE id = 1"))
+        .await
+        .unwrap();
+    let script = commands::query_explain(&fixture.state, args("SELECT 1; SELECT 2"))
+        .await
+        .unwrap_err();
+
+    assert!(!plan.operation.is_empty());
+    assert_eq!(script.code, "invalid_argument");
+}

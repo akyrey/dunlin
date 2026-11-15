@@ -1289,6 +1289,7 @@ dependencies = [
  "rustls",
  "rustls-native-certs",
  "secrecy",
+ "serde_json",
  "tempfile",
  "testcontainers-modules",
  "tokio",

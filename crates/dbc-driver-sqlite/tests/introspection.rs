@@ -174,3 +174,39 @@ async fn foreign_keys_without_columns_reference_the_primary_key() {
         vec![Vec::<String>::new(), vec!["id".to_owned()]]
     );
 }
+
+#[tokio::test]
+async fn explain_returns_the_query_plan_as_a_tree_without_running_the_statement() {
+    let databases = TempDatabases::default();
+    let connection = open(&databases).await;
+
+    let plan = connection
+        .explain("SELECT c.name FROM customers c JOIN orders o ON o.customer_id = c.id ORDER BY 1;")
+        .await
+        .unwrap();
+    let deleted = connection.explain("DELETE FROM orders").await.unwrap();
+    let count = connection
+        .execute("SELECT count(*) FROM orders", &ExecuteOptions::default())
+        .await
+        .unwrap();
+
+    let mut relations = Vec::new();
+    let mut stack = vec![&plan];
+    while let Some(node) = stack.pop() {
+        relations.extend(node.relation.clone());
+        stack.extend(&node.children);
+    }
+    assert!(
+        relations.contains(&"c".to_owned()) || relations.contains(&"customers".to_owned()),
+        "{plan:?}"
+    );
+    assert!(!deleted.operation.is_empty());
+    let dbc_core::result::StatementOutcome::Rows(rows) = count else {
+        panic!("{count:?}")
+    };
+    assert_ne!(
+        rows.rows[0][0],
+        dbc_core::Value::Int(0),
+        "EXPLAIN must not run the DELETE"
+    );
+}

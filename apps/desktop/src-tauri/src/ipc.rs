@@ -383,6 +383,14 @@ pub struct TabArgs {
 
 #[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+pub struct QueryExplainArgs {
+    pub session_id: String,
+    pub tab_id: String,
+    pub sql: String,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct TransactionModeArgs {
     pub session_id: String,
     pub tab_id: String,

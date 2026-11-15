@@ -450,6 +450,16 @@ impl Connection for PostgresConnection {
         crate::ddl::table_ddl(&*self.client()?, table).await
     }
 
+    async fn explain(&self, statement: &str) -> Result<dbc_core::plan::PlanNode, DbError> {
+        let sql = format!(
+            "EXPLAIN (FORMAT JSON) {}",
+            dbc_core::plan::statement_body(statement)
+        );
+        let outcome = self.execute(&sql, &ExecuteOptions::default()).await?;
+        let text = dbc_core::plan::column_text(&outcome, 0).concat();
+        crate::plan::from_json(&text)
+    }
+
     fn cancel_handle(&self) -> Arc<dyn CancelHandle> {
         Arc::clone(&self.cancel) as Arc<dyn CancelHandle>
     }

@@ -406,6 +406,29 @@ impl Connection for MysqlConnection {
         introspect::table_ddl(guard.as_mut().ok_or_else(closed)?, table).await
     }
 
+    /// `FORMAT=TREE` where the server has it. MariaDB and older MySQL refuse that format, and
+    /// get the classic table instead; when that fails too, its error is the one reported, as
+    /// it describes the statement rather than the format.
+    async fn explain(&self, statement: &str) -> Result<dbc_core::plan::PlanNode, DbError> {
+        let body = dbc_core::plan::statement_body(statement);
+        let options = ExecuteOptions::default();
+        if let Ok(outcome) = self
+            .execute(&format!("EXPLAIN FORMAT=TREE {body}"), &options)
+            .await
+        {
+            return Ok(dbc_core::plan::from_indented(
+                &dbc_core::plan::column_text(&outcome, 0).join("\n"),
+            ));
+        }
+        match self.execute(&format!("EXPLAIN {body}"), &options).await? {
+            StatementOutcome::Rows(result) => Ok(crate::plan::from_table(&result)),
+            StatementOutcome::Affected { .. } => Err(DbError::new(
+                dbc_core::DbErrorCode::Internal,
+                "EXPLAIN returned no plan",
+            )),
+        }
+    }
+
     async fn query_params(
         &self,
         statement: &str,

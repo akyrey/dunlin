@@ -87,7 +87,7 @@ pub struct Capabilities {
     pub cancel: bool,
     pub read_only_session: bool,     // server-enforced read-only
     pub transactional_ddl: bool,
-    pub explain: bool,
+    pub explain: bool,  // Connection::explain(statement) -> PlanNode, see dbc_core::plan
     pub tls: bool,
     pub tunnel: bool,                // false for file databases
 }

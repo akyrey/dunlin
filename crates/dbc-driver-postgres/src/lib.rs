@@ -7,6 +7,7 @@ mod decode;
 mod errors;
 mod introspect;
 mod params;
+mod plan;
 mod raw;
 mod tls;
 

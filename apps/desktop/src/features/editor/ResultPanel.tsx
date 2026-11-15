@@ -6,7 +6,8 @@ import { lineAndColumn } from "../../lib/text";
 import { EditableResult } from "../edit/EditableResult";
 import type { EditingProfile } from "../edit/useTableEditing";
 import { ResultView } from "../grid/ResultView";
-import type { EditorTab } from "./editorStore";
+import type { EditorTab, Shown } from "./editorStore";
+import { PlanView } from "./PlanView";
 import type { StatementRun, StatementStatus } from "./run";
 
 /** What editing a result needs: absent when the connection's results stay read-only. */
@@ -15,7 +16,7 @@ export type ResultEditing = { profile: EditingProfile; readOnly: boolean; onAppl
 type Props = {
   tab: EditorTab;
   editing?: ResultEditing;
-  onShow: (shown: number | "messages") => void;
+  onShow: (shown: Shown) => void;
   onJumpTo: (offset: number) => void;
 };
 
@@ -32,19 +33,24 @@ const STATUS_MARK: Record<StatementStatus, string> = {
 export function ResultPanel({ tab, editing, onShow, onJumpTo }: Props) {
   if (tab.notice)
     return <ErrorView error={tab.notice} offset={null} text={tab.text} onJumpTo={onJumpTo} />;
-  const run = tab.run;
-  if (!run)
+  const { run, explained } = tab;
+  if (!run && !explained)
     return (
       <Message>
         Run the statement at the cursor with {shortcutLabel("run-statement")}, or the whole script
         with {shortcutLabel("run-script")}.
       </Message>
     );
-  const shown =
-    tab.shown === "messages" ? "messages" : Math.min(tab.shown, run.statements.length - 1);
-  const statement = shown === "messages" ? null : run.statements[shown];
+  const statements = run?.statements ?? [];
+  const shown: Shown =
+    (tab.shown === "plan" && explained) || !run
+      ? "plan"
+      : tab.shown === "messages"
+        ? "messages"
+        : Math.min(typeof tab.shown === "number" ? tab.shown : 0, statements.length - 1);
+  const statement = typeof shown === "number" ? statements[shown] : undefined;
   // Only a one-statement run is edited, so its sub-tabs cannot hide pending edits.
-  const statementEditing = run.statements.length === 1 ? editing : undefined;
+  const statementEditing = statements.length === 1 ? editing : undefined;
   return (
     <div className="flex h-full flex-col">
       <div
@@ -52,7 +58,7 @@ export function ResultPanel({ tab, editing, onShow, onJumpTo }: Props) {
         aria-label="Results"
         className="flex shrink-0 overflow-x-auto border-b border-zinc-800"
       >
-        {run.statements.map((s, i) => (
+        {statements.map((s, i) => (
           <SubTab
             key={i}
             selected={shown === i}
@@ -64,18 +70,37 @@ export function ResultPanel({ tab, editing, onShow, onJumpTo }: Props) {
             }}
           />
         ))}
-        <SubTab
-          selected={shown === "messages"}
-          label="Messages"
-          mark=""
-          failed={false}
-          onSelect={() => {
-            onShow("messages");
-          }}
-        />
+        {run && (
+          <SubTab
+            selected={shown === "messages"}
+            label="Messages"
+            mark=""
+            failed={false}
+            onSelect={() => {
+              onShow("messages");
+            }}
+          />
+        )}
+        {explained && (
+          <SubTab
+            selected={shown === "plan"}
+            label="Plan"
+            mark={explained.error ? STATUS_MARK.failed : ""}
+            failed={explained.error !== null}
+            onSelect={() => {
+              onShow("plan");
+            }}
+          />
+        )}
       </div>
       <div role="tabpanel" className="min-h-0 flex-1">
-        {statement ? (
+        {shown === "plan" && explained ? (
+          explained.plan ? (
+            <PlanView plan={explained.plan} sql={explained.sql} />
+          ) : explained.error ? (
+            <ErrorView error={explained.error} offset={null} text={tab.text} onJumpTo={onJumpTo} />
+          ) : null
+        ) : statement ? (
           <StatementView
             statement={statement}
             text={tab.text}

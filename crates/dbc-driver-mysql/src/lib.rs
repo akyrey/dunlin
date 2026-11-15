@@ -5,6 +5,7 @@ mod connection;
 mod decode;
 mod errors;
 mod introspect;
+mod plan;
 
 use std::sync::Arc;
 

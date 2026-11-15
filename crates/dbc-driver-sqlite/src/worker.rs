@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use dbc_core::driver::{CancelHandle, Connection, ConnectionConfig, Endpoint};
+use dbc_core::plan::{self, PlanNode, PlanRow};
 use dbc_core::result::{
     ColumnMeta, ExecuteOptions, ResultSet, STREAM_BATCH, StatementOutcome, StreamEvent,
 };
@@ -387,6 +388,28 @@ impl Connection for SqliteConnection {
     async fn table_ddl(&self, table: &TableRef) -> Result<String, DbError> {
         let table = table.clone();
         self.call(move |c| introspect::table_ddl(c, &table)).await
+    }
+
+    /// `EXPLAIN QUERY PLAN`: rows of `(id, parent, notused, detail)`.
+    async fn explain(&self, statement: &str) -> Result<PlanNode, DbError> {
+        let sql = format!("EXPLAIN QUERY PLAN {}", plan::statement_body(statement));
+        let outcome = self
+            .execute(&sql, &ExecuteOptions { row_limit: 10_000 })
+            .await?;
+        let ids = plan::column_text(&outcome, 0);
+        let parents = plan::column_text(&outcome, 1);
+        let texts = plan::column_text(&outcome, 3);
+        let rows: Vec<PlanRow> = ids
+            .iter()
+            .zip(&parents)
+            .zip(texts)
+            .map(|((id, parent), text)| PlanRow {
+                id: id.parse().unwrap_or_default(),
+                parent: parent.parse().unwrap_or_default(),
+                text,
+            })
+            .collect();
+        Ok(plan::from_parent_rows(&rows))
     }
 
     fn cancel_handle(&self) -> Arc<dyn CancelHandle> {

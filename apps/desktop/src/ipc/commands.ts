@@ -38,6 +38,7 @@ import type {
   TableSnippets,
   Value,
   TransactionState,
+  PlanNode,
 } from "./generated";
 import { Channel } from "@tauri-apps/api/core";
 
@@ -82,6 +83,10 @@ export const queryExecute = (args: QueryExecuteArgs): Promise<QueryResult> =>
 
 export const queryCancel = (sessionId: string, tabId: string): Promise<void> =>
   call("query_cancel", { sessionId, tabId });
+
+/** The plan for one statement on the tab's connection; the statement is not run. */
+export const queryExplain = (sessionId: string, tabId: string, sql: string): Promise<PlanNode> =>
+  call("query_explain", { sessionId, tabId, sql });
 
 /** The tab's transaction mode and whether a transaction is open. */
 export const transactionStatus = (sessionId: string, tabId: string): Promise<TransactionState> =>
