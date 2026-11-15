@@ -98,11 +98,17 @@ function reject(code: string, message: string, detail?: unknown): Promise<never>
   return Promise.reject(error);
 }
 
-function rows(columns: ColumnMeta[], data: Value[][], truncated = false): QueryResult {
+function rows(
+  columns: ColumnMeta[],
+  data: Value[][],
+  truncated = false,
+  source: string | null = null,
+): QueryResult {
   return {
     outcome: { kind: "rows", columns, rows: data, truncated },
     elapsedMs: 3,
     statementClass: "read",
+    source: source === null ? null : { namespace: MAIN, name: source },
   };
 }
 
@@ -543,6 +549,7 @@ export function createMockBackend() {
         outcome: { kind: "affected", rows: "2" },
         elapsedMs: 1,
         statementClass: "write",
+        source: null,
       });
     }
     if (MOCK_WIDE_TABLE.test(sql)) return Promise.resolve(wideResult());
@@ -552,6 +559,8 @@ export function createMockBackend() {
       ]);
       return Promise.resolve(rows([peopleColumns[0] as ColumnMeta], data, true));
     }
+    if (/^select \* from people$/i.test(sql))
+      return Promise.resolve(rows(peopleColumns, peopleRows, false, "people"));
     if (/^select \* from people/i.test(sql))
       return Promise.resolve(rows(peopleColumns, peopleRows));
     return Promise.resolve(

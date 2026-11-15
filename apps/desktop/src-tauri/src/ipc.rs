@@ -388,6 +388,9 @@ pub struct QueryResult {
     #[ts(type = "number")]
     pub elapsed_ms: u64,
     pub statement_class: StatementClass,
+    /// The one table a plain `SELECT` read, resolved on the tab's own connection; its rows can
+    /// then be edited like the table's (when its row key is among the columns).
+    pub source: Option<TableRef>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]

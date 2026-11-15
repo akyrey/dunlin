@@ -51,7 +51,7 @@ Phases 3, 5 and 6 can be reordered among themselves once their predecessors are 
 
 Roughly in order of likely value:
 
-1. Editing results of simple single-table ad-hoc queries
+1. ~~Editing results of simple single-table ad-hoc queries~~ (done, D-027)
 2. Manual transaction mode with a visible transaction indicator and commit/rollback buttons
 3. Visual `EXPLAIN`
 4. Reading `~/.ssh/config`

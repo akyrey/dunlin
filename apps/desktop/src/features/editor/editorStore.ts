@@ -77,6 +77,8 @@ type EditorState = {
   confirm: (tabId: string) => Promise<void>;
   dismissConfirmation: (tabId: string) => void;
   cancel: (tabId: string) => Promise<void>;
+  /** Runs one statement of the last run again, in place (after its rows were edited). */
+  refreshStatement: (tabId: string, index: number) => Promise<void>;
   /** Closes the tab and its backend connection. */
   closeTab: (tabId: string) => Promise<void>;
   /** Forgets every tab of a session the backend already closed. */
@@ -306,6 +308,23 @@ export const useEditor = create<EditorState>()((set, get) => {
         current.text === tab.text ? { split: { text: tab.text, ranges } } : {},
       );
       return ranges;
+    },
+
+    refreshStatement: async (tabId, index) => {
+      const tab = get().tabs[tabId];
+      const statement = tab?.run?.statements[index];
+      if (!tab || !statement || tab.running) return;
+      try {
+        const result = await queryExecute({
+          sessionId: tab.sessionId,
+          tabId,
+          sql: statement.sql,
+          rowLimit: tab.rowLimit,
+        });
+        setStatement(tabId, index, { status: "done", result, error: null });
+      } catch (caught) {
+        failed(tabId, index, toAppError(caught));
+      }
     },
 
     run: async (tabId, selection, mode) => {

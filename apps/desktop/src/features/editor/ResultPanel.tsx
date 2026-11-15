@@ -3,12 +3,18 @@ import type { ReactNode } from "react";
 
 import type { AppError, QueryResult } from "../../ipc";
 import { lineAndColumn } from "../../lib/text";
+import { EditableResult } from "../edit/EditableResult";
+import type { EditingProfile } from "../edit/useTableEditing";
 import { ResultView } from "../grid/ResultView";
 import type { EditorTab } from "./editorStore";
 import type { StatementRun, StatementStatus } from "./run";
 
+/** What editing a result needs: absent when the connection's results stay read-only. */
+export type ResultEditing = { profile: EditingProfile; readOnly: boolean; onApplied: () => void };
+
 type Props = {
   tab: EditorTab;
+  editing?: ResultEditing;
   onShow: (shown: number | "messages") => void;
   onJumpTo: (offset: number) => void;
 };
@@ -23,7 +29,7 @@ const STATUS_MARK: Record<StatementStatus, string> = {
 };
 
 /** One sub-tab per statement of the last run, plus the run's Messages log (task 5.7). */
-export function ResultPanel({ tab, onShow, onJumpTo }: Props) {
+export function ResultPanel({ tab, editing, onShow, onJumpTo }: Props) {
   if (tab.notice)
     return <ErrorView error={tab.notice} offset={null} text={tab.text} onJumpTo={onJumpTo} />;
   const run = tab.run;
@@ -37,6 +43,8 @@ export function ResultPanel({ tab, onShow, onJumpTo }: Props) {
   const shown =
     tab.shown === "messages" ? "messages" : Math.min(tab.shown, run.statements.length - 1);
   const statement = shown === "messages" ? null : run.statements[shown];
+  // Only a one-statement run is edited, so its sub-tabs cannot hide pending edits.
+  const statementEditing = run.statements.length === 1 ? editing : undefined;
   return (
     <div className="flex h-full flex-col">
       <div
@@ -72,6 +80,8 @@ export function ResultPanel({ tab, onShow, onJumpTo }: Props) {
             statement={statement}
             text={tab.text}
             sessionId={tab.sessionId}
+            tabId={tab.tabId}
+            editing={statementEditing}
             onJumpTo={onJumpTo}
           />
         ) : (
@@ -108,11 +118,15 @@ function StatementView({
   statement,
   text,
   sessionId,
+  tabId,
+  editing,
   onJumpTo,
 }: {
   statement: StatementRun;
   text: string;
   sessionId: string;
+  tabId: string;
+  editing: ResultEditing | undefined;
   onJumpTo: (offset: number) => void;
 }) {
   return (
@@ -128,6 +142,8 @@ function StatementView({
           statement={statement}
           text={text}
           sessionId={sessionId}
+          tabId={tabId}
+          editing={editing}
           onJumpTo={onJumpTo}
         />
       </div>
@@ -139,11 +155,15 @@ function StatementBody({
   statement,
   text,
   sessionId,
+  tabId,
+  editing,
   onJumpTo,
 }: {
   statement: StatementRun;
   text: string;
   sessionId: string;
+  tabId: string;
+  editing: ResultEditing | undefined;
   onJumpTo: (offset: number) => void;
 }) {
   switch (statement.status) {
@@ -170,12 +190,27 @@ function StatementBody({
       ) : null;
     case "done":
       return statement.result ? (
-        <StatementResult result={statement.result} sessionId={sessionId} />
+        <StatementResult
+          result={statement.result}
+          sessionId={sessionId}
+          tabId={tabId}
+          editing={editing}
+        />
       ) : null;
   }
 }
 
-function StatementResult({ result, sessionId }: { result: QueryResult; sessionId: string }) {
+function StatementResult({
+  result,
+  sessionId,
+  tabId,
+  editing,
+}: {
+  result: QueryResult;
+  sessionId: string;
+  tabId: string;
+  editing: ResultEditing | undefined;
+}) {
   const { outcome } = result;
   if (outcome.kind === "affected") {
     const noun = outcome.rows === "1" ? "row" : "rows";
@@ -193,13 +228,26 @@ function StatementResult({ result, sessionId }: { result: QueryResult; sessionId
         </p>
       )}
       <div className="min-h-0 flex-1">
-        <ResultView
-          columns={outcome.columns}
-          rows={outcome.rows}
-          loadFull={null}
-          exportSource={{ sessionId, name: "result", columns: outcome.columns }}
-          noFullReason="Results of a statement in the editor cannot be fetched again by row; open the table from the tree to load whole values."
-        />
+        {editing && result.source ? (
+          <EditableResult
+            sessionId={sessionId}
+            tabId={tabId}
+            source={result.source}
+            columns={outcome.columns}
+            rows={outcome.rows}
+            readOnly={editing.readOnly}
+            profile={editing.profile}
+            onApplied={editing.onApplied}
+          />
+        ) : (
+          <ResultView
+            columns={outcome.columns}
+            rows={outcome.rows}
+            loadFull={null}
+            exportSource={{ sessionId, name: "result", columns: outcome.columns }}
+            noFullReason="Results of a statement in the editor cannot be fetched again by row; open the table from the tree to load whole values."
+          />
+        )}
       </div>
     </div>
   );

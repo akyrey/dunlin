@@ -8,6 +8,7 @@ use std::path::Path;
 
 use dbc_core::WireValue;
 use dbc_core::driver::DriverKind;
+use dbc_core::schema::{NamespaceRef, TableRef};
 use dbc_core::sql::StatementClass;
 use dbc_store::ConnectionDraft;
 use dunlin_lib::commands::{self, MAX_ROW_LIMIT};
@@ -486,4 +487,37 @@ async fn read_only_sessions_reject_dml_and_ddl_before_sending() {
         let result = fixture.run(&session, sql).await;
         assert_eq!(result.err().as_deref(), Some("read_only"), "{sql}");
     }
+}
+
+#[tokio::test]
+async fn a_plain_single_table_select_reports_its_source_table() {
+    let fixture = Fixture::new();
+    let session = fixture.session(false).await;
+    let main = |name: &str| TableRef {
+        namespace: NamespaceRef {
+            catalog: None,
+            schema: Some("main".into()),
+        },
+        name: name.into(),
+    };
+
+    let star = fixture
+        .run(&session, "SELECT * FROM customers")
+        .await
+        .unwrap();
+    let qualified = fixture
+        .run(
+            &session,
+            "select id, name from \"main\".customers c where id > 0",
+        )
+        .await
+        .unwrap();
+    let counted = fixture
+        .run(&session, "SELECT count(*) FROM customers")
+        .await
+        .unwrap();
+
+    assert_eq!(star.source, Some(main("customers")));
+    assert_eq!(qualified.source, Some(main("customers")));
+    assert_eq!(counted.source, None);
 }

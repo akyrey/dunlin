@@ -15,7 +15,9 @@ import type { EditorHandle } from "./SqlEditor";
 import { LazySqlEditor as SqlEditor } from "./lazy";
 import { useCompletion } from "./completionStore";
 import { type EditorTab, useEditor } from "./editorStore";
-import { progress, type RunMode } from "./run";
+import { progress, type RunMode, type Selection } from "./run";
+import { useEdits } from "../edit/editStore";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 
 /** How long typing pauses before the text is split again (task 5.5). */
 const SPLIT_DELAY_MS = 250;
@@ -40,6 +42,9 @@ export function EditorPane({ tabId, session, profile }: Props) {
   const [showHistory, setShowHistory] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  /** Pending edits of the result are lost if it is replaced or hidden: ask first. */
+  const pendingEdits = useEdits((s) => s.pending[tabId]?.count ?? 0);
+  const [discardThen, setDiscardThen] = useState<(() => void) | null>(null);
   const text = tab?.text;
 
   useEffect(() => {
@@ -61,9 +66,15 @@ export function EditorPane({ tabId, session, profile }: Props) {
   const errorRange = useMemo(() => (tab ? errorSpan(tab) : null), [tab]);
   if (!tab) return null;
 
+  const guardEdits = (action: () => void) => {
+    if (pendingEdits > 0) setDiscardThen(() => action);
+    else action();
+  };
+  const runWith = (selection: Selection, mode: RunMode) => {
+    guardEdits(() => void actions.run(tabId, selection, mode));
+  };
   const run = (mode: RunMode) => {
-    const selection = editor.current?.selection() ?? { from: 0, to: 0, head: 0 };
-    void actions.run(tabId, selection, mode);
+    runWith(editor.current?.selection() ?? { from: 0, to: 0, head: 0 }, mode);
   };
   const steps = tab.run ? progress(tab.run) : null;
 
@@ -172,7 +183,7 @@ export function EditorPane({ tabId, session, profile }: Props) {
             onChange={(next) => {
               actions.setText(tabId, next);
             }}
-            onRun={(selection, mode) => void actions.run(tabId, selection, mode)}
+            onRun={runWith}
             onCancel={() => void actions.cancel(tabId)}
             onSave={() => void save()}
           />
@@ -180,8 +191,19 @@ export function EditorPane({ tabId, session, profile }: Props) {
         <section aria-label="Results" className="min-h-0 flex-[2]" tabIndex={-1} data-results>
           <ResultPanel
             tab={tab}
+            editing={
+              profile
+                ? {
+                    profile,
+                    readOnly: session.readOnly,
+                    onApplied: () => void actions.refreshStatement(tabId, 0),
+                  }
+                : undefined
+            }
             onShow={(shown) => {
-              actions.show(tabId, shown);
+              guardEdits(() => {
+                actions.show(tabId, shown);
+              });
             }}
             onJumpTo={(offset) => editor.current?.focusAt(offset)}
           />
@@ -198,6 +220,22 @@ export function EditorPane({ tabId, session, profile }: Props) {
           }}
           onClose={() => {
             setShowHistory(false);
+          }}
+        />
+      )}
+      {discardThen && (
+        <ConfirmDialog
+          title="Discard unapplied changes?"
+          message="The result has edits that were not applied. Running again or switching results discards them; nothing was written to the database."
+          confirmLabel="Discard"
+          onConfirm={() => {
+            const action = discardThen;
+            setDiscardThen(null);
+            useEdits.getState().setPending(tabId, session.sessionId, 0);
+            action();
+          }}
+          onCancel={() => {
+            setDiscardThen(null);
           }}
         />
       )}

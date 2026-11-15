@@ -26,6 +26,12 @@ pub trait Dialect: Send + Sync {
     /// Lexical rules for the statement splitter and classifier.
     fn splitter_rules(&self) -> SplitterRules;
 
+    /// How the database stores an unquoted identifier: PostgreSQL lowercases it; the others
+    /// keep it as written.
+    fn fold_identifier(&self, name: &str) -> String {
+        name.to_owned()
+    }
+
     /// The placeholder for bound parameter `index` (1-based) compared with a column of type
     /// `type_name`: `$1::text::integer` on PostgreSQL, `?` on MySQL, `?1` on SQLite. Drivers bind
     /// every parameter as the [`Value`](crate::Value) they are given.

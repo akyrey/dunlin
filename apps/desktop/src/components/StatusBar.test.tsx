@@ -16,6 +16,7 @@ describe("StatusBar", () => {
       outcome: { kind: "rows" as const, columns: [], rows: [[]], truncated: true },
       elapsedMs: 4,
       statementClass: "read" as const,
+      source: null,
     };
 
     render(<StatusBar profile={profile} session={sessionFor(profile)} result={result} />);
@@ -30,6 +31,7 @@ describe("StatusBar", () => {
       outcome: { kind: "affected" as const, rows: "3" },
       elapsedMs: 1,
       statementClass: "write" as const,
+      source: null,
     };
 
     render(<StatusBar profile={sqliteProfile()} session={null} result={result} />);

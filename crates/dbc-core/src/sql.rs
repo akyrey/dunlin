@@ -2,9 +2,11 @@
 
 mod classify;
 mod lexer;
+mod source;
 mod split;
 
 pub use classify::{Classification, Danger, StatementClass, classify};
+pub use source::{Ident, SourceColumns, SourceTable, single_table_source};
 pub use split::{StatementRange, split};
 
 /// Dialect-specific lexical rules. The default is ANSI: `'strings'`, `"identifiers"`,

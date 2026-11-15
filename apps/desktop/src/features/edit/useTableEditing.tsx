@@ -33,6 +33,8 @@ type Options = {
   profile: EditingProfile;
   /** The page must be fetched again (after a successful apply). */
   onApplied: () => void;
+  /** A reason the view is read-only besides the table's own (a query result's columns). */
+  blocked?: string | null;
 };
 
 const NULL: Value = { t: "null" };
@@ -70,7 +72,7 @@ export function useTableEditing(options: Options) {
   const [preview, setPreview] = useState<string[] | null>(null);
   const [applying, setApplying] = useState(false);
   const [guard, setGuard] = useState<{ action: string; run: () => void } | null>(null);
-  const reason = readOnlyReason(info, readOnly);
+  const reason = readOnlyReason(info, readOnly) ?? options.blocked ?? null;
   const policy = useSettings((s) => s.settings.previewPolicy);
   // The profile or the settings can insist on the preview; then it cannot be skipped.
   const alwaysPreview = profile.alwaysPreview || policy === "always";

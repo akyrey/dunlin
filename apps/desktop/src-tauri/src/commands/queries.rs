@@ -2,12 +2,14 @@ use std::time::Instant;
 
 use dbc_core::DEFAULT_DISPLAY_LIMIT;
 use dbc_core::result::{ExecuteOptions, StatementOutcome};
+use dbc_core::schema::{NamespaceRef, TableRef};
 use dbc_core::sql::{self, StatementClass, byte_to_utf16};
 
 use crate::error::AppError;
 use crate::ipc::{
     QueryExecuteArgs, QueryOutcome, QueryResult, SqlSplitArgs, StatementRange, TabArgs,
 };
+use crate::session::Session;
 use crate::state::AppState;
 
 /// Upper bound for `rowLimit`; results are returned in one response.
@@ -89,10 +91,44 @@ pub async fn query_execute(
         Err(_) if session.tunnel_lost() => return Err(tunnel_lost(state, &session.id).await),
         Err(error) => return Err(AppError::from_db(error, &args.sql)),
     };
+    let source = match &outcome {
+        StatementOutcome::Rows(_) => result_source(&session, &args.tab_id, &args.sql).await,
+        _ => None,
+    };
     Ok(QueryResult {
         outcome: to_ipc(outcome),
         elapsed_ms,
         statement_class: classification.class,
+        source,
+    })
+}
+
+/// The table a plain single-table `SELECT` read. An unqualified name is resolved against the
+/// tab's own connection, whose `USE` or `search_path` may differ from the session's.
+async fn result_source(session: &Session, tab_id: &str, statement: &str) -> Option<TableRef> {
+    let found = sql::single_table_source(statement, session.dialect.splitter_rules())?;
+    let fold = |ident: sql::Ident| {
+        if ident.quoted {
+            ident.value
+        } else {
+            session.dialect.fold_identifier(&ident.value)
+        }
+    };
+    let namespace = match found.schema {
+        Some(schema) => NamespaceRef {
+            catalog: None,
+            schema: Some(fold(schema)),
+        },
+        // Editing is only offered when the table is known for sure; without the namespace the
+        // result simply stays read-only.
+        None => {
+            let connection = session.tab_connection(tab_id).await.ok()?;
+            connection.default_namespace().await.ok().flatten()?
+        }
+    };
+    Some(TableRef {
+        namespace,
+        name: fold(found.table),
     })
 }
 

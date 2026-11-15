@@ -30,11 +30,13 @@ const affected: QueryResult = {
   outcome: { kind: "affected", rows: "1" },
   elapsedMs: 2,
   statementClass: "write",
+  source: null,
 };
 const truncated: QueryResult = {
   outcome: { kind: "rows", columns: [], rows: [[], []], truncated: true },
   elapsedMs: 2,
   statementClass: "read",
+  source: null,
 };
 
 function statement(sql: string, start: number, patch: Partial<StatementRun>): StatementRun {

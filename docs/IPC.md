@@ -51,7 +51,7 @@ Errors from `session_open` and `connection_test` carry `detail.stage`: `ssh_conn
 | `session_open` | `{ connectionId }` | `SessionInfo` (sessionId, connectionId, driver, capabilities, readOnly, defaultNamespace) | 1 |
 | `session_close` | `{ sessionId }` | none | 1 |
 | `sql_split` | `{ sessionId, text }` | `StatementRange[]` (UTF-16 start/end, and `danger`: why it needs confirmation, or null) | 1 |
-| `query_execute` | `{ sessionId, tabId, sql, rowLimit (1..=100000), confirmed? }` | `QueryResult` | 1 |
+| `query_execute` | `{ sessionId, tabId, sql, rowLimit (1..=100000), confirmed? }` | `QueryResult`; `source` names the table when the statement is a plain single-table `SELECT` (see D-027) | 1 |
 | `query_cancel` | `{ sessionId, tabId }` | none (no-op when the tab is idle) | 2 |
 | `tab_close` | `{ sessionId, tabId }` | none | 1 |
 | `ssh_trust_host` | `{ host, port, algorithm, fingerprint }` | none (refused if a different key is trusted for that host, port and algorithm) | 3 |

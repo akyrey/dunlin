@@ -30,6 +30,7 @@ const rows: QueryResult = {
   outcome: { kind: "rows", columns: [], rows: [], truncated: false },
   elapsedMs: 1,
   statementClass: "read",
+  source: null,
 };
 
 const SESSION = "s1";

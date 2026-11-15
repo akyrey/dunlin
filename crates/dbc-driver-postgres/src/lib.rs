@@ -69,6 +69,10 @@ impl Dialect for PostgresDialect {
         quote_with(name, '"')
     }
 
+    fn fold_identifier(&self, name: &str) -> String {
+        name.to_lowercase()
+    }
+
     fn splitter_rules(&self) -> SplitterRules {
         SplitterRules {
             dollar_quoting: true,
@@ -135,4 +139,16 @@ pub fn decode_row(row: &tokio_postgres::Row) -> Vec<dbc_core::Value> {
             decode::decode(column.type_(), cell)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod dialect_tests {
+    use dbc_core::dialect::Dialect;
+
+    use super::PostgresDialect;
+
+    #[test]
+    fn unquoted_identifiers_fold_to_lowercase() {
+        assert_eq!(PostgresDialect.fold_identifier("People"), "people");
+    }
 }

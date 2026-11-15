@@ -45,7 +45,7 @@ export function Workspace({ session, profile }: Props) {
   const active = workspace.views.find((v) => v.key === workspace.active) ?? null;
 
   const requestClose = (view: View) => {
-    if (view.kind === "data" && useEdits.getState().pending[view.key]) {
+    if ((view.kind === "data" || view.kind === "editor") && useEdits.getState().pending[view.key]) {
       setDiscarding(view.key);
       return;
     }
@@ -157,10 +157,11 @@ export function Workspace({ session, profile }: Props) {
       {discarding && (
         <ConfirmDialog
           title="Discard unapplied changes?"
-          message="This table has edits that were not applied. Closing the tab discards them; nothing was written to the database."
+          message="This tab has edits that were not applied. Closing it discards them; nothing was written to the database."
           confirmLabel="Discard and close"
           onConfirm={() => {
-            useWorkspace.getState().close(sessionId, discarding);
+            if (tabs[discarding]) void useEditor.getState().closeTab(discarding);
+            else useWorkspace.getState().close(sessionId, discarding);
             setDiscarding(null);
           }}
           onCancel={() => {
