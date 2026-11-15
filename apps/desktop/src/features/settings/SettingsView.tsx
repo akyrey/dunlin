@@ -3,6 +3,7 @@ import { type ReactNode, useState } from "react";
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
 import { toast } from "../../components/toastStore";
+import { exportConnections, importConnections } from "../connections/transfer";
 import { type AppError, type Settings, logsDir, revealFile, toAppError } from "../../ipc";
 import { BOUNDS } from "./defaults";
 import { NUMBER_LABELS, type NumberField, settingsProblem } from "./validate";
@@ -153,6 +154,16 @@ export function SettingsView({ onClose, onShowTrustedHosts }: Props) {
         <div className="flex gap-2 border-t border-zinc-800 pt-3">
           <Button variant="ghost" onClick={onShowTrustedHosts}>
             Trusted SSH hosts…
+          </Button>
+          <Button
+            variant="ghost"
+            title="Save every connection's settings to a file, without passwords"
+            onClick={() => void exportConnections()}
+          >
+            Export connections…
+          </Button>
+          <Button variant="ghost" onClick={() => void importConnections()}>
+            Import connections…
           </Button>
           <Button variant="ghost" onClick={() => void openLogs()}>
             Open logs folder

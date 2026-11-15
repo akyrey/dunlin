@@ -40,6 +40,7 @@ import type {
   TransactionState,
   PlanNode,
   SshConfigEntry,
+  ImportReport,
 } from "./generated";
 import { Channel } from "@tauri-apps/api/core";
 
@@ -84,6 +85,14 @@ export const queryExecute = (args: QueryExecuteArgs): Promise<QueryResult> =>
 
 export const queryCancel = (sessionId: string, tabId: string): Promise<void> =>
   call("query_cancel", { sessionId, tabId });
+
+/** Writes connection settings (all, or `ids`) to `path`; secrets are never written. */
+export const connectionsExport = (path: string, ids?: string[]): Promise<number> =>
+  call("connections_export", { path, ids });
+
+/** Adds every valid connection of the file as a new one; the rest are listed as skipped. */
+export const connectionsImport = (path: string): Promise<ImportReport> =>
+  call("connections_import", { path });
 
 /** Host aliases from `~/.ssh/config`, read now; nothing is stored. */
 export const sshConfigHosts = (): Promise<SshConfigEntry[]> => call("ssh_config_hosts");

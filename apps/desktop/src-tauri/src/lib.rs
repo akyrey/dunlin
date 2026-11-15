@@ -72,6 +72,8 @@ pub fn run() -> Result<(), tauri::Error> {
             handlers::query_cancel,
             handlers::query_explain,
             handlers::ssh_config_hosts,
+            handlers::connections_export,
+            handlers::connections_import,
             handlers::transaction_status,
             handlers::transaction_mode_set,
             handlers::transaction_finish,

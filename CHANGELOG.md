@@ -20,6 +20,9 @@ All notable changes to Dunlin. The format follows [Keep a Changelog](https://kee
 - Rotated log files and an "open logs folder" action; the cold start time is shown in Settings.
 - App icon.
 
+- Editing the rows of a plain single-table query; manual transaction mode with Commit and Rollback; visual `EXPLAIN` for every driver.
+- SSH settings filled from `~/.ssh/config`; MySQL `DELIMITER` scripts; SQLite tables without a key edited by `rowid`; connection export and import without secrets.
+
 ### Security
 
 - Every IPC argument type and the SQL and DDL parsers are fuzzed; CSV options, page offsets and SSH host keys are validated.

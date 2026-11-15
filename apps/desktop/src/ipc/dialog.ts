@@ -51,6 +51,19 @@ export async function pickExportFile(
   return save({ filters: [filter], defaultPath: `${defaultName}.${filter.extensions[0] ?? kind}` });
 }
 
+const CONNECTIONS_FILTERS = [{ name: "Dunlin connections", extensions: ["json"] }];
+
+/** Asks where to save exported connections. Resolves `null` when cancelled. */
+export async function pickConnectionsExportFile(): Promise<string | null> {
+  return save({ filters: CONNECTIONS_FILTERS, defaultPath: "dunlin-connections.json" });
+}
+
+/** Asks for a connections file to import. Resolves `null` when cancelled. */
+export async function pickConnectionsFile(): Promise<string | null> {
+  const selected = await open({ multiple: false, directory: false, filters: CONNECTIONS_FILTERS });
+  return typeof selected === "string" ? selected : null;
+}
+
 /** Shows a file in Finder (or the platform's file manager). */
 export function revealFile(path: string): Promise<void> {
   return revealItemInDir(path);

@@ -57,7 +57,7 @@ Roughly in order of likely value:
 4. ~~Reading `~/.ssh/config`~~ (done, D-030)
 5. Keyset pagination for large tables
 6. Import from CSV
-7. Profile import/export
+7. ~~Profile import/export~~ (done)
 8. ~~MySQL `DELIMITER` support in the splitter~~ (done)
 9. ~~SQLite `rowid` addressing for tables without a primary key~~ (done, D-031)
 10. More drivers (MariaDB-specific features, SQL Server, DuckDB, ClickHouse)

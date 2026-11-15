@@ -127,6 +127,30 @@ pub async fn query_cancel(state: State<'_, AppState>, args: TabArgs) -> Result<(
 }
 
 #[tauri::command]
+pub async fn connections_export(
+    state: State<'_, AppState>,
+    args: crate::ipc::ConnectionsExportArgs,
+) -> Result<usize, AppError> {
+    logged(
+        "connections_export",
+        commands::connections_export(&state, args),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn connections_import(
+    state: State<'_, AppState>,
+    args: crate::ipc::ConnectionsImportArgs,
+) -> Result<crate::ipc::ImportReport, AppError> {
+    logged(
+        "connections_import",
+        commands::connections_import(&state, args),
+    )
+    .await
+}
+
+#[tauri::command]
 pub async fn ssh_config_hosts() -> Result<Vec<crate::ipc::SshConfigEntry>, AppError> {
     logged("ssh_config_hosts", commands::ssh_config_hosts()).await
 }

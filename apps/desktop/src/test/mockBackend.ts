@@ -644,6 +644,21 @@ export function createMockBackend() {
       else if (state?.manual) state.open = true;
       return record(args, execute(args));
     },
+    connections_export: () => profiles.size,
+    connections_import: () => {
+      const imported = save({
+        ...([...profiles.values()][0] ?? {}),
+        id: null,
+        name: "Imported",
+        driver: "sqlite",
+        filePath: MOCK_DATABASE_PATH,
+      } as ConnectionDraft);
+      return { imported: [imported], skipped: ["Broken: The host is required"] };
+    },
+    "plugin:dialog|save": (a) =>
+      JSON.stringify(a).includes("dunlin-connections")
+        ? "/mock/connections.json"
+        : MOCK_NEW_DATABASE_PATH,
     ssh_config_hosts: () => [
       {
         alias: "bastion",
@@ -880,7 +895,6 @@ export function createMockBackend() {
     },
     tab_close: () => null,
     "plugin:dialog|open": () => MOCK_DATABASE_PATH,
-    "plugin:dialog|save": () => MOCK_NEW_DATABASE_PATH,
   };
 
   /** View connections with a statement in flight; a second one is refused, as by the backend. */

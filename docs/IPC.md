@@ -52,6 +52,8 @@ Errors from `session_open` and `connection_test` carry `detail.stage`: `ssh_conn
 | `session_close` | `{ sessionId }` | none | 1 |
 | `sql_split` | `{ sessionId, text }` | `StatementRange[]` (UTF-16 start/end, and `danger`: why it needs confirmation, or null) | 1 |
 | `query_execute` | `{ sessionId, tabId, sql, rowLimit (1..=100000), confirmed? }` | `QueryResult`; `source` names the table when the statement is a plain single-table `SELECT` (see D-027) | 1 |
+| `connections_export` | `{ path, ids? }` | number written: a JSON file `{ format: "dunlin-connections", version: 1, connections: ConnectionDraft[] }` without ids or secrets | after v1 |
+| `connections_import` | `{ path }` | `ImportReport { imported: ConnectionProfile[], skipped: string[] }`: every valid entry becomes a new connection; invalid ones are listed as `name: reason`; another format or a newer version is `invalid_argument` | after v1 |
 | `ssh_config_hosts` | none | `SshConfigEntry[]`: each concrete alias of `~/.ssh/config` with `hostName`, `user`, `port`, `identityFile` (`~` expanded) and the first `proxyJump` hop; empty without the file; read when asked, never stored | after v1 |
 | `query_explain` | `{ sessionId, tabId, sql }` | `PlanNode` tree (`operation`, `relation`, `details`, `estimatedRows`, `cost`, `children`) on the tab's connection; never `ANALYZE`, so nothing runs, also on read-only connections | after v1 |
 | `transaction_status` | `{ sessionId, tabId }` | `TransactionState` `{ manual, open }` | after v1 |

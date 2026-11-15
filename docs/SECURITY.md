@@ -24,6 +24,8 @@ Out of scope: a compromised local user account or OS, and the SQL the user delib
 - Deleting a connection deletes its keychain entries.
 - Keychain access goes through `keyring-core` with a store per platform, chosen at startup (the `keyring` crate itself is only a sample CLI since v4). macOS uses `apple-native-keyring-store` with the `keychain` feature; Linux and Windows stores are added with packaging (Phase 8). The store database records only *whether* a secret is saved (`has_db_password`), so listing connections never touches the keychain.
 
+- Exported connection files (`connections_export`) hold settings only: passwords and passphrases never leave the keychain, and imported connections ask for them on first use. Key file paths and host names are included.
+
 ## SSH
 
 - Host keys are checked against the user's `~/.ssh/known_hosts` (read-only; hashed entries and `[host]:port` are understood, `@revoked`/`@cert-authority` lines are not) and the app's own `known_hosts` table, per key algorithm (DECISIONS D-019). A conflict between the two counts as changed.

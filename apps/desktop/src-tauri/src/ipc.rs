@@ -7,7 +7,7 @@ use dbc_core::export::ExportFormat;
 use dbc_core::result::ColumnMeta;
 use dbc_core::schema::{NamespaceRef, TableRef};
 use dbc_core::sql::StatementClass;
-use dbc_store::{ConnectionDraft, SavedQueryDraft, SecretKind, Settings};
+use dbc_store::{ConnectionDraft, ConnectionProfile, SavedQueryDraft, SecretKind, Settings};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -405,6 +405,30 @@ pub struct QueryExecuteArgs {
 pub struct TabArgs {
     pub session_id: String,
     pub tab_id: String,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionsExportArgs {
+    pub path: String,
+    /// The connections to write; all of them when absent.
+    #[serde(default)]
+    #[ts(optional)]
+    pub ids: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionsImportArgs {
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportReport {
+    pub imported: Vec<ConnectionProfile>,
+    /// `name: reason` for each entry that was not imported.
+    pub skipped: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, TS)]
