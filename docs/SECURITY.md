@@ -76,6 +76,9 @@ The classifier is a heuristic. It is a seatbelt against accidents, not an access
 - `cargo audit` and `pnpm audit` run in CI.
 - No `unsafe` in workspace crates.
 - SQLite is bundled, so its version is controlled by the app.
+- Accepted advisories are listed, each with its reason, in `.cargo/audit.toml`. The remaining `cargo audit` warnings are crates marked unmaintained with no replacement upstream (zbus and zvariant via Tauri on Linux, proc-macro-error via the GTK bindings, astral-tokio-tar via testcontainers in tests only); none has a known vulnerability.
+- `minimatch` (lint tooling only) is overridden to 11.x in `apps/desktop/package.json` until typescript-eslint allows it.
+- Whole-codebase review (task 8.17): logging records only command names, durations, error codes and counts; no `innerHTML`, `eval` or network calls in the frontend; the CSP allows only the app's own origin and IPC; capabilities are limited to file dialogs, revealing an exported file and closing the window; every `format!` that builds SQL takes quoted identifiers, placeholders or integers.
 
 ## Checklist before each phase is closed
 

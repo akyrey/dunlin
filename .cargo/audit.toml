@@ -1,0 +1,13 @@
+# Advisories accepted after review (task 8.17). Each needs a reason and is revisited when the
+# crate that pulls it in releases a fix. See docs/SECURITY.md#dependencies.
+[advisories]
+ignore = [
+    # rsa: Marvin timing side channel (no constant-time release exists). Pulled in by russh,
+    # which pins rsa =0.10.0-rc.18. Dunlin only signs one SSH authentication per connection
+    # with the user's RSA key and never decrypts; the attack needs many timed operations
+    # observed by the attacker. Ed25519 and ECDSA keys do not use the crate.
+    "RUSTSEC-2023-0071",
+    # glib 0.18: unsound VariantStrIter. Only in the Linux build, through Tauri's GTK 3 stack
+    # (tao, muda, wry); Dunlin never calls glib. Fixed when Tauri moves to gtk 0.20+.
+    "RUSTSEC-2024-0429",
+]

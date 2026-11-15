@@ -232,11 +232,11 @@ fn parse_item(sql: &str, item: &[Token], ddl: &mut TableDdl) {
                 name: pending_name.take(),
                 expression: inner_text(sql, item, i + 1, close),
             });
-        } else if is_keyword(sql, token, "AS") {
-            if let Some(column) = &column {
-                let expression = inner_text(sql, item, i + 1, close);
-                ddl.generated.push((column.clone(), expression));
-            }
+        } else if is_keyword(sql, token, "AS")
+            && let Some(column) = &column
+        {
+            let expression = inner_text(sql, item, i + 1, close);
+            ddl.generated.push((column.clone(), expression));
         }
         i = close + 1;
     }
@@ -267,9 +267,16 @@ pub(crate) fn parse_index(sql: &str) -> IndexDdl {
     let Some(close) = matching_close(&tokens, open) else {
         return ddl;
     };
+    // `a,,b` has an empty item, which is no part of the index.
     ddl.parts = split_items(&tokens, open + 1, close)
         .into_iter()
-        .map(|(from, to)| sql[tokens[from].start..tokens[to - 1].end].to_owned())
+        .filter_map(|(from, to)| {
+            let (first, last) = (tokens.get(from)?, tokens.get(to.checked_sub(1)?)?);
+            (from < to)
+                .then(|| sql.get(first.start..last.end))
+                .flatten()
+        })
+        .map(str::to_owned)
         .collect();
     if let Some(&where_) = tokens
         .get(close + 1)
@@ -303,6 +310,13 @@ mod fuzz {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn an_empty_index_part_is_skipped_not_panicked_on() {
+        // Found by the fuzz test: an empty item between commas.
+        let ddl = super::parse_index("CREATE INDEX i ON t (\"\",\n,)");
+        assert_eq!(ddl.parts, vec!["\"\"".to_owned()]);
+    }
+
     use super::*;
 
     fn check(name: Option<&str>, expression: &str) -> Check {

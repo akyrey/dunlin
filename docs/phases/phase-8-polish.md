@@ -54,7 +54,7 @@ Everything in the roadmap's deferred list, auto-update, Linux and Windows builds
 - [x] 8.14 Measure cold start (NFR-1) and fix regressions; lazy-load editor language packages and the cell viewer.
 - [x] 8.15 Idle connection handling: periodic `ping` on open sessions, transparent reconnect of idle connections, clear state when a server goes away.
 - [x] 8.16 Audit: every command validates input; every error path has a user-facing message; no panics reachable from IPC (fuzz the command argument deserialisers with malformed input).
-- [ ] 8.17 Security checklist from SECURITY.md across the whole codebase; `cargo audit` and `pnpm audit` clean.
+- [x] 8.17 Security checklist from SECURITY.md across the whole codebase; `cargo audit` and `pnpm audit` clean.
 - [x] 8.18 Log file rotation and an "open logs folder" action.
 
 ### Packaging
