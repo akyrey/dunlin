@@ -84,3 +84,55 @@ async fn mariadb_plans_come_from_the_classic_table() {
     assert_eq!(plan.operation, dbc_core::plan::QUERY);
     assert_eq!(relations(&plan).len(), 2, "{plan:?}");
 }
+
+#[tokio::test]
+#[ignore = "needs Docker"]
+async fn a_script_with_delimiter_commands_runs_statement_by_statement() {
+    use dbc_core::result::{ExecuteOptions, StatementOutcome};
+
+    let container = Mysql::default().with_tag("8.4").start().await.unwrap();
+    let port = container.get_host_port_ipv4(3306).await.unwrap();
+    let url = format!("mysql://root@127.0.0.1:{port}/mysql");
+    let mut root = Conn::new(Opts::from_url(&url).unwrap()).await.unwrap();
+    root.query_drop("CREATE DATABASE shop").await.unwrap();
+    let config = ConnectionConfig {
+        endpoint: Endpoint::Tcp {
+            dial_host: "127.0.0.1".into(),
+            dial_port: port,
+            server_name: "localhost".into(),
+        },
+        database: Some("shop".into()),
+        user: Some("root".into()),
+        password: None,
+        tls: TlsConfig::default(),
+        read_only: false,
+        options: Default::default(),
+    };
+    let connection = MysqlDriver.connect(&config).await.unwrap();
+    let script = "CREATE TABLE t (x INT);\n\
+        DELIMITER $$\n\
+        CREATE PROCEDURE fill(n INT)\n\
+        BEGIN\n  DECLARE i INT DEFAULT 0;\n  WHILE i < n DO\n    INSERT INTO t VALUES (i);\n    SET i = i + 1;\n  END WHILE;\nEND $$\n\
+        DELIMITER ;\n\
+        CALL fill(3);\n\
+        SELECT count(*) FROM t;";
+
+    let rules = MysqlDriver.dialect().splitter_rules();
+    let ranges = dbc_core::sql::split(script, rules);
+    let mut last = None;
+    for range in &ranges {
+        let statement = &script[range.start..range.end];
+        last = Some(
+            connection
+                .execute(statement, &ExecuteOptions::default())
+                .await
+                .unwrap(),
+        );
+    }
+
+    assert_eq!(ranges.len(), 4);
+    let Some(StatementOutcome::Rows(rows)) = last else {
+        panic!("{last:?}")
+    };
+    assert_eq!(format!("{:?}", rows.rows[0][0]), "Int(3)");
+}

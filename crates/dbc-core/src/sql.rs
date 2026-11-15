@@ -25,6 +25,8 @@ pub struct SplitterRules {
     pub hash_comments: bool,
     /// MySQL: backslash escapes inside quoted strings.
     pub backslash_escapes: bool,
+    /// MySQL client scripts: a `DELIMITER x` line makes `x` end statements until the next one.
+    pub delimiter_command: bool,
 }
 
 /// Converts a byte offset in `text` to a UTF-16 code unit offset, as used by JavaScript.

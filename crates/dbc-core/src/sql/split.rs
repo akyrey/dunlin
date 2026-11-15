@@ -13,18 +13,65 @@ pub struct StatementRange {
 /// Splits `text` into statements. Segments that contain only comments are dropped.
 ///
 /// Inside a `CREATE` statement, `BEGIN ... END` blocks (SQLite triggers, SQL-standard function
-/// bodies) do not end on `;`.
+/// bodies) do not end on `;`. With `delimiter_command`, a `DELIMITER x` line at the start of a
+/// statement is not a statement: it makes `x` end statements until the next `DELIMITER`.
 pub fn split(text: &str, rules: SplitterRules) -> Vec<StatementRange> {
     let tokens = tokenize(text, rules);
     let mut ranges = Vec::new();
     let mut current = Segment::default();
+    // `None`: statements end on `;`.
+    let mut delimiter: Option<&str> = None;
+    // Tokens before this byte offset were consumed by a delimiter or a `DELIMITER` line.
+    let mut skip_to = 0;
     for (index, token) in tokens.iter().enumerate() {
+        if token.start < skip_to {
+            continue;
+        }
+        if rules.delimiter_command
+            && !current.has_code
+            && token.kind == TokenKind::Word
+            && token.text(text).eq_ignore_ascii_case("DELIMITER")
+        {
+            let rest = text.get(token.end..).unwrap_or_default();
+            let line_end = token.end + rest.find('\n').unwrap_or(rest.len());
+            if let Some(chosen) = text
+                .get(token.end..line_end)
+                .and_then(|line| line.split_whitespace().next())
+            {
+                delimiter = (chosen != ";").then_some(chosen);
+                current = Segment::default();
+                skip_to = line_end;
+                continue;
+            }
+        }
+        if let Some(chosen) = delimiter {
+            let can_end = !matches!(
+                token.kind,
+                TokenKind::String | TokenKind::QuotedIdent | TokenKind::Comment
+            );
+            if can_end
+                && text
+                    .get(token.start..)
+                    .is_some_and(|t| t.starts_with(chosen))
+            {
+                ranges.extend(current.finish());
+                current = Segment::default();
+                skip_to = token.start + chosen.len();
+                continue;
+            }
+            current.push_plain(text, token);
+            continue;
+        }
         if token.kind == TokenKind::Semicolon && current.block_depth == 0 {
             ranges.extend(current.finish());
             current = Segment::default();
             continue;
         }
-        current.push(text, token, next_word(text, &tokens[index + 1..]));
+        current.push(
+            text,
+            token,
+            next_word(text, tokens.get(index + 1..).unwrap_or_default()),
+        );
     }
     ranges.extend(current.finish());
     ranges
@@ -54,6 +101,18 @@ impl Segment {
             self.track_blocks(token.text(text), next_word);
         }
         self.has_code = true;
+    }
+
+    /// Under a custom delimiter only the delimiter ends a statement: no block tracking.
+    fn push_plain(&mut self, text: &str, token: &Token) {
+        if token.kind == TokenKind::Whitespace {
+            return;
+        }
+        self.start.get_or_insert(token.start);
+        self.end = token.start + token.text(text).trim_end().len();
+        if token.kind != TokenKind::Comment {
+            self.has_code = true;
+        }
     }
 
     fn track_blocks(&mut self, word: &str, next_word: Option<&str>) {

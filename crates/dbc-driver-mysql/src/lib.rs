@@ -116,6 +116,7 @@ fn rules() -> SplitterRules {
         backtick_identifiers: true,
         hash_comments: true,
         backslash_escapes: true,
+        delimiter_command: true,
         ..SplitterRules::default()
     }
 }

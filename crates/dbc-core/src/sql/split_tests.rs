@@ -20,6 +20,7 @@ fn mysql() -> SplitterRules {
         backtick_identifiers: true,
         hash_comments: true,
         backslash_escapes: true,
+        delimiter_command: true,
         ..SplitterRules::default()
     }
 }
@@ -137,6 +138,48 @@ fn statement() -> impl Strategy<Value = String> {
         parts.extend(rest.into_iter().map(|(text, _)| text));
         parts.join(" ")
     })
+}
+
+#[test]
+fn delimiter_commands_change_the_terminator_and_are_not_statements() {
+    let script = "DELIMITER ;;\n\
+CREATE TRIGGER t BEFORE INSERT ON a FOR EACH ROW\n\
+BEGIN\n  SET NEW.x = ';;';\n  SET NEW.y = 2;\nEND ;;\n\
+CREATE PROCEDURE p() SELECT 1;\nSELECT 2 ;;\n\
+delimiter //\nSELECT 3//\nDELIMITER ;\nSELECT 4; SELECT 5";
+
+    assert_eq!(
+        statements(script, mysql()),
+        vec![
+            "CREATE TRIGGER t BEFORE INSERT ON a FOR EACH ROW\nBEGIN\n  SET NEW.x = ';;';\n  SET NEW.y = 2;\nEND",
+            "CREATE PROCEDURE p() SELECT 1;\nSELECT 2",
+            "SELECT 3",
+            "SELECT 4",
+            "SELECT 5",
+        ]
+    );
+}
+
+#[test]
+fn delimiter_is_an_ordinary_word_where_the_rule_is_off() {
+    assert_eq!(
+        statements("DELIMITER ;;\nSELECT 1;", ansi()),
+        vec!["DELIMITER", "SELECT 1"]
+    );
+}
+
+#[test]
+fn a_delimiter_inside_a_comment_or_mid_statement_changes_nothing() {
+    let script = "SELECT 1 -- DELIMITER //\n; SELECT 'DELIMITER //'; SELECT 2";
+
+    assert_eq!(
+        statements(script, mysql()),
+        vec![
+            "SELECT 1 -- DELIMITER //",
+            "SELECT 'DELIMITER //'",
+            "SELECT 2"
+        ]
+    );
 }
 
 proptest! {

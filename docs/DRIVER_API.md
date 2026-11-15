@@ -271,6 +271,7 @@ pub struct ApplyFailure { pub operation: Option<usize>, pub error: DbError }   /
 ## Statement utilities
 
 - `sql::split(text, rules) -> Vec<StatementRange { start, end }>` splits on `;` outside strings, quoted identifiers, comments and PostgreSQL dollar-quoted bodies. Inside a `CREATE` statement, `BEGIN ... END` blocks (SQLite triggers, SQL-standard function bodies) do not split. Ranges are **byte** offsets, exclude surrounding whitespace and the `;`, and segments containing only comments are dropped. The IPC layer converts offsets to UTF-16 (`sql::byte_to_utf16`). MySQL's `DELIMITER` command is not supported in v1.
+- `sql::split(text, rules)` also follows MySQL client `DELIMITER x` lines when `SplitterRules::delimiter_command` is set (MySQL dialect): the line is not a statement, and `x` ends statements until the next `DELIMITER`.
 - `sql::classify(statement, rules) -> Classification { class, danger }`. `class` is `Read`, `Write`, `Ddl`, `Transaction`, `Session` or `Unknown`; `danger` is `UpdateWithoutWhere`, `DeleteWithoutWhere`, `Drop` or `Truncate` (with a user-facing `reason()`). It is a lexer-level heuristic: `Unknown` is treated as a write on read-only sessions (`StatementClass::allowed_on_read_only`). Refinements: `SELECT ... INTO` and data-modifying CTEs are `Write`; `EXPLAIN ANALYZE` is classified as the statement it runs; `SET`/`BEGIN`/`RESET` statements that would undo the server-side read-only guard (`READ WRITE`, anything naming `read_only`, `RESET ALL`) are `Write`.
 
 ## Errors
