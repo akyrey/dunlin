@@ -87,7 +87,7 @@ impl Session {
             work(Arc::clone(&connection)).await
         };
         if let Err(error) = &outcome
-            && error.code == DbErrorCode::ConnectionLost
+            && (error.code == DbErrorCode::ConnectionLost || connection.is_broken())
         {
             self.forget_tab(tab_id, &connection).await;
         }

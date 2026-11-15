@@ -20,6 +20,7 @@ dbc-core = { workspace = true, features = ["ts"] }
 dbc-driver-mysql.workspace = true
 dbc-driver-postgres.workspace = true
 dbc-driver-sqlite.workspace = true
+dbc-driver-redis.workspace = true
 dbc-store = { workspace = true, features = ["ts"] }
 dbc-tunnel.workspace = true
 secrecy = "0.10"
@@ -39,7 +40,7 @@ tauri-plugin-window-state = "2"
 
 [dev-dependencies]
 dbc-tunnel = { workspace = true, features = ["test-support"] }
-testcontainers-modules = { version = "0.15", features = ["postgres"] }
+testcontainers-modules = { version = "0.15", features = ["postgres", "redis"] }
 async-trait.workspace = true
 secrecy = "0.10"
 dbc-core = { workspace = true, features = ["ts", "test-support"] }

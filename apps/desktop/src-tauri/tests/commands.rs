@@ -34,7 +34,12 @@ fn driver_list_contains_every_driver() {
 
     assert_eq!(
         drivers.iter().map(|d| d.kind).collect::<Vec<_>>(),
-        vec![DriverKind::Postgres, DriverKind::Mysql, DriverKind::Sqlite]
+        vec![
+            DriverKind::Postgres,
+            DriverKind::Mysql,
+            DriverKind::Sqlite,
+            DriverKind::Redis
+        ]
     );
 }
 

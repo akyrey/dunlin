@@ -46,6 +46,7 @@ impl Driver for PostgresDriver {
                 explain: true,
                 tls: true,
                 tunnel: true,
+                key_value: false,
             },
             options: Vec::new(),
         }

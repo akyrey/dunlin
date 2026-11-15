@@ -19,4 +19,9 @@ readOnlySession: boolean, transactionalDdl: boolean, explain: boolean, tls: bool
 /**
  * False for file databases.
  */
-tunnel: boolean, };
+tunnel: boolean, 
+/**
+ * A key-value store (Redis): no SQL schema or tables; the frontend shows a key browser
+ * instead of the schema tree, and the editor is a command console.
+ */
+keyValue: boolean, };

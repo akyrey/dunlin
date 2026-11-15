@@ -96,7 +96,8 @@ export function App() {
     () =>
       profiles.flatMap((profile) => {
         const session = sessions[profile.id];
-        return session
+        // Key-value stores have no schema; the key browser shows them instead.
+        return session && !session.capabilities.keyValue
           ? [{ connectionId: profile.id, sessionId: session.sessionId, label: profile.name }]
           : [];
       }),

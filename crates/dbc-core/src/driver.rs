@@ -23,6 +23,7 @@ pub enum DriverKind {
     Postgres,
     Mysql,
     Sqlite,
+    Redis,
 }
 
 impl DriverKind {
@@ -31,6 +32,7 @@ impl DriverKind {
             Self::Postgres => "postgres",
             Self::Mysql => "mysql",
             Self::Sqlite => "sqlite",
+            Self::Redis => "redis",
         }
     }
 }
@@ -52,6 +54,10 @@ pub struct Capabilities {
     pub tls: bool,
     /// False for file databases.
     pub tunnel: bool,
+    /// A key-value store (Redis): no SQL schema or tables; the frontend shows a key browser
+    /// instead of the schema tree, and the editor is a command console.
+    #[serde(default)]
+    pub key_value: bool,
 }
 
 /// How a driver reaches its database, which decides the fields on the connection form.
@@ -208,6 +214,12 @@ pub trait Connection: Send + Sync {
     ) -> Result<StatementOutcome, DbError>;
 
     fn cancel_handle(&self) -> Arc<dyn CancelHandle>;
+
+    /// The connection cannot be used again (a driver that cancels by closing it). The session
+    /// drops it, so the next use reconnects.
+    fn is_broken(&self) -> bool {
+        false
+    }
 
     /// Runs one statement with bound parameters for the placeholders the dialect produced
     /// (`Dialect::placeholder`). Used for table pages and, later, edits.

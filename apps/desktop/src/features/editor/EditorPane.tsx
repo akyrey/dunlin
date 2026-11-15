@@ -149,7 +149,7 @@ export function EditorPane({ tabId, session, profile }: Props) {
           )}
           {tab.running && tab.startedAt !== null && <ElapsedTimer startedAt={tab.startedAt} />}
           <span className="ml-auto flex items-center gap-3">
-            <TransactionControls tab={tab} />
+            {!session.capabilities.keyValue && <TransactionControls tab={tab} />}
             <RowLimitSelect
               key={tab.rowLimit}
               value={tab.rowLimit}

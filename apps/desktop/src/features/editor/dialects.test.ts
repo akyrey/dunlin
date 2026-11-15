@@ -4,7 +4,8 @@ import { dialectFor } from "./dialects";
 
 /** Node names of every token `text` parses into, with the text of each. */
 function tokens(driver: "postgres" | "mysql" | "sqlite", text: string): [string, string][] {
-  const tree = sql({ dialect: dialectFor(driver) }).language.parser.parse(text);
+  const dialect = dialectFor(driver) ?? undefined;
+  const tree = sql({ dialect }).language.parser.parse(text);
   const found: [string, string][] = [];
   tree.iterate({
     enter: (node) => {
@@ -42,6 +43,10 @@ describe("dialectFor", () => {
         ["QuotedIdentifier", '"t"'],
       ]),
     );
+  });
+
+  it("has no SQL dialect for Redis, which has its own command language", () => {
+    expect(dialectFor("redis")).toBeNull();
   });
 
   it("does not treat a PostgreSQL double-quoted name as a string", () => {

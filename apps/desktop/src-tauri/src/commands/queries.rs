@@ -23,8 +23,9 @@ pub async fn sql_split(
     args: SqlSplitArgs,
 ) -> Result<Vec<StatementRange>, AppError> {
     let session = state.sessions.get(&args.session_id).await?;
-    let rules = session.dialect.splitter_rules();
-    let ranges = sql::split(&args.text, rules)
+    let ranges = session
+        .dialect
+        .split(&args.text)
         .into_iter()
         .map(|r| StatementRange {
             start: byte_to_utf16(&args.text, r.start),
@@ -32,7 +33,7 @@ pub async fn sql_split(
             danger: args
                 .text
                 .get(r.start..r.end)
-                .and_then(|statement| sql::classify(statement, rules).danger)
+                .and_then(|statement| session.dialect.classify(statement).danger)
                 .map(|danger| danger.reason().to_owned()),
         })
         .collect();
@@ -53,12 +54,11 @@ pub async fn query_execute(
         )));
     }
     let session = state.sessions.get(&args.session_id).await?;
-    let rules = session.dialect.splitter_rules();
     // Safeguards classify one statement; MySQL would run a whole script sent at once.
-    if sql::split(&args.sql, rules).len() > 1 {
+    if session.dialect.split(&args.sql).len() > 1 {
         return Err(AppError::invalid("Run one statement at a time"));
     }
-    let classification = sql::classify(&args.sql, rules);
+    let classification = session.dialect.classify(&args.sql);
     if session.read_only && !classification.class.allowed_on_read_only() {
         return Err(AppError::read_only());
     }
@@ -155,7 +155,7 @@ pub async fn query_explain(state: &AppState, args: QueryExplainArgs) -> Result<P
     if !session.capabilities.explain {
         return Err(AppError::from(DbError::unsupported("explain")));
     }
-    if sql::split(&args.sql, session.dialect.splitter_rules()).len() > 1 {
+    if session.dialect.split(&args.sql).len() > 1 {
         return Err(AppError::invalid("Explain one statement at a time"));
     }
     let statement = args.sql.clone();
@@ -187,6 +187,11 @@ pub async fn transaction_mode_set(
     args: TransactionModeArgs,
 ) -> Result<TransactionState, AppError> {
     let session = state.sessions.get(&args.session_id).await?;
+    if args.manual && session.capabilities.key_value {
+        return Err(AppError::invalid(
+            "Key-value connections have no manual transactions; use MULTI and EXEC",
+        ));
+    }
     session
         .set_manual(&args.tab_id, args.manual)
         .map_err(|e| AppError::invalid(e.message))

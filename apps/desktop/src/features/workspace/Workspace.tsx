@@ -27,7 +27,8 @@ function useInitialTabs(session: SessionInfo) {
     for (const tab of saved) openTab(sessionId, tab);
     const first = workspaceOf(useWorkspace.getState(), sessionId).views[0];
     if (first) useWorkspace.getState().activate(sessionId, first.key);
-    void useCompletion.getState().load(session);
+    // Key-value stores complete command names, not a schema.
+    if (!session.capabilities.keyValue) void useCompletion.getState().load(session);
   }, [session]);
 }
 

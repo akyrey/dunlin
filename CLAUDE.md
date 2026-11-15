@@ -19,6 +19,7 @@ crates/dbc-core              traits, value model, schema model, SQL utilities (n
 crates/dbc-driver-postgres   PostgreSQL driver
 crates/dbc-driver-mysql      MySQL/MariaDB driver
 crates/dbc-driver-sqlite     SQLite driver
+crates/dbc-driver-redis      Redis/Valkey driver (key-value; D-032)
 crates/dbc-tunnel            SSH local port forwarding
 crates/dbc-store             saved connections, history, saved queries, keychain
 apps/desktop/src-tauri       Tauri commands, session manager (thin)

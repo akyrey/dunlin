@@ -14,6 +14,7 @@ import { type RefObject, useEffect, useImperativeHandle, useRef } from "react";
 import type { DriverKind } from "../../ipc";
 import { type Span, statementAt } from "../../lib/text";
 import { dialectFor } from "./dialects";
+import { redisLanguage } from "./redisLanguage";
 import type { RunMode, Selection } from "./run";
 import { bindingOf } from "../shortcuts/registry";
 import { useEditorAppearance } from "./appearance";
@@ -82,8 +83,10 @@ function selectionOf(view: EditorView): Selection {
 }
 
 function language(driver: DriverKind, completion: Completion | undefined) {
+  const dialect = dialectFor(driver);
+  if (!dialect) return redisLanguage();
   return sql({
-    dialect: dialectFor(driver),
+    dialect,
     schema: completion?.schema,
     defaultSchema: completion?.defaultSchema,
     upperCaseKeywords: true,

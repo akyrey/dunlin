@@ -26,6 +26,17 @@ pub trait Dialect: Send + Sync {
     /// Lexical rules for the statement splitter and classifier.
     fn splitter_rules(&self) -> SplitterRules;
 
+    /// The statements of a script. SQL splits on `;` (with the dialect's rules); a command
+    /// language can split differently (Redis: one command per line).
+    fn split(&self, text: &str) -> Vec<crate::sql::StatementRange> {
+        crate::sql::split(text, self.splitter_rules())
+    }
+
+    /// What one statement does, for read-only sessions and confirmations.
+    fn classify(&self, statement: &str) -> crate::sql::Classification {
+        crate::sql::classify(statement, self.splitter_rules())
+    }
+
     /// How the database stores an unquoted identifier: PostgreSQL lowercases it; the others
     /// keep it as written.
     fn fold_identifier(&self, name: &str) -> String {

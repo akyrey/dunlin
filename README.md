@@ -9,7 +9,7 @@ Product name: **Dunlin**. Crate prefix `dbc-` (see DECISIONS D-012, D-014).
 
 ## What it does (v1)
 
-- Connects to PostgreSQL, MySQL/MariaDB and SQLite, directly or through an SSH tunnel.
+- Connects to PostgreSQL, MySQL/MariaDB, SQLite and Redis/Valkey, directly or through an SSH tunnel.
 - SQL editor with syntax highlighting and schema-aware autocomplete.
 - Schema browser: tables, columns, indexes, constraints, DDL.
 - Results as a grid or as JSON, with a viewer for JSON and XML cells.

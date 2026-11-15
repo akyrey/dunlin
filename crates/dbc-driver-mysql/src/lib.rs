@@ -48,6 +48,7 @@ impl Driver for MysqlDriver {
                 explain: true,
                 tls: true,
                 tunnel: true,
+                key_value: false,
             },
             options: Vec::new(),
         }

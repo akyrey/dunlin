@@ -6,6 +6,7 @@ use std::sync::Arc;
 use dbc_core::driver::{Driver, DriverInfo, DriverKind};
 use dbc_driver_mysql::MysqlDriver;
 use dbc_driver_postgres::PostgresDriver;
+use dbc_driver_redis::RedisDriver;
 use dbc_driver_sqlite::SqliteDriver;
 
 use crate::error::AppError;
@@ -22,6 +23,7 @@ impl DriverRegistry {
             Arc::new(PostgresDriver),
             Arc::new(MysqlDriver),
             Arc::new(SqliteDriver),
+            Arc::new(RedisDriver),
         ])
     }
 
@@ -51,7 +53,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn builtin_registry_has_all_three_drivers() {
+    fn builtin_registry_has_every_driver() {
         let kinds: Vec<DriverKind> = DriverRegistry::builtin()
             .list()
             .iter()
@@ -60,7 +62,12 @@ mod tests {
 
         assert_eq!(
             kinds,
-            vec![DriverKind::Postgres, DriverKind::Mysql, DriverKind::Sqlite]
+            vec![
+                DriverKind::Postgres,
+                DriverKind::Mysql,
+                DriverKind::Sqlite,
+                DriverKind::Redis
+            ]
         );
     }
 

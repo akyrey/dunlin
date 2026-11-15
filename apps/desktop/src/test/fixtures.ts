@@ -9,6 +9,7 @@ export const sqliteCapabilities: Capabilities = {
   explain: true,
   tls: false,
   tunnel: false,
+  keyValue: false,
 };
 
 const networkCapabilities: Capabilities = { ...sqliteCapabilities, tls: true, tunnel: true };

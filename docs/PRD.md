@@ -10,7 +10,7 @@ A single developer on their own machine, comfortable with SQL, working against l
 
 ## Goals
 
-1. Cover the daily loop for PostgreSQL, MySQL/MariaDB and SQLite.
+1. Cover the daily loop for PostgreSQL, MySQL/MariaDB and SQLite, and for Redis/Valkey key-value stores (D-032).
 2. Make it hard to damage a production database by accident.
 3. Make adding a fourth database a matter of writing one driver crate.
 4. Start in about a second and stay responsive on large results.

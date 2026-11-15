@@ -28,6 +28,8 @@ pub enum Danger {
     DeleteWithoutWhere,
     Drop,
     Truncate,
+    /// A driver-specific destructive command (Redis `FLUSHALL`), with its reason.
+    Command(&'static str),
 }
 
 impl Danger {
@@ -38,6 +40,7 @@ impl Danger {
             Self::DeleteWithoutWhere => "DELETE without WHERE affects every row",
             Self::Drop => "DROP permanently removes the object",
             Self::Truncate => "TRUNCATE removes every row",
+            Self::Command(reason) => reason,
         }
     }
 }
