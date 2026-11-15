@@ -9,6 +9,10 @@ import {
   sqlSplit,
   tabClose,
   toAppError,
+  type TransactionState,
+  transactionFinish,
+  transactionModeSet,
+  transactionStatus,
 } from "../../ipc";
 import { useSchema } from "../schema/schemaStore";
 import { useSessions } from "../sessions/sessionsStore";
@@ -49,6 +53,8 @@ export type EditorTab = {
   savedQueryId: string | null;
   /** `sql_split` of `text`, cached per document (task 5.5). */
   split: { text: string; ranges: StatementRange[] } | null;
+  /** Manual transaction mode, as the backend last reported it (deferred feature 2). */
+  transaction: TransactionState;
 };
 
 export type NewTab = {
@@ -79,6 +85,10 @@ type EditorState = {
   cancel: (tabId: string) => Promise<void>;
   /** Runs one statement of the last run again, in place (after its rows were edited). */
   refreshStatement: (tabId: string, index: number) => Promise<void>;
+  /** Switches between auto-commit and manual; rejects while a transaction is open. */
+  setManual: (tabId: string, manual: boolean) => Promise<void>;
+  /** Commits (`true`) or rolls back the open transaction. */
+  finishTransaction: (tabId: string, commit: boolean) => Promise<void>;
   /** Closes the tab and its backend connection. */
   closeTab: (tabId: string) => Promise<void>;
   /** Forgets every tab of a session the backend already closed. */
@@ -241,6 +251,19 @@ export const useEditor = create<EditorState>()((set, get) => {
       if (!(await runOne(tabId, index, confirmed))) break;
     }
     update(tabId, { running: false, startedAt: null, shown: last });
+    await syncTransaction(tabId);
+  };
+
+  /** Asks the backend: statements may have opened or ended a transaction, or lost it. */
+  const syncTransaction = async (tabId: string) => {
+    const tab = get().tabs[tabId];
+    if (!tab) return;
+    try {
+      const transaction = await transactionStatus(tab.sessionId, tabId);
+      update(tabId, { transaction });
+    } catch {
+      // The session is gone (closed or lost); its tabs are dropped elsewhere.
+    }
   };
 
   return {
@@ -263,6 +286,7 @@ export const useEditor = create<EditorState>()((set, get) => {
         shown: 0,
         split: null,
         savedQueryId: init.savedQueryId ?? null,
+        transaction: { manual: false, open: false },
       };
       set({ tabs: { ...get().tabs, [tabId]: tab } });
       useWorkspace.getState().openEditor(sessionId, tabId);
@@ -324,6 +348,27 @@ export const useEditor = create<EditorState>()((set, get) => {
         setStatement(tabId, index, { status: "done", result, error: null });
       } catch (caught) {
         failed(tabId, index, toAppError(caught));
+      }
+    },
+
+    setManual: async (tabId, manual) => {
+      const tab = get().tabs[tabId];
+      if (!tab) return;
+      const transaction = await transactionModeSet(tab.sessionId, tabId, manual);
+      update(tabId, { transaction });
+    },
+
+    finishTransaction: async (tabId, commit) => {
+      const tab = get().tabs[tabId];
+      if (!tab || tab.running) return;
+      try {
+        const transaction = await transactionFinish(tab.sessionId, tabId, commit);
+        update(tabId, { transaction });
+        log(tabId, "info", commit ? "Committed" : "Rolled back");
+      } catch (caught) {
+        const error = toAppError(caught);
+        update(tabId, { notice: error });
+        await syncTransaction(tabId);
       }
     },
 

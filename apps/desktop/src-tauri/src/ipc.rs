@@ -381,6 +381,23 @@ pub struct TabArgs {
     pub tab_id: String,
 }
 
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionModeArgs {
+    pub session_id: String,
+    pub tab_id: String,
+    pub manual: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionFinishArgs {
+    pub session_id: String,
+    pub tab_id: String,
+    /// `true` commits, `false` rolls back.
+    pub commit: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryResult {

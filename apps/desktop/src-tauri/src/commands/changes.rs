@@ -129,6 +129,12 @@ pub async fn changes_preview(state: &AppState, args: ChangesArgs) -> Result<Vec<
 /// index of the operation (in `operations`) that caused it in `detail.operation`.
 pub async fn changes_apply(state: &AppState, args: ChangesArgs) -> Result<ApplyResult, AppError> {
     let session = state.sessions.get(&args.session_id).await?;
+    // The apply commits its own transaction, which would commit the user's too.
+    if session.transaction(&args.view_id).manual {
+        return Err(AppError::invalid(
+            "Switch the tab to auto-commit to apply edits to its results",
+        ));
+    }
     let set = change_set(&session, state, &args).await?;
     let dialect = std::sync::Arc::clone(&session.dialect);
     let outcome = session

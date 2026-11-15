@@ -2,8 +2,10 @@
 
 mod health;
 mod schema;
+mod transaction;
 
 pub use health::{Health, PING_INTERVAL};
+pub use transaction::TransactionState;
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -39,6 +41,8 @@ pub struct Session {
     running: std::sync::Mutex<HashSet<String>>,
     /// The SSH tunnel every connection of this session dials through, if any.
     tunnel: std::sync::Mutex<Option<Tunnel>>,
+    /// Manual transaction mode per tab.
+    transactions: transaction::Transactions,
 }
 
 /// Removes a tab from the running set when the statement finishes, however it finishes.
@@ -123,6 +127,7 @@ impl Session {
 
     /// Drops a lost connection, unless the tab already has a newer one.
     async fn forget_tab(&self, tab_id: &str, lost: &Arc<dyn Connection>) {
+        self.transaction_lost(tab_id);
         let mut tabs = self.tabs.lock().await;
         if tabs
             .get(tab_id)
@@ -147,6 +152,10 @@ impl Session {
     }
 
     pub async fn close_tab(&self, tab_id: &str) -> Result<(), DbError> {
+        // Closing the connection rolls back an open transaction; the mode goes with the tab.
+        if let Ok(mut all) = self.transactions.lock() {
+            all.remove(tab_id);
+        }
         let removed = self.tabs.lock().await.remove(tab_id);
         match removed {
             Some(connection) => connection.close().await,
@@ -327,6 +336,7 @@ impl SessionManager {
             tabs: Mutex::new(HashMap::new()),
             running: std::sync::Mutex::new(HashSet::new()),
             tunnel: std::sync::Mutex::new(tunnel),
+            transactions: std::sync::Mutex::new(HashMap::new()),
         });
         self.sessions
             .write()

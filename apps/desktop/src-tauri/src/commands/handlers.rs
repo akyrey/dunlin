@@ -20,7 +20,9 @@ use crate::ipc::{
 };
 use crate::ipc::{ExportDone, ExportProgress, ExportResultArgs, ExportTableArgs, ExportTextArgs};
 use crate::ipc::{SavedQueryIdArgs, SavedQuerySaveArgs, SettingsSetArgs};
+use crate::ipc::{TransactionFinishArgs, TransactionModeArgs};
 use crate::logging::logged;
+use crate::session::TransactionState;
 use crate::state::AppState;
 
 #[tauri::command]
@@ -122,6 +124,42 @@ pub async fn query_execute(
 #[tauri::command]
 pub async fn query_cancel(state: State<'_, AppState>, args: TabArgs) -> Result<(), AppError> {
     logged("query_cancel", commands::query_cancel(&state, args)).await
+}
+
+#[tauri::command]
+pub async fn transaction_status(
+    state: State<'_, AppState>,
+    args: TabArgs,
+) -> Result<TransactionState, AppError> {
+    logged(
+        "transaction_status",
+        commands::transaction_status(&state, args),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn transaction_mode_set(
+    state: State<'_, AppState>,
+    args: TransactionModeArgs,
+) -> Result<TransactionState, AppError> {
+    logged(
+        "transaction_mode_set",
+        commands::transaction_mode_set(&state, args),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn transaction_finish(
+    state: State<'_, AppState>,
+    args: TransactionFinishArgs,
+) -> Result<TransactionState, AppError> {
+    logged(
+        "transaction_finish",
+        commands::transaction_finish(&state, args),
+    )
+    .await
 }
 
 #[tauri::command]

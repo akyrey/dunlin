@@ -8,8 +8,9 @@ use dbc_core::sql::{self, StatementClass, byte_to_utf16};
 use crate::error::AppError;
 use crate::ipc::{
     QueryExecuteArgs, QueryOutcome, QueryResult, SqlSplitArgs, StatementRange, TabArgs,
+    TransactionFinishArgs, TransactionModeArgs,
 };
-use crate::session::Session;
+use crate::session::{Session, TransactionState};
 use crate::state::AppState;
 
 /// Upper bound for `rowLimit`; results are returned in one response.
@@ -69,7 +70,9 @@ pub async fn query_execute(
     let options = ExecuteOptions {
         row_limit: args.row_limit,
     };
-    let executed = session.execute(&args.tab_id, &args.sql, &options).await;
+    let executed = session
+        .execute_in_transaction(&args.tab_id, &args.sql, &options)
+        .await;
     // DDL can change what the schema browser shows, even when it fails part-way (MySQL).
     if classification.class == StatementClass::Ddl {
         session.invalidate_schema();
@@ -138,6 +141,40 @@ pub(super) async fn tunnel_lost(state: &AppState, session_id: &str) -> AppError 
     // The session is unusable either way; a failure to close it changes nothing for the user.
     let _ = state.sessions.close(session_id).await;
     AppError::from(dbc_tunnel::TunnelError::Lost)
+}
+
+/// The tab's transaction mode and whether a transaction is open (deferred feature 2).
+pub async fn transaction_status(
+    state: &AppState,
+    args: TabArgs,
+) -> Result<TransactionState, AppError> {
+    let session = state.sessions.get(&args.session_id).await?;
+    Ok(session.transaction(&args.tab_id))
+}
+
+/// Switches a tab between auto-commit and manual transactions. Leaving manual mode with a
+/// transaction open is refused: the user commits or rolls back first.
+pub async fn transaction_mode_set(
+    state: &AppState,
+    args: TransactionModeArgs,
+) -> Result<TransactionState, AppError> {
+    let session = state.sessions.get(&args.session_id).await?;
+    session
+        .set_manual(&args.tab_id, args.manual)
+        .map_err(|e| AppError::invalid(e.message))
+}
+
+/// Commits or rolls back the tab's open transaction; without one, nothing happens.
+pub async fn transaction_finish(
+    state: &AppState,
+    args: TransactionFinishArgs,
+) -> Result<TransactionState, AppError> {
+    let session = state.sessions.get(&args.session_id).await?;
+    match session.finish_transaction(&args.tab_id, args.commit).await {
+        Ok(next) => Ok(next),
+        Err(_) if session.tunnel_lost() => Err(tunnel_lost(state, &session.id).await),
+        Err(error) => Err(AppError::from(error)),
+    }
 }
 
 /// Cancels the statement running in a tab, if any.

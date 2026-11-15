@@ -52,6 +52,9 @@ Errors from `session_open` and `connection_test` carry `detail.stage`: `ssh_conn
 | `session_close` | `{ sessionId }` | none | 1 |
 | `sql_split` | `{ sessionId, text }` | `StatementRange[]` (UTF-16 start/end, and `danger`: why it needs confirmation, or null) | 1 |
 | `query_execute` | `{ sessionId, tabId, sql, rowLimit (1..=100000), confirmed? }` | `QueryResult`; `source` names the table when the statement is a plain single-table `SELECT` (see D-027) | 1 |
+| `transaction_status` | `{ sessionId, tabId }` | `TransactionState` `{ manual, open }` | after v1 |
+| `transaction_mode_set` | `{ sessionId, tabId, manual }` | `TransactionState`; leaving manual mode with a transaction open is `invalid_argument` | after v1 |
+| `transaction_finish` | `{ sessionId, tabId, commit }` | `TransactionState`: `COMMIT` or `ROLLBACK` of the open transaction, nothing without one | after v1 |
 | `query_cancel` | `{ sessionId, tabId }` | none (no-op when the tab is idle) | 2 |
 | `tab_close` | `{ sessionId, tabId }` | none | 1 |
 | `ssh_trust_host` | `{ host, port, algorithm, fingerprint }` | none (refused if a different key is trusted for that host, port and algorithm) | 3 |

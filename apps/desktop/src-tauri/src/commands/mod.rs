@@ -21,7 +21,10 @@ pub use connections::{
 };
 pub use export::{export_result, export_table, export_text};
 pub use history::{history_clear, history_list};
-pub use queries::{MAX_ROW_LIMIT, query_cancel, query_execute, sql_split};
+pub use queries::{
+    MAX_ROW_LIMIT, query_cancel, query_execute, sql_split, transaction_finish,
+    transaction_mode_set, transaction_status,
+};
 pub use saved_queries::{saved_query_delete, saved_query_list, saved_query_save};
 pub use schema::{
     schema_completion, schema_namespaces, schema_objects, schema_refresh, schema_snippets,

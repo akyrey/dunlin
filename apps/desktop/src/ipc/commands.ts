@@ -37,6 +37,7 @@ import type {
   TableRef,
   TableSnippets,
   Value,
+  TransactionState,
 } from "./generated";
 import { Channel } from "@tauri-apps/api/core";
 
@@ -81,6 +82,24 @@ export const queryExecute = (args: QueryExecuteArgs): Promise<QueryResult> =>
 
 export const queryCancel = (sessionId: string, tabId: string): Promise<void> =>
   call("query_cancel", { sessionId, tabId });
+
+/** The tab's transaction mode and whether a transaction is open. */
+export const transactionStatus = (sessionId: string, tabId: string): Promise<TransactionState> =>
+  call("transaction_status", { sessionId, tabId });
+
+/** Auto-commit (`false`) or manual transactions; refused while a transaction is open. */
+export const transactionModeSet = (
+  sessionId: string,
+  tabId: string,
+  manual: boolean,
+): Promise<TransactionState> => call("transaction_mode_set", { sessionId, tabId, manual });
+
+/** Commits (`true`) or rolls back the tab's open transaction. */
+export const transactionFinish = (
+  sessionId: string,
+  tabId: string,
+  commit: boolean,
+): Promise<TransactionState> => call("transaction_finish", { sessionId, tabId, commit });
 
 export const sshTrustHost = (args: SshTrustHostArgs): Promise<void> => call("ssh_trust_host", args);
 

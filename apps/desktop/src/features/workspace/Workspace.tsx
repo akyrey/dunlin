@@ -53,7 +53,7 @@ export function Workspace({ session, profile }: Props) {
       useWorkspace.getState().close(sessionId, view.key);
       return;
     }
-    if (tabs[view.key]?.running) setClosing(view.key);
+    if (tabs[view.key]?.running || tabs[view.key]?.transaction.open) setClosing(view.key);
     else void useEditor.getState().closeTab(view.key);
   };
 
@@ -171,8 +171,12 @@ export function Workspace({ session, profile }: Props) {
       )}
       {closing && (
         <ConfirmDialog
-          title="Close a running tab?"
-          message="A statement is running in this tab. Closing it cancels the statement and closes the tab's connection."
+          title={tabs[closing]?.running ? "Close a running tab?" : "Roll back and close?"}
+          message={
+            tabs[closing]?.running
+              ? "A statement is running in this tab. Closing it cancels the statement and closes the tab's connection."
+              : "This tab has an open transaction. Closing it rolls the transaction back; nothing in it is kept."
+          }
           confirmLabel="Close tab"
           onConfirm={() => {
             const tabId = closing;

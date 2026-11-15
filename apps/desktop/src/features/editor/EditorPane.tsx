@@ -10,6 +10,7 @@ import { useSavedQueries } from "../saved/savedQueriesStore";
 import { DangerDialog } from "./DangerDialog";
 import { ElapsedTimer } from "./ElapsedTimer";
 import { ResultPanel } from "./ResultPanel";
+import { TransactionControls } from "./TransactionControls";
 import { RowLimitSelect } from "./RowLimitSelect";
 import type { EditorHandle } from "./SqlEditor";
 import { LazySqlEditor as SqlEditor } from "./lazy";
@@ -135,6 +136,7 @@ export function EditorPane({ tabId, session, profile }: Props) {
           )}
           {tab.running && tab.startedAt !== null && <ElapsedTimer startedAt={tab.startedAt} />}
           <span className="ml-auto flex items-center gap-3">
+            <TransactionControls tab={tab} />
             <RowLimitSelect
               key={tab.rowLimit}
               value={tab.rowLimit}
@@ -192,7 +194,7 @@ export function EditorPane({ tabId, session, profile }: Props) {
           <ResultPanel
             tab={tab}
             editing={
-              profile
+              profile && !tab.transaction.manual
                 ? {
                     profile,
                     readOnly: session.readOnly,

@@ -130,6 +130,7 @@ function split(text: string): StatementRange[] {
 }
 
 const MAIN = { catalog: null, schema: "main" };
+const NO_TRANSACTION = { manual: false, open: false };
 const MOCK_NAMESPACES: Namespace[] = [
   { namespace: MAIN, name: "main", system: false },
   { namespace: { catalog: null, schema: "temp" }, name: "temp", system: true },
@@ -348,6 +349,8 @@ const VIEW_STATEMENT_MS = 5;
 export function createMockBackend() {
   let settings: Settings = { ...DEFAULT_SETTINGS };
   const profiles = new Map<string, ConnectionProfile>();
+  /** Manual transaction mode per tab, mutated in place: this is the fake server. */
+  const transactions = new Map<string, { manual: boolean; open: boolean }>();
   const sessions = new Map<string, ConnectionProfile>();
   /** Pending sleeps by tab, resolved by `query_cancel`. */
   const sleeping = new Map<string, () => void>();
@@ -627,8 +630,30 @@ export function createMockBackend() {
       return null;
     },
     sql_split: (a) => split(a.text as string),
-    query_execute: (a) =>
-      record(a as unknown as QueryExecuteArgs, execute(a as unknown as QueryExecuteArgs)),
+    query_execute: (a) => {
+      const args = a as unknown as QueryExecuteArgs;
+      const state = transactions.get(args.tabId);
+      const word = /^\s*(\w+)/.exec(args.sql)?.[1]?.toUpperCase() ?? "";
+      if (state?.manual && ["BEGIN", "START"].includes(word)) state.open = true;
+      else if (state && ["COMMIT", "ROLLBACK", "END"].includes(word)) state.open = false;
+      else if (state?.manual) state.open = true;
+      return record(args, execute(args));
+    },
+    transaction_status: (a) => ({ ...(transactions.get(a.tabId as string) ?? NO_TRANSACTION) }),
+    transaction_mode_set: (a) => {
+      const current = transactions.get(a.tabId as string) ?? { ...NO_TRANSACTION };
+      if (!a.manual && current.open)
+        return reject("invalid_argument", "Commit or roll back the open transaction first");
+      const next = { ...current, manual: a.manual as boolean };
+      transactions.set(a.tabId as string, next);
+      return { ...next };
+    },
+    transaction_finish: (a) => {
+      const current = transactions.get(a.tabId as string) ?? { ...NO_TRANSACTION };
+      const next = { ...current, open: false };
+      transactions.set(a.tabId as string, next);
+      return { ...next };
+    },
     history_list: (a) => {
       const args = a as unknown as HistoryListArgs;
       const search = args.search?.toLowerCase();

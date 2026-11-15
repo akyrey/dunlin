@@ -75,6 +75,9 @@ fn export_all(dir: &Path) {
     SavedQuery::export_all(&config).unwrap();
     Settings::export_all(&config).unwrap();
     crate::keeper::SessionHealthEvent::export_all(&config).unwrap();
+    crate::session::TransactionState::export_all(&config).unwrap();
+    crate::ipc::TransactionModeArgs::export_all(&config).unwrap();
+    crate::ipc::TransactionFinishArgs::export_all(&config).unwrap();
     SettingsSetArgs::export_all(&config).unwrap();
     crate::ipc::ConnectionReorderArgs::export_all(&config).unwrap();
     SavedQuerySaveArgs::export_all(&config).unwrap();
