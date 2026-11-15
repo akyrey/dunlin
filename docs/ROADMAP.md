@@ -56,7 +56,7 @@ Roughly in order of likely value:
 3. ~~Visual `EXPLAIN`~~ (done, D-029)
 4. ~~Reading `~/.ssh/config`~~ (done, D-030)
 5. ~~Keyset pagination for large tables~~ (done, D-033)
-6. Import from CSV
+6. ~~Import from CSV~~ (done, D-034)
 7. ~~Profile import/export~~ (done)
 8. ~~MySQL `DELIMITER` support in the splitter~~ (done)
 9. ~~SQLite `rowid` addressing for tables without a primary key~~ (done, D-031)

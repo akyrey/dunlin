@@ -43,6 +43,11 @@ import type {
   ImportReport,
   KeyContentIpc,
   KeyEdit,
+  CsvPreview,
+  ImportCsvArgs,
+  ImportDone,
+  ImportPreviewArgs,
+  ImportProgress,
   ScanPage,
 } from "./generated";
 import { Channel } from "@tauri-apps/api/core";
@@ -215,6 +220,25 @@ export function exportTable(
     onProgress(Number(progress.rowsWritten));
   };
   return callWith("export_table", args, { onProgress: channel });
+}
+
+/** The header (or generated names) and first records of a CSV file. */
+export const importPreview = (args: ImportPreviewArgs): Promise<CsvPreview> =>
+  call("import_preview", args);
+
+/**
+ * Inserts every record of a CSV file in one transaction on the connection `args.importId`;
+ * `query_cancel` with that id stops it and rolls back.
+ */
+export function importCsv(
+  args: ImportCsvArgs,
+  onProgress: (rows: number) => void,
+): Promise<ImportDone> {
+  const channel = new Channel<ImportProgress>();
+  channel.onmessage = (progress) => {
+    onProgress(Number(progress.rowsInserted));
+  };
+  return callWith("import_csv", args, { onProgress: channel });
 }
 
 export const savedQueryList = (): Promise<SavedQuery[]> => call("saved_query_list");

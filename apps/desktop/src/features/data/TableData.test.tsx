@@ -119,6 +119,42 @@ describe("TableData", () => {
     expect(afters().at(-1)).toBe("null");
   });
 
+  it("imports a CSV file with its columns mapped by header name, then reloads", async () => {
+    show("people");
+    await screen.findByText(/Rows 1–/);
+
+    await userEvent.click(screen.getByRole("button", { name: "Import CSV…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Import CSV into people" });
+    const source = (column: string) => within(dialog).getByLabelText(`Source for ${column}`);
+    await waitFor(() => {
+      expect(source("id")).toHaveValue("1");
+    });
+    expect(source("name")).toHaveValue("0");
+    expect(source("balance")).toHaveValue("2");
+    expect(within(dialog).getByRole("table", { name: "Column mapping" })).toHaveTextContent(
+      "Zed, Yan",
+    );
+
+    await userEvent.selectOptions(source("balance"), "");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Import" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    const imported = calls.find((c) => c.cmd === "import_csv");
+    expect(imported?.args.columns).toEqual([
+      { column: "id", source: 1 },
+      { column: "name", source: 0 },
+    ]);
+    expect(await screen.findByRole("gridcell", { name: "Zed" })).toBeInTheDocument();
+  });
+
+  it("offers no import on a read-only connection", async () => {
+    show("people", [], true);
+    await screen.findByText(/Rows 1–/);
+    expect(screen.queryByRole("button", { name: "Import CSV…" })).toBeNull();
+  });
+
   it("keeps the last page under a filter error, remembers filters, and clears", async () => {
     show("events");
     await screen.findByText(/Rows 1–200/);

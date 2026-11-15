@@ -2,6 +2,7 @@
 //! [`Harness`]. Each check returns a [`Failure`] naming what went wrong instead of panicking.
 
 mod changes;
+mod import;
 mod introspection;
 mod stream;
 mod table_data;
@@ -14,6 +15,7 @@ pub use changes::{
     WriteCase, WriteSupport, apply_changes_group, change_cases, literal_cases,
     literal_round_trip_group,
 };
+pub use import::import_group;
 pub use introspection::{IntrospectionSupport, introspection_group};
 pub use stream::stream_group;
 pub use table_data::{page_sql_cases, table_data_group};
@@ -145,6 +147,7 @@ pub async fn run_all(harness: &dyn Harness) -> Result<(), Failure> {
     table_data_group(harness).await?;
     literal_round_trip_group(harness).await?;
     apply_changes_group(harness).await?;
+    import_group(harness).await?;
     stream_group(harness).await
 }
 

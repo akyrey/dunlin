@@ -88,6 +88,7 @@ A single developer on their own machine, comfortable with SQL, working against l
 
 - FR-7.1 Export a result or a table page as CSV, JSON or SQL `INSERT` statements.
 - FR-7.2 Copy selected cells or rows to the clipboard as TSV or JSON.
+- FR-7.3 Import a CSV file into a table, mapping its fields to columns, in one transaction (after v1, D-034).
 
 ## Non-functional requirements
 

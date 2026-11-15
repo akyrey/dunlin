@@ -64,6 +64,17 @@ export async function pickConnectionsFile(): Promise<string | null> {
   return typeof selected === "string" ? selected : null;
 }
 
+const CSV_FILTERS = [
+  { name: "CSV", extensions: ["csv", "tsv", "txt"] },
+  { name: "All files", extensions: ["*"] },
+];
+
+/** Asks for a CSV file to import. Resolves `null` when cancelled. */
+export async function pickCsvFile(): Promise<string | null> {
+  const selected = await open({ multiple: false, directory: false, filters: CSV_FILTERS });
+  return typeof selected === "string" ? selected : null;
+}
+
 /** Shows a file in Finder (or the platform's file manager). */
 export function revealFile(path: string): Promise<void> {
   return revealItemInDir(path);

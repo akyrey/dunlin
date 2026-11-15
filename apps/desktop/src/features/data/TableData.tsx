@@ -1,5 +1,5 @@
 import { Skeleton } from "../../components/Skeleton";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { Button } from "../../components/Button";
 import {
@@ -28,6 +28,9 @@ import { tableKey } from "../workspace/workspaceStore";
 import { loadFilters, rememberFilter } from "./filterHistory";
 import { pageSizes, describeMatch, followTarget, gridColumns, nextSort, rowKeyOf } from "./model";
 import { currentSettings } from "../settings/settingsStore";
+import { lazyPanel } from "../../lib/lazyPanel";
+
+const ImportDialog = lazyPanel(async () => (await import("../import/ImportDialog")).ImportDialog);
 
 type Props = {
   sessionId: string;
@@ -97,6 +100,10 @@ export function TableData({
   const [counting, setCounting] = useState(false);
   const [recent, setRecent] = useState(() => loadFilters(historyKey));
   const [reload, setReload] = useState(0);
+  const [importing, setImporting] = useState(false);
+  const closeImport = useCallback(() => {
+    setImporting(false);
+  }, []);
   const request = useRef(0);
   // Each of the view's connections runs one statement at a time.
   const pages = useMemo(() => serialQueue(), []);
@@ -191,7 +198,7 @@ export function TableData({
     return () => {
       stale = true;
     };
-  }, [sessionId, auxId, table, query.filter, query.match, aux]);
+  }, [sessionId, auxId, table, query.filter, query.match, aux, reload]);
 
   const changeNow = (patch: Partial<Query>) => {
     setLoading(true);
@@ -325,6 +332,20 @@ export function TableData({
         >
           Refresh
         </Button>
+        {!readOnly && (
+          <Button
+            variant="ghost"
+            className="py-0.5 text-xs"
+            disabled={!info}
+            onClick={() => {
+              editing.guarded("import rows", () => {
+                setImporting(true);
+              });
+            }}
+          >
+            Import CSV…
+          </Button>
+        )}
         {loading && (
           <Button
             variant="danger"
@@ -485,6 +506,18 @@ export function TableData({
         )}
       </div>
       {editing.dialogs}
+      {importing && info && (
+        <ImportDialog
+          sessionId={sessionId}
+          info={info}
+          onClose={closeImport}
+          onImported={() => {
+            setImporting(false);
+            setLoading(true);
+            setReload((n) => n + 1);
+          }}
+        />
+      )}
     </div>
   );
 }

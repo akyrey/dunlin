@@ -211,6 +211,13 @@ async fn apply_changes_group() {
 }
 
 #[tokio::test]
+async fn import_group() {
+    conformance::import_group(&SqliteHarness::default())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
 async fn stream_group() {
     conformance::stream_group(&SqliteHarness::default())
         .await

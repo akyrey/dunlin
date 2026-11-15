@@ -3,7 +3,7 @@
 use dbc_core::WireValue;
 use dbc_core::data::SortKey;
 use dbc_core::driver::{Capabilities, DriverKind};
-use dbc_core::export::ExportFormat;
+use dbc_core::export::{CsvOptions, ExportFormat};
 use dbc_core::result::ColumnMeta;
 use dbc_core::schema::{NamespaceRef, TableRef};
 use dbc_core::sql::StatementClass;
@@ -329,6 +329,49 @@ pub struct ExportTableArgs {
     pub sort: Vec<SortKey>,
     pub format: ExportFormat,
     pub path: String,
+}
+
+/// The first records of a CSV file, read with `options` (D-034).
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportPreviewArgs {
+    pub path: String,
+    pub options: CsvOptions,
+}
+
+/// A table column and the (0-based) CSV field that fills it.
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportColumn {
+    pub column: String,
+    pub source: usize,
+}
+
+/// Inserts every record of a CSV file into `table` in one transaction, on the connection
+/// `importId` (cancel with `query_cancel { tabId: importId }`, close with `tab_close`).
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportCsvArgs {
+    pub session_id: String,
+    pub import_id: String,
+    pub table: TableRef,
+    pub path: String,
+    pub options: CsvOptions,
+    /// Table columns left out take their default.
+    pub columns: Vec<ImportColumn>,
+}
+
+/// Sent on the progress channel of `import_csv` after each batch.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportProgress {
+    pub rows_inserted: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportDone {
+    pub rows_inserted: String,
 }
 
 /// Sent on the progress channel of `export_table` after each batch.

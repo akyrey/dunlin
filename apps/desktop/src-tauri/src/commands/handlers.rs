@@ -368,6 +368,28 @@ pub async fn export_table(
 }
 
 #[tauri::command]
+pub async fn import_preview(
+    args: crate::ipc::ImportPreviewArgs,
+) -> Result<dbc_core::import::CsvPreview, AppError> {
+    logged("import_preview", commands::import_preview(args)).await
+}
+
+#[tauri::command]
+pub async fn import_csv(
+    state: State<'_, AppState>,
+    args: crate::ipc::ImportCsvArgs,
+    on_progress: tauri::ipc::Channel<crate::ipc::ImportProgress>,
+) -> Result<crate::ipc::ImportDone, AppError> {
+    let progress = move |rows: u64| {
+        // A closed channel means the window went away; the import itself carries on.
+        let _ = on_progress.send(crate::ipc::ImportProgress {
+            rows_inserted: rows.to_string(),
+        });
+    };
+    logged("import_csv", commands::import_csv(&state, args, progress)).await
+}
+
+#[tauri::command]
 pub async fn saved_query_list(
     state: State<'_, AppState>,
 ) -> Result<Vec<dbc_store::SavedQuery>, AppError> {

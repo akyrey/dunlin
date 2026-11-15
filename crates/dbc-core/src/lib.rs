@@ -8,6 +8,7 @@ pub mod dialect;
 pub mod driver;
 pub mod error;
 pub mod export;
+pub mod import;
 pub mod kv;
 pub mod plan;
 pub mod result;

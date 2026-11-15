@@ -96,6 +96,8 @@ pub fn run() -> Result<(), tauri::Error> {
             handlers::export_text,
             handlers::export_result,
             handlers::export_table,
+            handlers::import_preview,
+            handlers::import_csv,
             handlers::saved_query_list,
             handlers::saved_query_save,
             handlers::saved_query_delete,

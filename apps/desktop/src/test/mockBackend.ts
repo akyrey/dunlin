@@ -39,6 +39,13 @@ import { rawText } from "../lib/value";
 import { mysqlDriver, postgresDriver, redisDriver, sessionFor, sqliteDriver } from "./fixtures";
 
 export const MOCK_DATABASE_PATH = "/mock/people.db";
+export const MOCK_CSV_PATH = "/mock/new-people.csv";
+/** The mock CSV file: a header, then two people (one with an empty, so NULL, balance). */
+const MOCK_CSV: string[][] = [
+  ["Name", "ID", "Balance"],
+  ["Zed", "100", "5"],
+  ["Yan", "101", ""],
+];
 export const MOCK_NEW_DATABASE_PATH = "/mock/new.db";
 const MOCK_ROW_LIMIT_TABLE = /^select \* from big/i;
 /** 1000 rows × 50 columns of mixed types, for the grid performance check (task 6.1). */
@@ -1022,7 +1029,33 @@ export function createMockBackend() {
       return null;
     },
     tab_close: () => null,
-    "plugin:dialog|open": () => MOCK_DATABASE_PATH,
+    "plugin:dialog|open": (a) =>
+      JSON.stringify(a).includes('"CSV"') ? MOCK_CSV_PATH : MOCK_DATABASE_PATH,
+    import_preview: (a) => {
+      if (a.path !== MOCK_CSV_PATH) return reject("import", "Cannot open the CSV file");
+      const header = (a.options as { header: boolean }).header;
+      const rows = header ? MOCK_CSV.slice(1) : MOCK_CSV;
+      return {
+        headers: header ? MOCK_CSV[0] : MOCK_CSV[0]?.map((_, i) => `Column ${i + 1}`),
+        rows: rows.map((row) => row.map((field) => (field === "" ? null : field))),
+      };
+    },
+    import_csv: (a) => {
+      const table = a.table as TableRef;
+      const names = mockTable(table).columns.map((c) => c.name);
+      const mapped = a.columns as { column: string; source: number }[];
+      const added = MOCK_CSV.slice(1).map((record) =>
+        names.map((name): Value => {
+          const field = record[mapped.find((m) => m.column === name)?.source ?? -1];
+          if (field === undefined || field === "") return { t: "null" };
+          return /^\d+$/.test(field) ? { t: "int", v: field } : textCell(field);
+        }),
+      );
+      const progress = extras.onProgress as { onmessage?: (p: unknown) => void } | undefined;
+      progress?.onmessage?.({ rowsInserted: String(added.length) });
+      tables = { ...tables, [table.name]: [...(tables[table.name] ?? []), ...added] };
+      return { rowsInserted: String(added.length) };
+    },
   };
 
   /** View connections with a statement in flight; a second one is refused, as by the backend. */

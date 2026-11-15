@@ -6,6 +6,7 @@ pub(crate) mod connections;
 mod export;
 pub(crate) mod handlers;
 mod history;
+mod import;
 mod kv;
 mod queries;
 mod saved_queries;
@@ -23,6 +24,7 @@ pub use connections::{
 };
 pub use export::{export_result, export_table, export_text};
 pub use history::{history_clear, history_list};
+pub use import::{import_csv, import_preview};
 pub use kv::{kv_edit, kv_read, kv_scan};
 pub use queries::{
     MAX_ROW_LIMIT, query_cancel, query_execute, query_explain, sql_split, transaction_finish,

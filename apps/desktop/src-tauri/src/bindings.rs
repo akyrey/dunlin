@@ -82,6 +82,11 @@ fn export_all(dir: &Path) {
     crate::ipc::KvScanArgs::export_all(&config).unwrap();
     crate::ipc::KvReadArgs::export_all(&config).unwrap();
     crate::ipc::KvEditArgs::export_all(&config).unwrap();
+    crate::ipc::ImportPreviewArgs::export_all(&config).unwrap();
+    crate::ipc::ImportCsvArgs::export_all(&config).unwrap();
+    crate::ipc::ImportProgress::export_all(&config).unwrap();
+    crate::ipc::ImportDone::export_all(&config).unwrap();
+    dbc_core::import::CsvPreview::export_all(&config).unwrap();
     crate::ipc::KeyContentIpc::export_all(&config).unwrap();
     dbc_core::kv::ScanPage::export_all(&config).unwrap();
     crate::ipc::ConnectionsExportArgs::export_all(&config).unwrap();
