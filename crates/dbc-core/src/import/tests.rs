@@ -338,3 +338,147 @@ fn a_preview_names_unnamed_columns_and_shows_nulls() {
     );
     assert_eq!(preview.rows[0][1], None);
 }
+
+mod transaction {
+    use super::*;
+    use crate::error::DbErrorCode;
+    use crate::fake::{Scripted, affected, block_on, refused};
+
+    fn record(line: u64, name: &str, id: &str) -> Record {
+        Record {
+            line,
+            fields: vec![field(name, false), field(id, false)],
+        }
+    }
+
+    /// Runs `import` over `batches` already queued; returns the result and the totals heard.
+    fn run(
+        connection: &Scripted,
+        batches: Vec<Result<Vec<Record>, ImportError>>,
+    ) -> (Result<u64, ImportError>, Vec<u64>) {
+        let (tx, rx) = mpsc::channel(batches.len().max(1));
+        for batch in batches {
+            tx.try_send(batch).unwrap();
+        }
+        drop(tx);
+        let heard = std::sync::Mutex::new(Vec::new());
+        let result = block_on(import(connection, &Pg, &target(), "", rx, &|n| {
+            heard.lock().unwrap().push(n);
+        }));
+        (result, heard.into_inner().unwrap())
+    }
+
+    #[test]
+    fn every_batch_goes_in_and_commits() {
+        let connection = Scripted::answering(vec![affected(2), affected(1)]);
+
+        let (result, heard) = run(
+            &connection,
+            vec![
+                Ok(vec![record(2, "Ada", "1"), record(3, "Bob", "2")]),
+                Ok(vec![record(4, "Cy", "3")]),
+            ],
+        );
+
+        assert_eq!(result.unwrap(), 3);
+        assert_eq!(heard, vec![2, 3]);
+        let log = connection.log();
+        assert_eq!(log.first().map(String::as_str), Some("BEGIN"));
+        assert_eq!(log.last().map(String::as_str), Some("COMMIT"));
+        assert_eq!(
+            connection.params.lock().unwrap()[0],
+            vec![
+                Value::Int(1),
+                Value::Text("Ada".into()),
+                Value::Int(2),
+                Value::Text("Bob".into())
+            ]
+        );
+    }
+
+    #[test]
+    fn a_refused_insert_rolls_back_and_names_its_lines() {
+        let connection = Scripted::answering(vec![
+            affected(1),
+            refused(DbErrorCode::Constraint, "duplicate key"),
+        ]);
+
+        let (result, heard) = run(
+            &connection,
+            vec![
+                Ok(vec![record(2, "Ada", "1")]),
+                Ok(vec![record(3, "Bob", "1"), record(4, "Cy", "2")]),
+            ],
+        );
+
+        let error = result.unwrap_err();
+        assert!(
+            matches!(&error, ImportError::Rows { first: 3, last: 4, error } if error.code == DbErrorCode::Constraint),
+            "{error:?}"
+        );
+        assert_eq!(heard, vec![1]);
+        assert_eq!(
+            connection.log().last().map(String::as_str),
+            Some("ROLLBACK")
+        );
+    }
+
+    #[test]
+    fn a_bad_value_or_a_reader_error_rolls_back_before_anything_more_runs() {
+        let bad_value = Scripted::default();
+        let (result, _) = run(&bad_value, vec![Ok(vec![record(5, "Ada", "one")])]);
+        assert!(matches!(result, Err(ImportError::Value { line: 5, .. })));
+        assert_eq!(bad_value.log(), vec!["BEGIN", "ROLLBACK"]);
+
+        let unreadable = Scripted::default();
+        let error = ImportError::Csv {
+            line: 9,
+            message: "a quoted field is not closed".into(),
+        };
+        let (result, _) = run(&unreadable, vec![Err(error.clone())]);
+        assert_eq!(result.unwrap_err(), error);
+        assert_eq!(unreadable.log(), vec!["BEGIN", "ROLLBACK"]);
+    }
+
+    #[test]
+    fn begin_and_commit_failures_are_reported() {
+        let no_begin = Scripted {
+            failing: vec!["BEGIN"],
+            ..Scripted::default()
+        };
+        let (result, _) = run(&no_begin, vec![]);
+        assert!(matches!(result, Err(ImportError::Database(_))));
+        assert_eq!(no_begin.log(), vec!["BEGIN"]);
+
+        let no_commit = Scripted {
+            failing: vec!["COMMIT"],
+            ..Scripted::default()
+        };
+        let (result, _) = run(&no_commit, vec![Ok(vec![record(2, "Ada", "1")])]);
+        assert_eq!(result.unwrap_err().to_string(), "COMMIT failed");
+        assert_eq!(no_commit.log().last().map(String::as_str), Some("ROLLBACK"));
+    }
+
+    #[test]
+    fn a_statement_that_returns_rows_counts_the_rows_sent() {
+        let connection = Scripted::answering(vec![crate::fake::rows(vec![])]);
+
+        let (result, _) = run(&connection, vec![Ok(vec![record(2, "Ada", "1")])]);
+
+        assert_eq!(result.unwrap(), 1);
+    }
+
+    #[test]
+    fn a_long_value_is_cut_in_the_message() {
+        let long = "x".repeat(100);
+        let error = field_value(
+            &field(&long, false),
+            &column("n", TypeCategory::Integer),
+            "",
+        )
+        .unwrap_err();
+
+        assert!(error.contains("…"), "{error}");
+        assert!(error.len() < 80, "{error}");
+    }
+}

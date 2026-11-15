@@ -454,3 +454,114 @@ fn the_cursor_is_the_order_values_of_a_row() {
     assert_eq!(cursor(&keyed, &[], &page, 1), None);
     assert_eq!(cursor(&info(None), &[], &page, 0), None);
 }
+
+mod running {
+    use super::*;
+    use crate::fake::{Scripted, affected, block_on, rows};
+
+    fn keyed() -> TableInfo {
+        info(Some(&["order_id", "line"]))
+    }
+
+    #[test]
+    fn a_page_is_the_rows_of_its_statement() {
+        let connection = Scripted::answering(vec![rows(vec![Value::Int(1), Value::Int(2)])]);
+
+        let page = block_on(fetch_page(&connection, &Pg, &keyed(), &request())).unwrap();
+
+        assert_eq!(page.rows.len(), 2);
+        assert!(connection.log()[0].starts_with("SELECT * FROM"));
+    }
+
+    #[test]
+    fn a_statement_without_rows_is_an_internal_error() {
+        let connection = Scripted::answering(vec![affected(3)]);
+
+        let error = block_on(fetch_page(&connection, &Pg, &keyed(), &request())).unwrap_err();
+
+        assert_eq!(error.code, DbErrorCode::Internal);
+    }
+
+    #[test]
+    fn counts_are_estimated_only_without_a_filter() {
+        let estimating = Scripted {
+            estimate: Some(1200),
+            ..Scripted::default()
+        };
+        let none = Scripted::default();
+
+        let estimate = block_on(count_rows(&estimating, &Pg, &keyed(), None, &[], false));
+        let blank = block_on(count_rows(
+            &estimating,
+            &Pg,
+            &keyed(),
+            Some("  "),
+            &[],
+            false,
+        ));
+        let filtered = block_on(count_rows(
+            &estimating,
+            &Pg,
+            &keyed(),
+            Some("sku = 'a'"),
+            &[],
+            false,
+        ));
+        let unknown = block_on(count_rows(&none, &Pg, &keyed(), None, &[], false));
+
+        assert_eq!(estimate.unwrap(), RowCount::Estimate(1200));
+        assert_eq!(blank.unwrap(), RowCount::Estimate(1200));
+        assert_eq!(filtered.unwrap(), RowCount::Unknown);
+        assert_eq!(unknown.unwrap(), RowCount::Unknown);
+        assert!(estimating.log().is_empty(), "estimates run no statement");
+    }
+
+    #[test]
+    fn an_exact_count_reads_whatever_number_type_the_server_returns() {
+        let cases = [
+            (Value::Int(7), Some(7)),
+            (Value::UInt(8), Some(8)),
+            (Value::Decimal("9".into()), Some(9)),
+            (Value::Text("10".into()), Some(10)),
+            (Value::Int(-1), None),
+            (Value::Null, None),
+        ];
+        for (value, expected) in cases {
+            let connection = Scripted::answering(vec![rows(vec![value.clone()])]);
+
+            let count = block_on(count_rows(&connection, &Pg, &keyed(), None, &[], true));
+
+            match expected {
+                Some(n) => assert_eq!(count.unwrap(), RowCount::Exact(n), "{value:?}"),
+                None => assert_eq!(count.unwrap_err().code, DbErrorCode::Internal, "{value:?}"),
+            }
+            assert!(connection.log()[0].starts_with("SELECT count(*)"));
+        }
+    }
+
+    #[test]
+    fn a_cell_is_read_by_its_row_key_or_reported_gone() {
+        let key = vec![
+            KeyValue {
+                column: "order_id".into(),
+                value: Value::Int(1),
+            },
+            KeyValue {
+                column: "line".into(),
+                value: Value::Int(2),
+            },
+        ];
+        let found = Scripted::answering(vec![rows(vec![Value::Text("SKU-1".into())])]);
+        let gone = Scripted::answering(vec![rows(vec![])]);
+
+        let value = block_on(fetch_cell(&found, &Pg, &keyed(), &key, "sku"));
+        let missing = block_on(fetch_cell(&gone, &Pg, &keyed(), &key, "sku"));
+
+        assert_eq!(value.unwrap(), Value::Text("SKU-1".into()));
+        assert_eq!(missing.unwrap_err().code, DbErrorCode::NotFound);
+        assert_eq!(
+            found.params.lock().unwrap()[0],
+            vec![Value::Int(1), Value::Int(2)]
+        );
+    }
+}

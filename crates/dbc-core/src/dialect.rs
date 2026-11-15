@@ -140,6 +140,82 @@ pub fn quote_with(name: &str, quote: char) -> String {
 
 #[cfg(test)]
 mod tests {
+    use crate::value::Value;
+
+    #[test]
+    fn ansi_literals_for_every_value() {
+        let cases = [
+            (Value::Null, "NULL"),
+            (Value::Bool(true), "TRUE"),
+            (Value::Bool(false), "FALSE"),
+            (Value::Int(-3), "-3"),
+            (Value::UInt(u64::MAX), "18446744073709551615"),
+            (Value::Float(2.5), "2.5"),
+            (Value::Float(f64::INFINITY), "'inf'"),
+            (Value::Decimal("12.50".into()), "12.50"),
+            (Value::Decimal("NaN".into()), "'NaN'"),
+            (Value::Bytes(vec![0, 255]), "X'00ff'"),
+            (Value::Text("it's".into()), "'it''s'"),
+            (Value::Date("2026-01-02".into()), "'2026-01-02'"),
+            (
+                Value::Array(vec![Value::Int(1), Value::Null]),
+                "ARRAY[1, NULL]",
+            ),
+            (
+                Value::Unknown {
+                    type_name: "point".into(),
+                    text: Some("(1,2)".into()),
+                    hex: None,
+                },
+                "'(1,2)'",
+            ),
+            (
+                Value::Unknown {
+                    type_name: "blob".into(),
+                    text: None,
+                    hex: Some("abcd".into()),
+                },
+                "X'abcd'",
+            ),
+            (
+                Value::Unknown {
+                    type_name: "void".into(),
+                    text: None,
+                    hex: None,
+                },
+                "NULL",
+            ),
+        ];
+        for (value, expected) in cases {
+            assert_eq!(ansi_literal(&value), expected, "{value:?}");
+        }
+    }
+
+    #[rstest]
+    #[case("-12.50", true)]
+    #[case("+3e10", true)]
+    #[case("1E-5", true)]
+    #[case(".5", true)]
+    #[case("5.", true)]
+    #[case(".", false)]
+    #[case("1e", false)]
+    #[case("0x10", false)]
+    #[case("1,5", false)]
+    fn numeric_literals_are_plain_decimal_numbers(#[case] text: &str, #[case] plain: bool) {
+        assert_eq!(numeric_literal(text).is_some(), plain, "{text}");
+    }
+
+    #[test]
+    fn dialect_defaults_follow_standard_sql() {
+        let dialect = Ansi;
+
+        assert_eq!(dialect.split("SELECT 1; SELECT 2").len(), 2);
+        assert!(dialect.classify("SELECT 1").class == crate::sql::StatementClass::Read);
+        assert_eq!(dialect.fold_identifier("Name"), "Name");
+        assert_eq!(dialect.render_literal(&Value::Int(1), "int"), "1");
+        assert_eq!(dialect.default_values(), "DEFAULT VALUES");
+    }
+
     use rstest::rstest;
 
     use super::*;

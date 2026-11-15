@@ -190,4 +190,141 @@ mod tests {
 
         assert_eq!(nested, Value::Json(r#"[1,{"k":true}]"#.into()));
     }
+
+    /// A server error as the parser reads it off the wire.
+    fn server(line: &str) -> redis::ServerError {
+        match redis::parse_redis_value(format!("-{line}\r\n").as_bytes()).unwrap() {
+            Reply::ServerError(error) => error,
+            other => panic!("not an error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn server_errors_map_to_codes() {
+        let cases = [
+            (
+                "WRONGPASS invalid username-password pair",
+                DbErrorCode::Auth,
+            ),
+            ("NOAUTH Authentication required.", DbErrorCode::Auth),
+            (
+                "NOPERM this user has no permissions",
+                DbErrorCode::Permission,
+            ),
+            (
+                "READONLY You can't write against a read only replica.",
+                DbErrorCode::ReadOnly,
+            ),
+            (
+                "ERR unknown command 'NOPE', with args beginning with:",
+                DbErrorCode::Syntax,
+            ),
+            (
+                "ERR value is not an integer or out of range",
+                DbErrorCode::Execution,
+            ),
+            (
+                "WRONGTYPE Operation against a key holding the wrong kind of value",
+                DbErrorCode::Execution,
+            ),
+        ];
+        for (line, code) in cases {
+            assert_eq!(server_error(&server(line)).code, code, "{line}");
+        }
+        let refused = to_result(Reply::ServerError(server("ERR bad")), 10).unwrap_err();
+        assert_eq!(refused.code, DbErrorCode::Execution);
+    }
+
+    #[test]
+    fn every_scalar_becomes_a_cell() {
+        let cases = [
+            (Reply::Nil, Value::Null),
+            (Reply::Int(-4), Value::Int(-4)),
+            (Reply::Double(1.5), Value::Float(1.5)),
+            (Reply::Boolean(false), Value::Bool(false)),
+            (
+                Reply::SimpleString("PONG".into()),
+                Value::Text("PONG".into()),
+            ),
+            (
+                Reply::VerbatimString {
+                    format: redis::VerbatimFormat::Text,
+                    text: "verbatim".into(),
+                },
+                Value::Text("verbatim".into()),
+            ),
+            (
+                Reply::BigNumber(b"123456789012345678901234567890".to_vec()),
+                Value::Decimal("123456789012345678901234567890".into()),
+            ),
+            (
+                Reply::Attribute {
+                    data: Box::new(Reply::Int(7)),
+                    attributes: Vec::new(),
+                },
+                Value::Int(7),
+            ),
+        ];
+        for (reply, expected) in cases {
+            assert_eq!(cell(reply.clone()), expected, "{reply:?}");
+        }
+        assert!(
+            matches!(cell(Reply::ServerError(server("ERR no"))), Value::Text(t) if t.starts_with("(error)"))
+        );
+    }
+
+    #[test]
+    fn sets_pushes_and_attributes_become_grids_too() {
+        let set = to_result(Reply::Set(vec![Reply::Int(1)]), 10).unwrap();
+        let attributed = to_result(
+            Reply::Attribute {
+                data: Box::new(Reply::Array(vec![Reply::Int(1), Reply::Int(2)])),
+                attributes: Vec::new(),
+            },
+            10,
+        )
+        .unwrap();
+
+        assert_eq!(set.rows, vec![vec![Value::Int(1), Value::Int(1)]]);
+        assert_eq!(attributed.rows.len(), 2);
+        assert!(!attributed.truncated);
+    }
+
+    #[test]
+    fn nested_values_of_every_kind_are_json() {
+        let nested = cell(Reply::Array(vec![
+            Reply::Nil,
+            Reply::Double(f64::NAN),
+            Reply::Double(0.5),
+            Reply::Okay,
+            Reply::BulkString(b"bulk".to_vec()),
+            Reply::BigNumber(b"99".to_vec()),
+            Reply::VerbatimString {
+                format: redis::VerbatimFormat::Markdown,
+                text: "md".into(),
+            },
+            Reply::Set(vec![Reply::Boolean(true)]),
+            Reply::Map(vec![(Reply::Int(1), Reply::SimpleString("one".into()))]),
+            Reply::ServerError(server("ERR inner")),
+        ]));
+
+        let Value::Json(text) = nested else {
+            panic!("expected JSON");
+        };
+        let parsed: Json = serde_json::from_str(&text).unwrap();
+        assert_eq!(parsed[0], Json::Null);
+        assert_eq!(parsed[1], Json::Null, "NaN has no JSON form");
+        assert_eq!(parsed[2], Json::from(0.5));
+        assert_eq!(parsed[3], Json::from("OK"));
+        assert_eq!(parsed[4], Json::from("bulk"));
+        assert_eq!(parsed[5], Json::from("99"));
+        assert_eq!(parsed[6], Json::from("md"));
+        assert_eq!(parsed[7], Json::Array(vec![Json::Bool(true)]));
+        assert_eq!(
+            parsed[8]["1"],
+            Json::from("one"),
+            "non-text map keys become text"
+        );
+        assert!(parsed[9].as_str().unwrap().starts_with("(error)"));
+    }
 }

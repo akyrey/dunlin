@@ -8,6 +8,8 @@ pub mod dialect;
 pub mod driver;
 pub mod error;
 pub mod export;
+#[cfg(test)]
+mod fake;
 pub mod import;
 pub mod kv;
 pub mod plan;

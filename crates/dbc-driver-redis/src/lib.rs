@@ -93,3 +93,35 @@ impl Dialect for RedisDialect {
         "?".to_owned()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dbc_core::sql::StatementClass;
+
+    #[test]
+    fn the_driver_describes_a_key_value_store() {
+        let info = RedisDriver.info();
+
+        assert_eq!(info.kind, DriverKind::Redis);
+        assert_eq!(info.default_port, Some(DEFAULT_PORT));
+        assert!(info.capabilities.key_value);
+        assert!(!info.capabilities.explain);
+        assert!(
+            !info.tls_modes.contains(&TlsMode::Prefer),
+            "a port speaks TLS or not"
+        );
+    }
+
+    #[test]
+    fn the_dialect_reads_commands_line_by_line() {
+        let dialect = RedisDriver.dialect();
+
+        assert_eq!(dialect.split("GET a\n# note\nSET b 1").len(), 2);
+        assert_eq!(dialect.classify("GET a").class, StatementClass::Read);
+        assert_eq!(dialect.classify("SET a 1").class, StatementClass::Write);
+        assert_eq!(dialect.quote_identifier("a key"), quote_arg("a key"));
+        assert_eq!(dialect.placeholder(1, "text"), "?");
+        assert!(dialect.splitter_rules() == SplitterRules::default());
+    }
+}

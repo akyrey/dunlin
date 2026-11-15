@@ -146,3 +146,27 @@ pub trait KeyValueStore: Send + Sync {
     /// The key's content, at most `limit` elements. `NotFound` when the key does not exist.
     async fn read_key(&self, key: &[u8], limit: usize) -> Result<KeyContent, DbError>;
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+
+    use super::*;
+
+    #[test]
+    fn a_key_name_keeps_its_exact_bytes_in_the_id() {
+        let bytes = b"user:\xff1";
+
+        let name = KeyName::from_bytes(bytes);
+
+        assert_eq!(name.name, "user:\u{fffd}1");
+        assert_eq!(KeyName::decode(&name.id).unwrap(), bytes.to_vec());
+    }
+
+    #[test]
+    fn an_id_that_is_not_base64_is_refused() {
+        let error = KeyName::decode("not base64!").unwrap_err();
+
+        assert_eq!(error.code, crate::DbErrorCode::Internal);
+    }
+}
