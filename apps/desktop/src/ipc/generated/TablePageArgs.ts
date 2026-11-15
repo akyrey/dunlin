@@ -2,9 +2,15 @@
 import type { KeyArg } from "./KeyArg";
 import type { SortKey } from "./SortKey";
 import type { TableRef } from "./TableRef";
+import type { Value } from "./Value";
 
 /**
  * Table data commands run on the view's own connection (`viewId`, like an editor tab id), so
  * they can be cancelled with `query_cancel` and never wait for the tree or an editor.
  */
-export type TablePageArgs = { sessionId: string, viewId: string, table: TableRef, filter?: string, key: Array<KeyArg>, sort: Array<SortKey>, limit: number, offset: number, };
+export type TablePageArgs = { sessionId: string, viewId: string, table: TableRef, filter?: string, key: Array<KeyArg>, sort: Array<SortKey>, limit: number, offset: number, 
+/**
+ * Keyset pagination: the `cursor` of the page before. The page starts after that row and
+ * `offset` only numbers the rows. Absent: the page starts at `offset`.
+ */
+after?: Array<Value>, };

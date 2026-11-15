@@ -51,6 +51,15 @@ pub async fn table_page(state: &AppState, args: TablePageArgs) -> Result<TablePa
     let session = state.sessions.get(&args.session_id).await?;
     let info = session.schema_table(&args.table).await;
     let info = finish(state, &session, info).await?;
+    let after = args
+        .after
+        .unwrap_or_default()
+        .into_iter()
+        .map(Value::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| AppError::invalid(format!("Page cursor: {e}")))?;
+    let sort = args.sort.clone();
+    let described = info.clone();
     // One row more than the page tells whether another page follows.
     let request = TablePageRequest {
         table: args.table,
@@ -59,6 +68,7 @@ pub async fn table_page(state: &AppState, args: TablePageArgs) -> Result<TablePa
         sort: args.sort,
         limit: args.limit + 1,
         offset: args.offset,
+        after,
     };
     let started = Instant::now();
     let dialect = std::sync::Arc::clone(&session.dialect);
@@ -70,6 +80,16 @@ pub async fn table_page(state: &AppState, args: TablePageArgs) -> Result<TablePa
     let mut page = finish(state, &session, result).await?;
     let has_more = page.rows.len() > args.limit;
     page.rows.truncate(args.limit);
+    // Whole values: a cut value would seek from the wrong place.
+    let cursor = has_more
+        .then(|| data::cursor(&described, &sort, &page, args.limit - 1))
+        .flatten()
+        .map(|values| {
+            values
+                .into_iter()
+                .map(|v| v.into_wire(usize::MAX))
+                .collect()
+        });
     Ok(TablePage {
         columns: page.columns,
         rows: page
@@ -82,6 +102,7 @@ pub async fn table_page(state: &AppState, args: TablePageArgs) -> Result<TablePa
             })
             .collect(),
         has_more,
+        cursor,
         elapsed_ms: u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
     })
 }

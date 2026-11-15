@@ -311,6 +311,7 @@ impl Edits<'_> {
             sort: Vec::new(),
             limit: 100,
             offset: 0,
+            after: Vec::new(),
         };
         let page = data::fetch_page(self.connection, self.dialect, &self.info, &request)
             .await

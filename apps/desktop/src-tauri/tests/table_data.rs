@@ -35,6 +35,7 @@ fn page(session: &SessionInfo, name: &str) -> TablePageArgs {
         sort: Vec::new(),
         limit: 2,
         offset: 0,
+        after: None,
     }
 }
 
@@ -69,6 +70,45 @@ async fn pages_through_a_table_and_says_when_more_follow() {
     assert_eq!(first_column(&second), vec![int(12)]);
     assert!(!second.has_more);
     assert_eq!(first.columns[0].name, "id");
+}
+
+#[tokio::test]
+async fn pages_seek_from_the_cursor_of_the_page_before() {
+    let fixture = Fixture::new();
+    let session = fixture.session(false).await;
+
+    let first = commands::table_page(&fixture.state, page(&session, "orders"))
+        .await
+        .unwrap();
+    let second = commands::table_page(
+        &fixture.state,
+        TablePageArgs {
+            offset: 2,
+            after: first.cursor.clone(),
+            ..page(&session, "orders")
+        },
+    )
+    .await
+    .unwrap();
+    // `total` can be NULL: no cursor, so the next page uses the offset.
+    let by_total = commands::table_page(
+        &fixture.state,
+        TablePageArgs {
+            sort: vec![SortKey {
+                column: "total".into(),
+                descending: false,
+            }],
+            ..page(&session, "orders")
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(first.cursor, Some(vec![int(11)]));
+    assert_eq!(first_column(&second), vec![int(12)]);
+    assert_eq!(second.cursor, None, "the last page has no next page");
+    assert!(by_total.has_more);
+    assert_eq!(by_total.cursor, None);
 }
 
 #[tokio::test]

@@ -60,6 +60,7 @@ async fn names(fixture: &Fixture, session: &SessionInfo) -> Vec<WireValue> {
             sort: Vec::new(),
             limit: 100,
             offset: 0,
+            after: None,
         },
     )
     .await
@@ -236,6 +237,7 @@ async fn a_table_without_a_key_is_edited_by_rowid() {
         sort: Vec::new(),
         limit: 50,
         offset: 0,
+        after: None,
     };
     let before = commands::table_page(&fixture.state, page_args())
         .await

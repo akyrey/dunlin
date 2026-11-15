@@ -70,6 +70,7 @@ fn request() -> TablePageRequest {
         sort: Vec::new(),
         limit: DEFAULT_PAGE_SIZE,
         offset: 0,
+        after: Vec::new(),
     }
 }
 
@@ -137,7 +138,7 @@ fn filter_key_and_sort_combine_with_bound_values() {
     assert_eq!(
         bound.sql,
         format!(
-            r#"SELECT * FROM {TABLE} WHERE (sku LIKE 'A%' OR line > 1) AND "order_id" = $1::text::integer AND "sku" IS NULL ORDER BY "sku" DESC, "line" LIMIT 10000 OFFSET 0"#
+            r#"SELECT * FROM {TABLE} WHERE (sku LIKE 'A%' OR line > 1) AND "order_id" = $1::text::integer AND "sku" IS NULL ORDER BY "sku" DESC, "line", "order_id" LIMIT 10000 OFFSET 0"#
         )
     );
     assert_eq!(bound.params, vec![Value::Int(10)]);
@@ -322,4 +323,134 @@ fn a_real_key_wins_over_the_row_id() {
             .sql
             .starts_with("SELECT * ")
     );
+}
+
+fn sort_by(column: &str, descending: bool) -> SortKey {
+    SortKey {
+        column: column.into(),
+        descending,
+    }
+}
+
+#[test]
+fn a_sort_ends_with_the_row_key_so_pages_are_stable() {
+    let keyed = info(Some(&["order_id", "line"]));
+
+    assert_eq!(
+        page_order(&keyed, &[sort_by("line", true)]),
+        vec![sort_by("line", true), sort_by("order_id", false)]
+    );
+    assert_eq!(
+        page_order(&info(None), &[sort_by("sku", false)]),
+        vec![sort_by("sku", false)]
+    );
+}
+
+#[test]
+fn only_a_total_order_on_not_null_columns_can_seek() {
+    let keyed = info(Some(&["order_id", "line"]));
+    let mut nullable = keyed.clone();
+    nullable.columns[2].nullable = true;
+
+    assert_eq!(
+        keyset_order(&keyed, &[]),
+        Some(vec![sort_by("order_id", false), sort_by("line", false)])
+    );
+    assert_eq!(keyset_order(&info(None), &[]), None);
+    assert_eq!(keyset_order(&nullable, &[sort_by("sku", false)]), None);
+    assert!(keyset_order(&nullable, &[sort_by("line", true)]).is_some());
+}
+
+#[test]
+fn a_page_after_a_row_seeks_past_it_without_an_offset() {
+    let keyed = info(Some(&["order_id"]));
+    let page = TablePageRequest {
+        after: vec![Value::Int(42)],
+        offset: 400,
+        ..request()
+    };
+
+    let bound = page_sql(&Pg, &keyed, &page).unwrap();
+
+    assert_eq!(
+        bound.sql,
+        format!(
+            r#"SELECT * FROM {TABLE} WHERE "order_id" > $1::text::integer ORDER BY "order_id" LIMIT 200"#
+        )
+    );
+    assert_eq!(bound.params, vec![Value::Int(42)]);
+}
+
+#[test]
+fn a_seek_over_several_columns_follows_each_direction() {
+    let keyed = info(Some(&["order_id", "line"]));
+    let page = TablePageRequest {
+        filter: Some("sku <> 'x'".into()),
+        sort: vec![sort_by("line", true)],
+        after: vec![Value::Int(2), Value::Int(10)],
+        ..request()
+    };
+
+    let bound = page_sql(&Pg, &keyed, &page).unwrap();
+
+    let int = |n: usize| format!("${n}::text::integer");
+    assert_eq!(
+        bound.sql,
+        format!(
+            r#"SELECT * FROM {TABLE} WHERE (sku <> 'x') AND "line" <= {} AND ("line" < {} OR ("line" = {} AND "order_id" > {})) ORDER BY "line" DESC, "order_id" LIMIT 200"#,
+            int(1),
+            int(2),
+            int(3),
+            int(4)
+        )
+    );
+    assert_eq!(
+        bound.params,
+        vec![Value::Int(2), Value::Int(2), Value::Int(2), Value::Int(10)]
+    );
+}
+
+#[test]
+fn a_seek_needs_a_value_per_order_column_and_a_seekable_order() {
+    let keyed = info(Some(&["order_id", "line"]));
+    let short = TablePageRequest {
+        after: vec![Value::Int(1)],
+        ..request()
+    };
+    let unkeyed = TablePageRequest {
+        after: vec![Value::Int(1)],
+        ..request()
+    };
+    let null = TablePageRequest {
+        after: vec![Value::Int(1), Value::Null],
+        ..request()
+    };
+
+    for (table, page) in [(&keyed, short), (&info(None), unkeyed), (&keyed, null)] {
+        let code = page_sql(&Pg, table, &page).unwrap_err().code;
+        assert_eq!(code, DbErrorCode::Unsupported);
+    }
+}
+
+#[test]
+fn the_cursor_is_the_order_values_of_a_row() {
+    let keyed = info(Some(&["order_id", "line"]));
+    let meta = |name: &str| crate::result::ColumnMeta {
+        name: name.into(),
+        type_name: "integer".into(),
+        category: TypeCategory::Integer,
+        nullable: None,
+    };
+    let page = ResultSet {
+        columns: vec![meta("sku"), meta("line"), meta("order_id")],
+        rows: vec![vec![Value::Text("a".into()), Value::Int(3), Value::Int(7)]],
+        truncated: false,
+    };
+
+    assert_eq!(
+        cursor(&keyed, &[sort_by("sku", true)], &page, 0),
+        Some(vec![Value::Text("a".into()), Value::Int(7), Value::Int(3)])
+    );
+    assert_eq!(cursor(&keyed, &[], &page, 1), None);
+    assert_eq!(cursor(&info(None), &[], &page, 0), None);
 }

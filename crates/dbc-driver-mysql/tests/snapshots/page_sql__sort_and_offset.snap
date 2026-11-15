@@ -2,5 +2,5 @@
 source: crates/dbc-driver-mysql/tests/page_sql.rs
 expression: "format!(\"{}\\n{:?}\", bound.sql, bound.params)"
 ---
-SELECT * FROM `shop`.`Order Items` ORDER BY `spaced "name"` DESC, `id` LIMIT 50 OFFSET 150
+SELECT * FROM `shop`.`Order Items` ORDER BY `spaced "name"` DESC, `id`, `select` LIMIT 50 OFFSET 150
 []

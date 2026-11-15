@@ -224,6 +224,7 @@ pub async fn export_table(
         sort: args.sort,
         limit: 0,
         offset: 0,
+        after: Vec::new(),
     };
     let columns = matches!(args.format, ExportFormat::Insert { .. }).then(|| insert_columns(&info));
     let bound = data::select_sql(

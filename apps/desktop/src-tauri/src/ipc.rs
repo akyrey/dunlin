@@ -211,6 +211,11 @@ pub struct TablePageArgs {
     pub limit: usize,
     #[ts(type = "number")]
     pub offset: u64,
+    /// Keyset pagination: the `cursor` of the page before. The page starts after that row and
+    /// `offset` only numbers the rows. Absent: the page starts at `offset`.
+    #[serde(default)]
+    #[ts(optional)]
+    pub after: Option<Vec<WireValue>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
@@ -220,6 +225,9 @@ pub struct TablePage {
     pub rows: Vec<Vec<WireValue>>,
     /// Another page follows.
     pub has_more: bool,
+    /// Where the next page starts, for `after`; `null` when there is none or the order cannot
+    /// seek (a nullable sort column, no row key), so the next page uses `offset`.
+    pub cursor: Option<Vec<WireValue>>,
     #[ts(type = "number")]
     pub elapsed_ms: u64,
 }

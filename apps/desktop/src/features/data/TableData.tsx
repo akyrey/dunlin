@@ -10,6 +10,7 @@ import {
   type TableInfo,
   type TablePage,
   type TableRef,
+  type Value,
   cellFullValue,
   queryCancel,
   schemaTable,
@@ -42,7 +43,20 @@ type Props = {
   profile: EditingProfile;
 };
 
-type Query = { filter: string; sort: SortKey[]; offset: number; pageSize: number; match: KeyArg[] };
+type Query = {
+  filter: string;
+  sort: SortKey[];
+  offset: number;
+  pageSize: number;
+  match: KeyArg[];
+  /**
+   * The cursor each page up to this one started after (keyset pagination); the last is this
+   * page's. `null` entries start at `offset`: the first page, or an order that cannot seek.
+   */
+  trail: (Value[] | null)[];
+};
+
+const START: Query["trail"] = [null];
 
 const formatCount = (count: RowCount | null): string => {
   if (!count || count.kind === "unknown") return "";
@@ -72,6 +86,7 @@ export function TableData({
     offset: 0,
     pageSize: currentSettings().defaultPageSize,
     match: initialMatch,
+    trail: START,
   });
   const [draft, setDraft] = useState("");
   const [page, setPage] = useState<TablePage | null>(null);
@@ -125,6 +140,7 @@ export function TableData({
       sort: query.sort,
       limit: query.pageSize,
       offset: query.offset,
+      after: query.trail.at(-1) ?? undefined,
     };
     // A page still loading is superseded: cancel it, and start this one when it has ended.
     if (pages.busy()) {
@@ -179,7 +195,7 @@ export function TableData({
 
   const changeNow = (patch: Partial<Query>) => {
     setLoading(true);
-    setQuery((current) => ({ ...current, offset: 0, ...patch }));
+    setQuery((current) => ({ ...current, offset: 0, trail: START, ...patch }));
   };
   const countExactly = async () => {
     setCounting(true);
@@ -418,7 +434,11 @@ export function TableData({
                   onClick={() => {
                     editing.guarded("change the page", () => {
                       setLoading(true);
-                      setQuery((q) => ({ ...q, offset: Math.max(0, q.offset - q.pageSize) }));
+                      setQuery((q) => ({
+                        ...q,
+                        offset: Math.max(0, q.offset - q.pageSize),
+                        trail: q.trail.length > 1 ? q.trail.slice(0, -1) : START,
+                      }));
                     });
                   }}
                 >
@@ -432,7 +452,12 @@ export function TableData({
                   onClick={() => {
                     editing.guarded("change the page", () => {
                       setLoading(true);
-                      setQuery((q) => ({ ...q, offset: q.offset + q.pageSize }));
+                      const cursor = page.cursor;
+                      setQuery((q) => ({
+                        ...q,
+                        offset: q.offset + q.pageSize,
+                        trail: [...q.trail, cursor],
+                      }));
                     });
                   }}
                 >

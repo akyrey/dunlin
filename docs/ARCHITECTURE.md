@@ -92,7 +92,7 @@ Abandoning a row stream makes the client drain the whole result, so network driv
 
 ### Table browsing (grid)
 
-The driver's `Dialect` generates `SELECT * FROM <table> [WHERE <user filter>] ORDER BY <sort or primary key> LIMIT n OFFSET m`. Ordering by primary key by default keeps pages stable. Keyset pagination is a later optimisation.
+The driver's `Dialect` generates `SELECT * FROM <table> [WHERE <user filter>] ORDER BY <sort or primary key> LIMIT n OFFSET m`. The order is always completed with the row key columns, so it is total and pages are stable. When no order column is nullable, the next page seeks past the last row (`WHERE <order> > <last row's values>`) instead of skipping rows with `OFFSET`, so deep pages are as fast as the first (D-033).
 
 ### Cancellation
 

@@ -55,7 +55,7 @@ Roughly in order of likely value:
 2. ~~Manual transaction mode with a visible transaction indicator and commit/rollback buttons~~ (done, D-028)
 3. ~~Visual `EXPLAIN`~~ (done, D-029)
 4. ~~Reading `~/.ssh/config`~~ (done, D-030)
-5. Keyset pagination for large tables
+5. ~~Keyset pagination for large tables~~ (done, D-033)
 6. Import from CSV
 7. ~~Profile import/export~~ (done)
 8. ~~MySQL `DELIMITER` support in the splitter~~ (done)

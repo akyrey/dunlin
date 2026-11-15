@@ -1,0 +1,6 @@
+---
+source: crates/dbc-driver-sqlite/tests/page_sql.rs
+expression: "format!(\"{}\\n{:?}\", bound.sql, bound.params)"
+---
+SELECT * FROM "main"."Order Items" WHERE (id > 0) AND "spaced ""name""" <= ?1 AND ("spaced ""name""" < ?2 OR ("spaced ""name""" = ?3 AND "id" > ?4) OR ("spaced ""name""" = ?5 AND "id" = ?6 AND "select" > ?7)) ORDER BY "spaced ""name""" DESC, "id", "select" LIMIT 200
+[Text("m"), Text("m"), Text("m"), Int(3), Text("m"), Int(3), Int(4)]

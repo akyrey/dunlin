@@ -46,6 +46,9 @@ pub struct TablePageRequest {
     pub sort: Vec<SortKey>,
     pub limit: usize,
     pub offset: u64,
+    /// Keyset pagination: the order values of the row before the page, from [`cursor`]. The
+    /// page then starts after that row and `offset` is ignored. Empty: start at `offset`.
+    pub after: Vec<Value>,
 }
 
 /// Counts cross IPC as strings, like every 64-bit number (D-003).
@@ -160,10 +163,106 @@ pub fn page_sql<D: Dialect + ?Sized>(
         );
     }
     let limit = request.limit.clamp(1, MAX_PAGE_SIZE);
-    bound
-        .sql
-        .push_str(&format!(" LIMIT {limit} OFFSET {}", request.offset));
+    bound.sql.push_str(&format!(" LIMIT {limit}"));
+    if request.after.is_empty() {
+        bound.sql.push_str(&format!(" OFFSET {}", request.offset));
+    }
     Ok(bound)
+}
+
+/// The whole order of a page: the sort, then the row key columns it leaves out, so rows with
+/// equal sort values still come in a fixed order.
+pub fn page_order(info: &TableInfo, sort: &[SortKey]) -> Vec<SortKey> {
+    let row_key = info.row_key.as_deref().unwrap_or_default();
+    let tiebreak = row_key
+        .iter()
+        .filter(|column| !sort.iter().any(|key| &key.column == *column))
+        .map(|column| SortKey {
+            column: column.clone(),
+            descending: false,
+        });
+    sort.iter().cloned().chain(tiebreak).collect()
+}
+
+/// The page order when pages can seek instead of skipping rows: the table has a row key (so the
+/// order is total) and no order column can be `NULL` (whose place in the order differs between
+/// databases). `None`: pages use `OFFSET`.
+pub fn keyset_order(info: &TableInfo, sort: &[SortKey]) -> Option<Vec<SortKey>> {
+    if info.row_key.as_deref().is_none_or(<[String]>::is_empty) {
+        return None;
+    }
+    let order = page_order(info, sort);
+    order
+        .iter()
+        .all(|key| info.column_named(&key.column).is_some_and(|c| !c.nullable))
+        .then_some(order)
+}
+
+/// Where the page after row `index` of `page` starts: that row's values of the keyset order.
+/// `None` when the order cannot seek or a column is missing from the page.
+pub fn cursor(
+    info: &TableInfo,
+    sort: &[SortKey],
+    page: &ResultSet,
+    index: usize,
+) -> Option<Vec<Value>> {
+    let row = page.rows.get(index)?;
+    keyset_order(info, sort)?
+        .iter()
+        .map(|key| {
+            let position = page.columns.iter().position(|c| c.name == key.column)?;
+            row.get(position).cloned()
+        })
+        .collect()
+}
+
+fn unseekable() -> DbError {
+    invalid(
+        DbErrorCode::Unsupported,
+        "This page cannot continue from a row; reload it from the first page",
+    )
+}
+
+/// `c1 >= ?  AND (c1 > ? OR (c1 = ? AND c2 > ?) ...)`: the rows after `after` in `order`. The
+/// leading bound lets every database use an index on the first column; `<` replaces `>` for a
+/// descending column. Each placeholder gets its own parameter, for positional dialects.
+fn seek_condition<D: Dialect + ?Sized>(
+    dialect: &D,
+    info: &TableInfo,
+    order: &[SortKey],
+    after: &[Value],
+    params: &mut Vec<Value>,
+) -> Result<String, DbError> {
+    if order.is_empty() || order.len() != after.len() || after.contains(&Value::Null) {
+        return Err(unseekable());
+    }
+    let types = order
+        .iter()
+        .map(|key| column_type(info, &key.column))
+        .collect::<Result<Vec<_>, _>>()?;
+    // Placeholders are numbered in the order they appear in the text.
+    let mut bind = |index: usize| {
+        params.push(after[index].clone());
+        dialect.placeholder(params.len(), &types[index])
+    };
+    let column = |index: usize| dialect.quote_identifier(&order[index].column);
+    let past = |index: usize| if order[index].descending { "<" } else { ">" };
+    let single = |index: usize, bind: &mut dyn FnMut(usize) -> String| {
+        format!("{} {} {}", column(index), past(index), bind(index))
+    };
+    if order.len() == 1 {
+        return Ok(single(0, &mut bind));
+    }
+    let lead = format!("{} {}= {}", column(0), past(0), bind(0));
+    let mut branches = vec![single(0, &mut bind)];
+    for i in 1..order.len() {
+        let mut terms: Vec<String> = (0..i)
+            .map(|j| format!("{} = {}", column(j), bind(j)))
+            .collect();
+        terms.push(single(i, &mut bind));
+        branches.push(format!("({})", terms.join(" AND ")));
+    }
+    Ok(format!("{lead} AND ({})", branches.join(" OR ")))
 }
 
 /// The rows `request` selects (filter, key, sort), without `LIMIT`: a whole-table export
@@ -182,18 +281,25 @@ pub fn select_sql<D: Dialect + ?Sized>(
         &request.key,
         &mut params,
     )?;
+    let where_clause = if request.after.is_empty() {
+        where_clause
+    } else {
+        let keyset = keyset_order(info, &request.sort).ok_or_else(unseekable)?;
+        let seek = seek_condition(dialect, info, &keyset, &request.after, &mut params)?;
+        if where_clause.is_empty() {
+            format!(" WHERE {seek}")
+        } else {
+            format!("{where_clause} AND {seek}")
+        }
+    };
     let mut order = Vec::new();
-    for key in &request.sort {
+    for key in page_order(info, &request.sort) {
         column_type(info, &key.column)?;
         let direction = if key.descending { " DESC" } else { "" };
         order.push(format!(
             "{}{direction}",
             dialect.quote_identifier(&key.column)
         ));
-    }
-    if order.is_empty() {
-        let row_key = info.row_key.as_deref().unwrap_or_default();
-        order.extend(row_key.iter().map(|c| dialect.quote_identifier(c)));
     }
     let order_by = if order.is_empty() {
         String::new()

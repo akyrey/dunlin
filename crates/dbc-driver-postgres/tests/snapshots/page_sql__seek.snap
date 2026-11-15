@@ -1,0 +1,6 @@
+---
+source: crates/dbc-driver-postgres/tests/page_sql.rs
+expression: "format!(\"{}\\n{:?}\", bound.sql, bound.params)"
+---
+SELECT * FROM "public"."Order Items" WHERE (id > 0) AND "spaced ""name""" <= $1::text::text AND ("spaced ""name""" < $2::text::text OR ("spaced ""name""" = $3::text::text AND "id" > $4::text::integer) OR ("spaced ""name""" = $5::text::text AND "id" = $6::text::integer AND "select" > $7::text::integer)) ORDER BY "spaced ""name""" DESC, "id", "select" LIMIT 200
+[Text("m"), Text("m"), Text("m"), Int(3), Text("m"), Int(3), Int(4)]

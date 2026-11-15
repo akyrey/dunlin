@@ -1,0 +1,6 @@
+---
+source: crates/dbc-driver-mysql/tests/page_sql.rs
+expression: "format!(\"{}\\n{:?}\", bound.sql, bound.params)"
+---
+SELECT * FROM `shop`.`Order Items` WHERE (id > 0) AND `spaced "name"` <= ? AND (`spaced "name"` < ? OR (`spaced "name"` = ? AND `id` > ?) OR (`spaced "name"` = ? AND `id` = ? AND `select` > ?)) ORDER BY `spaced "name"` DESC, `id`, `select` LIMIT 200
+[Text("m"), Text("m"), Text("m"), Int(3), Text("m"), Int(3), Int(4)]

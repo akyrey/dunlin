@@ -50,6 +50,7 @@ async fn ten_million_rows_open_in_one_page_query() {
         sort: Vec::new(),
         limit: DEFAULT_PAGE_SIZE,
         offset: 0,
+        after: Vec::new(),
     };
 
     let started = Instant::now();

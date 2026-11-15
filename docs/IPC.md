@@ -76,7 +76,7 @@ Errors from `session_open` and `connection_test` carry `detail.stage`: `ssh_conn
 | `schema_completion` | `{ sessionId, namespace }` | `CompletionSchema` (cached with the other `schema_*` results) | 5 |
 | `history_list` | `{ connectionId, search?, limit (1..=500), before? }` | `HistoryEntry[]`, newest first; `before` is the last id of the previous page | 5 |
 | `history_clear` | `{ connectionId }` | none | 5 |
-| `table_page` | `{ sessionId, viewId, table, filter?, key?, sort, limit (1..=10000), offset }` | `TablePage` (columns, rows, hasMore, elapsedMs) | 6 |
+| `table_page` | `{ sessionId, viewId, table, filter?, key?, sort, limit (1..=10000), offset, after? }` | `TablePage` (columns, rows, hasMore, cursor, elapsedMs). `cursor` holds the last row's order values when another page follows and the order can seek (row key, no nullable order column); passing it back as `after` starts the next page after that row instead of at `offset` (D-033) | 6 |
 | `table_count` | `{ sessionId, viewId, table, filter?, key?, exact }` | `RowCount` (`exact`, `estimate` or `unknown`; rows as a string) | 6 |
 | `cell_full_value` | `{ sessionId, viewId, table, key, column }` | `Value`, untruncated; `unsupported` without a row key | 6 |
 | `changes_preview` | `{ sessionId, viewId, table, operations }` | `string[]`: the statements Apply runs, with literals, in order | 7 |

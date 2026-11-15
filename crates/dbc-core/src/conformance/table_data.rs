@@ -35,6 +35,7 @@ impl Fixture<'_> {
             sort: Vec::new(),
             limit: 100,
             offset: 0,
+            after: Vec::new(),
         }
     }
 
@@ -89,6 +90,7 @@ pub async fn table_data_group(harness: &dyn Harness) -> Result<(), Failure> {
         namespace: harness.fixture_namespace(&config),
     };
     pages(&fixture).await?;
+    seeks(&fixture).await?;
     counts(&fixture).await?;
     cells(&fixture).await?;
     connection
@@ -198,6 +200,51 @@ async fn pages(fixture: &Fixture<'_>) -> Result<(), Failure> {
         code == Some(DbErrorCode::Syntax),
         "bad filter",
         format!("got {code:?}"),
+    )
+}
+
+/// Keyset pages: each starts after the cursor of the page before, read back from the database.
+async fn seeks(fixture: &Fixture<'_>) -> Result<(), Failure> {
+    let orders = fixture.info("orders").await?;
+    let check = "keyset pages";
+    for (sort, expected) in [
+        (Vec::new(), [10, 11, 12]),
+        (vec![sort("customer_id", true)], [12, 10, 11]),
+    ] {
+        let mut request = TablePageRequest {
+            sort: sort.clone(),
+            limit: 1,
+            ..fixture.request(&orders)
+        };
+        let mut seen = Vec::new();
+        for _ in 0..expected.len() {
+            let page = data::fetch_page(fixture.connection, fixture.dialect, &orders, &request)
+                .await
+                .map_err(|e| fail(check, e.to_string()))?;
+            seen.extend(page.rows.first().and_then(|row| row.first()).cloned());
+            let after = data::cursor(&orders, &sort, &page, 0)
+                .ok_or_else(|| fail(check, "the page has no cursor"))?;
+            request = TablePageRequest { after, ..request };
+        }
+        ensure(
+            seen == ints(&expected),
+            check,
+            format!("sort {sort:?}: expected {expected:?}, got {seen:?}"),
+        )?;
+        let past_end = data::fetch_page(fixture.connection, fixture.dialect, &orders, &request)
+            .await
+            .map_err(|e| fail(check, e.to_string()))?;
+        ensure(
+            past_end.rows.is_empty(),
+            check,
+            format!("rows after the last: {:?}", past_end.rows),
+        )?;
+    }
+    // `total` can be NULL, so a sort on it pages with OFFSET.
+    ensure(
+        data::keyset_order(&orders, &[sort("total", false)]).is_none(),
+        check,
+        "a nullable sort column must not seek",
     )
 }
 
@@ -367,6 +414,7 @@ pub fn page_sql_cases(
         sort: Vec::new(),
         limit: 200,
         offset: 0,
+        after: Vec::new(),
     };
     vec![
         ("plain", keyed.clone(), request(&keyed)),
@@ -401,5 +449,15 @@ pub fn page_sql_cases(
             },
         ),
         ("no_row_key", unkeyed.clone(), request(&unkeyed)),
+        (
+            "seek",
+            keyed.clone(),
+            TablePageRequest {
+                sort: vec![sort("spaced \"name\"", true)],
+                filter: Some("id > 0".into()),
+                after: vec![Value::Text("m".into()), Value::Int(3), Value::Int(4)],
+                ..request(&keyed)
+            },
+        ),
     ]
 }

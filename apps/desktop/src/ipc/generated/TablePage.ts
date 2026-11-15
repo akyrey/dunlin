@@ -6,4 +6,9 @@ export type TablePage = { columns: Array<ColumnMeta>, rows: Array<Array<Value>>,
 /**
  * Another page follows.
  */
-hasMore: boolean, elapsedMs: number, };
+hasMore: boolean, 
+/**
+ * Where the next page starts, for `after`; `null` when there is none or the order cannot
+ * seek (a nullable sort column, no row key), so the next page uses `offset`.
+ */
+cursor: Array<Value> | null, elapsedMs: number, };

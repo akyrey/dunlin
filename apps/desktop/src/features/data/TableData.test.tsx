@@ -89,6 +89,36 @@ describe("TableData", () => {
     expect(screen.queryByRole("button", { name: "Count exactly" })).toBeNull();
   });
 
+  it("seeks from each page's cursor, back as well as forward, and restarts on a sort", async () => {
+    show("events");
+    await screen.findByText(/Rows 1–200/);
+    const afters = () =>
+      calls.filter((c) => c.cmd === "table_page").map((c) => JSON.stringify(c.args.after ?? null));
+
+    await userEvent.click(screen.getByRole("button", { name: "Next page" }));
+    await waitFor(() => {
+      expect(status()).toHaveTextContent("Rows 201–400");
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Next page" }));
+    await waitFor(() => {
+      expect(status()).toHaveTextContent("Rows 401–450");
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Previous page" }));
+    await waitFor(() => {
+      expect(status()).toHaveTextContent("Rows 201–400");
+    });
+    const cursor = (n: number) => JSON.stringify([{ t: "int", v: String(n) }]);
+    expect(afters()).toEqual(["null", cursor(200), cursor(400), cursor(200)]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sort by id" }));
+    await waitFor(() => {
+      expect(calls.filter((c) => c.cmd === "table_page").at(-1)?.args.sort).toEqual([
+        { column: "id", descending: false },
+      ]);
+    });
+    expect(afters().at(-1)).toBe("null");
+  });
+
   it("keeps the last page under a filter error, remembers filters, and clears", async () => {
     show("events");
     await screen.findByText(/Rows 1–200/);

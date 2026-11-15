@@ -420,8 +420,12 @@ function page(args: Record<string, unknown>, tables: Tables): Promise<TablePage>
       return key.descending ? -order : order;
     });
   }
-  const offset = Number(args.offset);
+  // The mock's cursor is the next row's position; unsorted pages seek, sorted ones use offsets.
+  const after = (args.after as Value[] | undefined)?.[0];
+  const offset = after?.t === "int" ? Number(after.v) : Number(args.offset);
   const limit = Number(args.limit);
+  const seekable = ((args.sort as SortKey[] | undefined) ?? []).length === 0;
+  const more = sorted.length > offset + limit;
   return Promise.resolve({
     columns: info.columns.map((c) => ({
       name: c.name,
@@ -430,7 +434,8 @@ function page(args: Record<string, unknown>, tables: Tables): Promise<TablePage>
       nullable: c.nullable,
     })),
     rows: sorted.slice(offset, offset + limit),
-    hasMore: sorted.length > offset + limit,
+    hasMore: more,
+    cursor: more && seekable ? [{ t: "int", v: String(offset + limit) }] : null,
     elapsedMs: 2,
   });
 }
