@@ -136,7 +136,8 @@ export const REDIS_COMMANDS = [
 
 type State = { first: boolean };
 
-const redis = StreamLanguage.define<State>({
+/** The tokenizer; exported for its tests. */
+export const redis = StreamLanguage.define<State>({
   name: "redis",
   startState: () => ({ first: true }),
   token(stream, state) {
