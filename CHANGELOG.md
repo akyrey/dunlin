@@ -2,7 +2,17 @@
 
 All notable changes to Dunlin. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). The version lives in the workspace `Cargo.toml` only.
 
-## [Unreleased]
+## [0.1.2] - 2026-11-16
+
+### Added
+
+- Redis and Valkey: the key browser groups keys into folders on the `:` separator.
+
+### Changed
+
+- Grid headers show only the column name, so it is not cut off; the type is shown on hover.
+
+## [0.1.1] - 2026-11-16
 
 ### Added
 
