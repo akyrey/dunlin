@@ -37,11 +37,21 @@ describe("KeyBrowser", () => {
   it("scans, loads more, searches and opens a key", async () => {
     render(<KeyBrowser sessions={[session]} />);
 
-    expect(await within(keys()).findAllByRole("button")).toHaveLength(2);
+    // user:1 and user:2 share a collapsed folder.
+    const user = await within(keys()).findByRole("button", { name: "user, 2 keys" });
+    expect(user).toHaveAttribute("aria-expanded", "false");
+    expect(within(keys()).getAllByRole("button")).toHaveLength(1);
+    await userEvent.click(user);
+    expect(user).toHaveAttribute("aria-expanded", "true");
+    expect(within(keys()).getByRole("button", { name: "user:1" })).toHaveTextContent("1");
+    expect(within(keys()).getAllByRole("button")).toHaveLength(3);
+    await userEvent.click(user);
+    expect(within(keys()).getAllByRole("button")).toHaveLength(1);
+
     await userEvent.click(screen.getByRole("button", { name: /Load more \(2 so far\)/ }));
-    await waitFor(() => {
-      expect(within(keys()).getAllByRole("button")).toHaveLength(3);
-    });
+    expect(
+      await within(keys()).findByRole("button", { name: "session, 1 key" }),
+    ).toBeInTheDocument();
 
     await userEvent.clear(screen.getByLabelText("Key pattern"));
     await userEvent.type(screen.getByLabelText("Key pattern"), "nothing:*");
@@ -51,7 +61,8 @@ describe("KeyBrowser", () => {
     await userEvent.clear(screen.getByLabelText("Key pattern"));
     await userEvent.type(screen.getByLabelText("Key pattern"), "session:*");
     await userEvent.click(screen.getByRole("button", { name: "Scan" }));
-    await userEvent.click(await within(keys()).findByRole("button", { name: /session:abc/ }));
+    await userEvent.click(await within(keys()).findByRole("button", { name: "session, 1 key" }));
+    await userEvent.click(within(keys()).getByRole("button", { name: "session:abc" }));
     expect(workspaceOf(useWorkspace.getState(), "s1").active).toBe(`key:${btoa("session:abc")}`);
   });
 

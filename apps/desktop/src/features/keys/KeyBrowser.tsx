@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { toast } from "../../components/toastStore";
 import { useWorkspace } from "../workspace/workspaceStore";
+import { KeyTreeList } from "./KeyTreeList";
 import { listOf, useKeys } from "./keysStore";
 import { NewKeyDialog } from "./NewKeyDialog";
 
@@ -10,15 +11,6 @@ export type KeySessionInfo = {
   sessionId: string;
   label: string;
   readOnly?: boolean;
-};
-
-const TYPE_STYLE: Record<string, string> = {
-  string: "text-emerald-300",
-  hash: "text-sky-300",
-  list: "text-amber-300",
-  set: "text-fuchsia-300",
-  zset: "text-rose-300",
-  stream: "text-teal-300",
 };
 
 function KeyList({ session }: { session: KeySessionInfo }) {
@@ -85,25 +77,12 @@ function KeyList({ session }: { session: KeySessionInfo }) {
         </p>
       )}
       <ul aria-label="Keys" className="min-h-0 flex-1 overflow-auto">
-        {list.keys.map(({ key, keyType }) => (
-          <li key={key.id}>
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 px-3 py-0.5 text-left text-xs hover:bg-zinc-800/60"
-              title={key.name}
-              onClick={() => {
-                useWorkspace.getState().openKey(sessionId, key.id, key.name);
-              }}
-            >
-              <span
-                className={`w-10 shrink-0 font-mono text-[10px] uppercase ${TYPE_STYLE[keyType] ?? "text-zinc-400"}`}
-              >
-                {keyType === "ReJSON-RL" ? "json" : keyType}
-              </span>
-              <span className="truncate font-mono">{key.name}</span>
-            </button>
-          </li>
-        ))}
+        <KeyTreeList
+          keys={list.keys}
+          onOpen={({ key }) => {
+            useWorkspace.getState().openKey(sessionId, key.id, key.name);
+          }}
+        />
         {!list.loading && list.keys.length === 0 && !list.error && (
           <li className="px-3 py-1 text-xs text-zinc-500">No keys match {list.pattern}.</li>
         )}
