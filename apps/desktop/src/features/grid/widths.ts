@@ -22,9 +22,9 @@ export function columnWidth(
   sampleAll = false,
 ): number {
   const sample = sampleAll ? rows : rows.slice(0, SAMPLE_ROWS);
-  // The header has room for its type and key markers too.
+  // The header has room for its key markers and sort arrow too.
   const texts = [
-    `${header}      `,
+    `${header}    `,
     ...sample.map((row) => (row[index] ? formatValue(row[index]).text : "")),
   ];
   return widthFor(texts);
