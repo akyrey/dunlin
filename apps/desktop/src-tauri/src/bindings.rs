@@ -105,6 +105,8 @@ fn export_all(dir: &Path) {
     TableInfo::export_all(&config).unwrap();
     CompletionSchema::export_all(&config).unwrap();
     TableSnippets::export_all(&config).unwrap();
+    crate::updates::UpdateInfo::export_all(&config).unwrap();
+    crate::updates::UpdateProgress::export_all(&config).unwrap();
     write_index(dir);
 }
 

@@ -37,8 +37,12 @@ uuid.workspace = true
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "json", "std", "registry"] }
 tauri-plugin-window-state = "2"
+# Signed in-app updates from the GitHub release (D-036).
+tauri-plugin-updater = "2.14"
 
 [dev-dependencies]
+# A mock app for the updater tests.
+tauri = { version = "2.12", features = ["test"] }
 dbc-tunnel = { workspace = true, features = ["test-support"] }
 testcontainers-modules = { version = "0.15", features = ["postgres", "redis"] }
 async-trait.workspace = true

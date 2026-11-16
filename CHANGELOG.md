@@ -26,6 +26,7 @@ All notable changes to Dunlin. The format follows [Keep a Changelog](https://kee
 - Keyset pagination: next and previous pages of large tables seek instead of using `OFFSET`.
 - CSV import into a table, with a column mapping, in one transaction.
 - Linux packages (deb, rpm, AppImage for x86_64 and arm64); passwords in the Secret Service (GNOME Keyring, KWallet).
+- In-app updates: a check at startup (can be turned off in Settings) and "Check for updates" in the command palette and Settings; updates are signature-checked, installed and the app restarts.
 
 ### Security
 

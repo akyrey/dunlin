@@ -10,6 +10,7 @@ import { useSessions } from "../sessions/sessionsStore";
 import { useWorkspace } from "../workspace/workspaceStore";
 import { CommandPalette } from "./CommandPalette";
 import { paletteCommands } from "./commands";
+import { useUpdates } from "../updates/updateStore";
 import { useSessionTables } from "./useSessionTables";
 
 type Props = {
@@ -45,6 +46,7 @@ export function AppCommands(props: Props) {
           newConnection: props.onNewConnection,
           openSettings: props.onSettings,
           openShortcuts: props.onShortcuts,
+          checkForUpdates: () => void useUpdates.getState().check("manual"),
           openConnection: props.onOpenConnection,
           newTab: (sessionId) => {
             useEditor.getState().openTab(sessionId);

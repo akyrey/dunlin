@@ -66,6 +66,12 @@ The classifier is a heuristic. It is a seatbelt against accidents, not an access
 - Image previews in the cell viewer use `blob:` URLs of raster formats recognised by their signature (PNG, JPEG, GIF, WebP); SVG is never previewed, as it is a document that can hold script.
 - No network requests from the frontend.
 
+## Updates
+
+- The backend asks `github.com/akyrey/dunlin/releases/latest/download/latest.json` for a newer version at startup (unless "Check at startup" is off in Settings) and on request. HTTPS only; the request carries nothing but the updater's user agent.
+- Every download is verified against the minisign public key in `tauri.conf.json` before it is installed; a download signed by any other key is refused (tested). The signature must also name the announced version (`requireSignedVersion`), so an older release cannot be passed off as a newer one. The private key lives only in the `TAURI_SIGNING_PRIVATE_KEY` repository secret and the maintainer's backup.
+- The webview has no updater permission: checks and installs go through `update_check` and `update_install` (D-036).
+
 ## Logging
 
 - Structured logs (`tracing`, JSON lines) to the app log directory (`~/Library/Logs/<bundle id>` on macOS), one file a day, the last 7 kept. Settings has "Open logs folder".

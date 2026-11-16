@@ -5,6 +5,7 @@ const handlers = (): PaletteHandlers => ({
   newConnection: vi.fn(),
   openSettings: vi.fn(),
   openShortcuts: vi.fn(),
+  checkForUpdates: vi.fn(),
   newTab: vi.fn(),
   refreshSchema: vi.fn(),
   disconnect: vi.fn(),
@@ -27,6 +28,7 @@ describe("paletteCommands", () => {
       "New connection",
       "Settings",
       "Keyboard shortcuts",
+      "Check for updates",
       profile.name,
     ]);
   });

@@ -7,6 +7,9 @@ import { sshTrustHost } from "./ipc";
 import { useConnections } from "./features/connections/connectionsStore";
 import { useEditor } from "./features/editor/editorStore";
 import { useSessions } from "./features/sessions/sessionsStore";
+import { DEFAULT_SETTINGS } from "./features/settings/defaults";
+import { useSettings } from "./features/settings/settingsStore";
+import { useUpdates } from "./features/updates/updateStore";
 import {
   MOCK_DATABASE_PATH,
   MOCK_DROP_TUNNEL,
@@ -18,6 +21,8 @@ beforeEach(() => {
   useConnections.setState({ drivers: [], profiles: [], loaded: false, error: null });
   useSessions.setState({ sessions: {}, activeConnectionId: null });
   useEditor.setState({ tabs: {} });
+  useSettings.setState({ settings: DEFAULT_SETTINGS, loaded: false, error: null });
+  useUpdates.setState({ status: { kind: "idle" } });
   mockIPC(createMockBackend());
   vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(400);
   vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
@@ -49,7 +54,39 @@ async function openAndRun(name: string, sql: string) {
   await userEvent.click(screen.getByRole("button", { name: "Run" }));
 }
 
+/** The mock backend, with `settings_get` answering `checkForUpdates` and calls recorded. */
+function backendWithUpdates(checkForUpdates: boolean, called: string[]) {
+  const backend = createMockBackend();
+  mockIPC((cmd, payload) => {
+    called.push(cmd);
+    if (cmd === "settings_get") return { ...DEFAULT_SETTINGS, checkForUpdates };
+    if (cmd === "update_check") {
+      return { version: "9.0.0", currentVersion: "0.1.0", notes: null };
+    }
+    return backend(cmd, payload);
+  });
+}
+
 describe("App", () => {
+  it("checks for updates at startup and offers the update", async () => {
+    backendWithUpdates(true, []);
+    render(<App />);
+
+    expect(await screen.findByRole("dialog", { name: "Update available" })).toBeTruthy();
+  });
+
+  it("does not check for updates at startup when the setting is off", async () => {
+    const called: string[] = [];
+    backendWithUpdates(false, called);
+    render(<App />);
+
+    await waitFor(() => {
+      expect(useSettings.getState().loaded).toBe(true);
+    });
+    expect(called).toContain("settings_get");
+    expect(called).not.toContain("update_check");
+  });
+
   it("adds a connection, opens it, runs a query and shows rows", async () => {
     render(<App />);
 

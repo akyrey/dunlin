@@ -63,3 +63,4 @@ Roughly in order of likely value:
 10. More drivers (MariaDB-specific features, SQL Server, DuckDB, ClickHouse)
 11. ER diagrams, schema diff
 12. ~~Linux packaging~~ (done, D-035); Windows packaging
+13. ~~Auto-update~~ (done, D-036)

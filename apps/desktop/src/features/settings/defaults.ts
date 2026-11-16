@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS: Settings = {
   historyCap: 10_000,
   previewPolicy: "once_per_session",
   nullText: "NULL",
+  checkForUpdates: true,
 };
 
 /** Bounds checked again by the backend (`Settings::validate`). */

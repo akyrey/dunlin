@@ -11,6 +11,28 @@
 `workflow_dispatch` runs the same builds without a release; the packages are downloadable
 artifacts of the run (kept 14 days).
 
+## In-app updates
+
+Installed copies update from the latest published release (D-036). The release workflow signs the
+updater bundles (the macOS `.app.tar.gz`, the AppImage, the deb and the rpm) and attaches a
+`latest.json` that points at them. Set these repository secrets once:
+
+| Secret | Value |
+|---|---|
+| `TAURI_SIGNING_PRIVATE_KEY` | The contents of the updater private key (`~/.tauri/dunlin-updater.key`) |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Its password; leave it unset for a key without one |
+
+A tag build fails without the key. A manual run without it builds without updater bundles.
+The public key is `plugins.updater.pubkey` in `tauri.conf.json`. **Back up the private key**:
+without it no installed copy can update again, and replacing it means shipping the new public key
+in a release users must download by hand.
+
+To make a new key pair: `pnpm tauri signer generate -w ~/.tauri/dunlin-updater.key`, then put the
+`.pub` contents in `tauri.conf.json`.
+
+Installed copies see a release only once it is published: `releases/latest/download/latest.json`
+never resolves to a draft or a pre-release.
+
 ## Linux packages
 
 Built on Ubuntu 22.04 runners, so they need glibc 2.35 or newer. `tauri.linux.conf.json` picks

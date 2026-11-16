@@ -107,4 +107,6 @@ export type * from "./TransactionModeArgs";
 export type * from "./TransactionState";
 export type * from "./TypeCategory";
 export type * from "./UnknownPayload";
+export type * from "./UpdateInfo";
+export type * from "./UpdateProgress";
 export type * from "./Value";

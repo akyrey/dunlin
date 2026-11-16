@@ -888,6 +888,8 @@ export function createMockBackend() {
     },
     logs_dir: () => "/mock/logs",
     app_ready: () => 42,
+    // Up to date unless a test mocks the release server itself.
+    update_check: () => null,
     saved_query_list: () => [...savedQueries],
     saved_query_save: (a) => {
       const draft = a.query as SavedQueryDraft;

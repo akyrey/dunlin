@@ -26,6 +26,7 @@ export type PaletteHandlers = {
   newConnection: () => void;
   openSettings: () => void;
   openShortcuts: () => void;
+  checkForUpdates: () => void;
   newTab: (sessionId: string) => void;
   refreshSchema: (sessionId: string) => void;
   disconnect: (connectionId: string) => void;
@@ -52,6 +53,12 @@ function actions(context: PaletteContext, on: PaletteHandlers): PaletteCommand[]
       label: "Keyboard shortcuts",
       shortcut: "shortcuts",
       run: on.openShortcuts,
+    },
+    {
+      id: "check-updates",
+      group: "Actions",
+      label: "Check for updates",
+      run: on.checkForUpdates,
     },
   ];
   if (!session || !active) return always;

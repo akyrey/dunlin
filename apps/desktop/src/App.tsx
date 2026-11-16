@@ -24,6 +24,8 @@ import { lazyPanel } from "./lib/lazyPanel";
 import { matchShortcut, shortcutLabel } from "./features/shortcuts/registry";
 import { useSettings } from "./features/settings/settingsStore";
 import { useStartup } from "./features/settings/startup";
+import { UpdatePrompt } from "./features/updates/UpdatePrompt";
+import { useUpdates } from "./features/updates/updateStore";
 import { useApplyTheme } from "./features/settings/theme";
 import { TrustedHosts } from "./features/ssh/TrustedHosts";
 import { describeConnectError, hostKeyFrom } from "./features/ssh/hostKey";
@@ -191,6 +193,14 @@ export function App() {
       setActionError(error);
     }
   };
+
+  // Once the stored settings are known, so a user who turned the check off is never asked.
+  const settingsLoaded = useSettings((s) => s.loaded);
+  useEffect(() => {
+    if (settingsLoaded && useSettings.getState().settings.checkForUpdates) {
+      void useUpdates.getState().check("startup");
+    }
+  }, [settingsLoaded]);
 
   const layout = useLayoutRestore(profiles, loaded, openConnection);
   useEffect(() => {
@@ -390,6 +400,7 @@ export function App() {
         />
       )}
       <QuitGuard />
+      <UpdatePrompt />
       <Toaster />
       {deleting && (
         <ConfirmDialog

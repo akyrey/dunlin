@@ -24,6 +24,7 @@ use crate::ipc::{SavedQueryIdArgs, SavedQuerySaveArgs, SettingsSetArgs};
 use crate::logging::logged;
 use crate::session::TransactionState;
 use crate::state::AppState;
+use crate::updates::{self, PendingUpdate, UpdateInfo, UpdateProgress};
 
 #[tauri::command]
 pub fn driver_list(state: State<'_, AppState>) -> Vec<DriverInfo> {
@@ -433,6 +434,31 @@ pub async fn settings_set(
     args: SettingsSetArgs,
 ) -> Result<dbc_store::Settings, AppError> {
     logged("settings_set", commands::settings_set(&state, args)).await
+}
+
+/// Asks the release server for a newer version (D-036); `None` means up to date.
+#[tauri::command]
+pub async fn update_check(
+    app: tauri::AppHandle,
+    pending: State<'_, PendingUpdate>,
+) -> Result<Option<UpdateInfo>, AppError> {
+    use tauri_plugin_updater::UpdaterExt;
+    logged("update_check", updates::check(app.updater(), &pending)).await
+}
+
+/// Downloads, verifies and installs the update found by `update_check`, then restarts.
+#[tauri::command]
+pub async fn update_install(
+    app: tauri::AppHandle,
+    pending: State<'_, PendingUpdate>,
+    on_progress: tauri::ipc::Channel<UpdateProgress>,
+) -> Result<(), AppError> {
+    let progress = move |step: UpdateProgress| {
+        // A closed channel means the window went away; the install itself carries on.
+        let _ = on_progress.send(step);
+    };
+    logged("update_install", updates::install(&pending, progress)).await?;
+    app.restart()
 }
 
 /// The folder the log files are written to (task 8.18).

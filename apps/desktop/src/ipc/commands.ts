@@ -49,6 +49,8 @@ import type {
   ImportPreviewArgs,
   ImportProgress,
   ScanPage,
+  UpdateInfo,
+  UpdateProgress,
 } from "./generated";
 import { Channel } from "@tauri-apps/api/core";
 
@@ -258,3 +260,14 @@ export const settingsSet = (settings: Settings): Promise<Settings> =>
 
 /** The folder the backend writes its log files to. */
 export const logsDir = (): Promise<string> => call("logs_dir");
+
+/** A newer version from the release server, or `null` when up to date (D-036). */
+export const updateCheck = (): Promise<UpdateInfo | null> => call("update_check");
+
+/** Downloads, verifies and installs the update `updateCheck` found, then restarts the app:
+ * on success the promise never settles. */
+export function updateInstall(onProgress: (progress: UpdateProgress) => void): Promise<void> {
+  const channel = new Channel<UpdateProgress>();
+  channel.onmessage = onProgress;
+  return callWith("update_install", {}, { onProgress: channel });
+}

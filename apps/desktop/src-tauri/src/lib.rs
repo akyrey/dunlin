@@ -11,6 +11,7 @@ pub mod registry;
 pub mod session;
 pub mod ssh;
 pub mod state;
+pub mod updates;
 
 #[cfg(test)]
 mod bindings;
@@ -32,6 +33,8 @@ pub fn run() -> Result<(), tauri::Error> {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updates::PendingUpdate::default())
         // Size, position and maximised or full screen state (task 8.12).
         .plugin(
             tauri_plugin_window_state::Builder::new()
@@ -105,6 +108,8 @@ pub fn run() -> Result<(), tauri::Error> {
             handlers::app_ready,
             handlers::settings_set,
             handlers::logs_dir,
+            handlers::update_check,
+            handlers::update_install,
             handlers::history_list,
             handlers::history_clear,
             handlers::ssh_trust_host,

@@ -10,4 +10,8 @@ editorFontFamily: string, editorFontSize: number, defaultRowLimit: number, defau
 /**
  * How `NULL` is shown in grids.
  */
-nullText: string, };
+nullText: string, 
+/**
+ * Whether the app asks the release server for a newer version when it starts (D-036).
+ */
+checkForUpdates: boolean, };

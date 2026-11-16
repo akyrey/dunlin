@@ -35,6 +35,28 @@ function show(onClose = vi.fn(), onShowTrustedHosts = vi.fn()) {
 }
 
 describe("SettingsView", () => {
+  it("saves the startup update check setting", async () => {
+    const { onClose } = show();
+
+    await userEvent.click(screen.getByLabelText("Check for updates at startup"));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
+    expect(useSettings.getState().settings.checkForUpdates).toBe(false);
+  });
+
+  it("checks for updates on request", async () => {
+    show();
+
+    await userEvent.click(screen.getByRole("button", { name: "Check now" }));
+
+    await waitFor(() => {
+      expect(calls.some((c) => c.cmd === "update_check")).toBe(true);
+    });
+  });
+
   it("saves the edited settings and adopts them", async () => {
     const { onClose } = show();
 

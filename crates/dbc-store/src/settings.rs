@@ -47,6 +47,8 @@ pub struct Settings {
     pub preview_policy: PreviewPolicy,
     /// How `NULL` is shown in grids.
     pub null_text: String,
+    /// Whether the app asks the release server for a newer version when it starts (D-036).
+    pub check_for_updates: bool,
 }
 
 impl Default for Settings {
@@ -60,6 +62,7 @@ impl Default for Settings {
             history_cap: crate::DEFAULT_HISTORY_CAP,
             preview_policy: PreviewPolicy::OncePerSession,
             null_text: "NULL".to_owned(),
+            check_for_updates: true,
         }
     }
 }
@@ -151,6 +154,7 @@ mod tests {
 
         assert_eq!(partial.theme, Theme::Dark);
         assert_eq!(partial.default_page_size, 200);
+        assert!(partial.check_for_updates);
     }
 
     #[test]

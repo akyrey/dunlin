@@ -9,6 +9,7 @@ import { BOUNDS } from "./defaults";
 import { NUMBER_LABELS, type NumberField, settingsProblem } from "./validate";
 import { useSettings } from "./settingsStore";
 import { useStartup } from "./startup";
+import { useUpdates } from "../updates/updateStore";
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   // Each control carries its own aria-label; this text is for the eye.
@@ -31,6 +32,7 @@ export function SettingsView({ onClose, onShowTrustedHosts }: Props) {
   const [draft, setDraft] = useState<Settings>(saved);
   const [error, setError] = useState<AppError | null>(null);
   const [saving, setSaving] = useState(false);
+  const checking = useUpdates((s) => s.status.kind === "checking");
   const problem = settingsProblem(draft);
 
   const change = (patch: Partial<Settings>) => {
@@ -150,6 +152,28 @@ export function SettingsView({ onClose, onShowTrustedHosts }: Props) {
               change({ nullText: e.target.value });
             }}
           />
+        </Row>
+        <Row label="Updates" hint="Asks GitHub for a newer release when Dunlin starts.">
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-zinc-300">
+              <input
+                type="checkbox"
+                aria-label="Check for updates at startup"
+                checked={draft.checkForUpdates}
+                onChange={(e) => {
+                  change({ checkForUpdates: e.target.checked });
+                }}
+              />
+              Check at startup
+            </label>
+            <Button
+              variant="ghost"
+              disabled={checking}
+              onClick={() => void useUpdates.getState().check("manual")}
+            >
+              {checking ? "Checking…" : "Check now"}
+            </Button>
+          </div>
         </Row>
         <div className="flex gap-2 border-t border-zinc-800 pt-3">
           <Button variant="ghost" onClick={onShowTrustedHosts}>
