@@ -48,7 +48,26 @@ The packages are not signed. An apt or dnf repository, which would sign them, is
 
 ## Signing and notarisation
 
-Needs an Apple Developer Program membership. Set these repository secrets once:
+The macOS app is always signed (D-037). The release workflow picks the first of these that its
+secrets allow:
+
+| Signature | Needs | First launch | Keychain after an update |
+|---|---|---|---|
+| Developer ID, notarised | Apple Developer Program membership | Opens without a warning | Still trusted |
+| Self-signed certificate | Nothing | Warns once | Still trusted |
+| Ad hoc | Nothing | Warns once | Asks again for each saved password |
+
+The keychain grants access to an app by its signature's designated requirement. With a
+certificate that is the bundle id and the certificate, which stay the same from build to build.
+Ad hoc it is a hash of the binary, which changes with every build, so ad hoc is the fallback only.
+
+A warned first launch: macOS says Apple could not verify Dunlin. On macOS 15 and later, open
+System Settings → Privacy & Security and click **Open Anyway** (right-click → Open no longer
+does it). The in-app updater downloads without the quarantine flag, so updates do not warn again.
+
+### Developer ID (paid)
+
+Set these repository secrets once:
 
 | Secret | Value |
 |---|---|
@@ -60,11 +79,61 @@ Needs an Apple Developer Program membership. Set these repository secrets once:
 | `APPLE_TEAM_ID` | The ten-character team id |
 
 The Tauri CLI imports the certificate, signs with the hardened runtime and notarises when these
-are present. Without them the build is unsigned: it runs after right-click → Open, and the
-workflow skips the `codesign`/`spctl` checks. The build step removes empty `APPLE_*` variables
-first: Tauri tries to sign whenever `APPLE_CERTIFICATE` exists, even when it is empty.
+are present, and the workflow checks the result with `spctl`. The build step removes empty
+`APPLE_*` variables first: Tauri tries to sign whenever `APPLE_CERTIFICATE` exists, even when it
+is empty. These secrets take precedence over the self-signed ones.
 
 If the import fails with `SecKeychainItemImport: Unable to decode the provided data`, the
 `APPLE_CERTIFICATE` secret is not a base64 `.p12`. Re-create it with `base64 -i cert.p12 | pbcopy`;
 the export must include the private key ("Developer ID Application" with its key, from Keychain
 Access → My Certificates). Also check that `APPLE_CERTIFICATE_PASSWORD` is the export password.
+
+### Self-signed certificate (free)
+
+Make the certificate once, on a Mac, with the system `openssl` (LibreSSL; with OpenSSL 3 add
+`-legacy` to the `pkcs12` command, or `security import` cannot read the file):
+
+```sh
+cat > dunlin-signing.cnf <<'CNF'
+[req]
+distinguished_name=dn
+prompt=no
+x509_extensions=v3
+[dn]
+CN=Dunlin Self-Signed
+[v3]
+basicConstraints=critical,CA:false
+keyUsage=critical,digitalSignature
+extendedKeyUsage=critical,codeSigning
+CNF
+/usr/bin/openssl req -x509 -newkey rsa:2048 -nodes -days 7300 -config dunlin-signing.cnf \
+  -keyout dunlin-signing.key -out dunlin-signing.crt
+/usr/bin/openssl pkcs12 -export -inkey dunlin-signing.key -in dunlin-signing.crt \
+  -name "Dunlin Self-Signed" -out dunlin-signing.p12
+base64 -i dunlin-signing.p12 | pbcopy
+```
+
+Then set these repository secrets:
+
+| Secret | Value |
+|---|---|
+| `SELF_SIGNED_CERTIFICATE` | The base64 `.p12` (on the clipboard after the last command) |
+| `SELF_SIGNED_CERTIFICATE_PASSWORD` | The export password `pkcs12` asked for |
+
+Tauri imports only Apple-issued certificates, so the workflow imports this one into a keychain of
+its own and passes its SHA-1 hash as `APPLE_SIGNING_IDENTITY`. The certificate is not trusted by
+anyone, and does not need to be: `codesign` signs with it, and only its identity matters.
+Tauri signs the DMG with it too (an ad hoc build leaves the DMG unsigned).
+
+**Back up the `.p12` and keep using it.** A new certificate changes the designated requirement,
+so every installed copy asks for keychain access again once after the update that brings it. The
+same happens once when moving to a Developer ID certificate.
+
+### Ad hoc (no secrets)
+
+With neither set of secrets the build signs ad hoc (`APPLE_SIGNING_IDENTITY=-`). Users must
+approve the first launch as above, and after each update macOS asks again before Dunlin can read
+a saved password. Good enough for testing; set up the self-signed certificate for releases.
+
+The workflow checks every build with `codesign --verify --deep --strict` and prints its authority
+and designated requirement; only a notarised build is also checked with `spctl`.

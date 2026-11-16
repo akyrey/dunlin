@@ -60,7 +60,7 @@ Everything in the roadmap's deferred list, auto-update, Linux and Windows builds
 ### Packaging
 
 - [x] 8.19 App icon, name, bundle identifier, version from one source.
-- [ ] 8.20 `pnpm tauri build` for macOS (universal binary) in CI; code signing and notarisation (needs an Apple Developer account; credentials as CI secrets). Workflow `release.yml` and `docs/RELEASING.md` done, universal build verified locally; signing waits for the Apple Developer secrets.
+- [ ] 8.20 `pnpm tauri build` for macOS (universal binary) in CI; code signing and notarisation (needs an Apple Developer account; credentials as CI secrets). Workflow `release.yml` and `docs/RELEASING.md` done, universal build verified locally; every build is now signed, self-signed or ad hoc without a Developer ID (D-037); notarisation waits for the Apple Developer secrets.
 - [x] 8.21 README: install, first connection, screenshots. Changelog started.
 
 ## Acceptance criteria

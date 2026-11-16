@@ -22,7 +22,7 @@ Product name: **Dunlin**. Crate prefix `dbc-` (see DECISIONS D-012, D-014).
 
 ## Install
 
-**macOS:** download the `.dmg` from the latest release, open it and drag Dunlin to Applications. Signed and notarised builds come from CI (Phase 8, task 8.20).
+**macOS:** download the `.dmg` from the latest release, open it and drag Dunlin to Applications. The app is signed but not notarised, so the first launch is blocked: open System Settings → Privacy & Security and click **Open Anyway**. Updates install from inside the app and do not ask again.
 
 **Linux** (x86_64 and arm64, glibc 2.35 or newer: Ubuntu 22.04, Debian 12, Fedora 36 and later):
 
