@@ -61,7 +61,7 @@ function backendWithUpdates(checkForUpdates: boolean, called: string[]) {
     called.push(cmd);
     if (cmd === "settings_get") return { ...DEFAULT_SETTINGS, checkForUpdates };
     if (cmd === "update_check") {
-      return { version: "9.0.0", currentVersion: "0.1.0", notes: null };
+      return { version: "9.0.0", currentVersion: "0.1.1", notes: null };
     }
     return backend(cmd, payload);
   });
