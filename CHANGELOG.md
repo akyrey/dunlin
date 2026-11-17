@@ -2,6 +2,12 @@
 
 All notable changes to Dunlin. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). The version lives in the workspace `Cargo.toml` only.
 
+## [0.1.3] - 2026-11-17
+
+### Added
+
+- Right-click an open connection in the sidebar to refresh its schema or close it.
+
 ## [0.1.2] - 2026-11-16
 
 ### Added
