@@ -10,22 +10,27 @@ test("browse Redis keys and read their values", async ({ page }) => {
   await expect(dialog).toBeHidden();
   await page.getByRole("button", { name: /^Cache/ }).click();
 
+  // Keys are grouped into collapsed folders on the `:` separator.
   const keys = page.getByRole("list", { name: "Keys" });
-  await expect(keys.getByRole("button")).toHaveCount(2);
+  await expect(keys.getByRole("button")).toHaveCount(1);
+  await expect(keys.getByRole("button", { name: "user, 2 keys" })).toBeVisible();
   await page.getByRole("button", { name: /Load more/ }).click();
-  await expect(keys.getByRole("button")).toHaveCount(3);
+  await expect(keys.getByRole("button", { name: "session, 1 key" })).toBeVisible();
+  await expect(keys.getByRole("button")).toHaveCount(2);
   await expect(page.getByRole("button", { name: /Load more/ })).toBeHidden();
 
   await page.getByLabel("Key pattern").fill("session:*");
   await page.getByRole("button", { name: "Scan" }).click();
   await expect(keys.getByRole("button")).toHaveCount(1);
-  await keys.getByRole("button", { name: /session:abc/ }).click();
+  await keys.getByRole("button", { name: "session, 1 key" }).click();
+  await keys.getByRole("button", { name: "session:abc" }).click();
   await expect(page.getByText("TTL 90 s")).toBeVisible();
   await expect(page.getByRole("gridcell", { name: "token" })).toBeVisible();
 
   await page.getByLabel("Key pattern").fill("user:*");
   await page.getByRole("button", { name: "Scan" }).click();
-  await keys.getByRole("button", { name: /user:1/ }).click();
+  await keys.getByRole("button", { name: "user, 2 keys" }).click();
+  await keys.getByRole("button", { name: "user:1" }).click();
   await expect(page.getByRole("gridcell", { name: "Ada" })).toBeVisible();
   await expect(page.getByRole("tab", { name: /user:1/ })).toBeVisible();
 
@@ -48,7 +53,8 @@ test("edit, create and delete Redis keys after previewing the commands", async (
   const keys = page.getByRole("list", { name: "Keys" });
 
   // Selecting a row fills the editor; the change runs only after the preview.
-  await keys.getByRole("button", { name: /user:1/ }).click();
+  await keys.getByRole("button", { name: "user, 2 keys" }).click();
+  await keys.getByRole("button", { name: "user:1" }).click();
   await page.getByRole("gridcell", { name: "Ada" }).click();
   const editor = page.getByRole("form", { name: "Edit value" });
   await expect(editor.getByLabel("Field")).toHaveValue("name");
