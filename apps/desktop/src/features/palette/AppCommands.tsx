@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 
-import { type ConnectionProfile, toAppError } from "../../ipc";
-import { pendingViews, useEdits } from "../edit/editStore";
+import type { ConnectionProfile } from "../../ipc";
 import { useEditor } from "../editor/editorStore";
 import { openSavedQuery } from "../saved/openSaved";
 import { queriesFor, useSavedQueries } from "../saved/savedQueriesStore";
 import { useSchema } from "../schema/schemaStore";
+import { disconnect } from "../sessions/disconnect";
 import { useSessions } from "../sessions/sessionsStore";
 import { useWorkspace } from "../workspace/workspaceStore";
 import { CommandPalette } from "./CommandPalette";
@@ -53,17 +53,9 @@ export function AppCommands(props: Props) {
           },
           refreshSchema: (sessionId) => void useSchema.getState().refresh(sessionId),
           disconnect: (connectionId) => {
-            const sessionId = sessions[connectionId]?.sessionId;
-            if (sessionId && pendingViews(useEdits.getState(), sessionId).length > 0) {
-              onError("Apply or discard the unapplied table changes before disconnecting.");
-              return;
-            }
-            useSessions
-              .getState()
-              .close(connectionId)
-              .catch((caught: unknown) => {
-                onError(toAppError(caught).message);
-              });
+            void disconnect(connectionId).then((problem) => {
+              if (problem) onError(problem);
+            });
           },
           openTable: (sessionId, table) => {
             useWorkspace.getState().openData(sessionId, table);

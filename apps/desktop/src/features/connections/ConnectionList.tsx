@@ -1,4 +1,6 @@
-import { type KeyboardEvent, useState } from "react";
+import { type KeyboardEvent, type MouseEvent, useCallback, useState } from "react";
+
+import { ContextMenu, type ContextMenuItem } from "../../components/ContextMenu";
 
 import type { ConnectionProfile } from "../../ipc";
 import { groupByFolder } from "./folders";
@@ -14,14 +16,31 @@ type Props = {
   onDelete: (profile: ConnectionProfile) => void;
   onDuplicate?: (profile: ConnectionProfile) => void;
   onMove?: (profile: ConnectionProfile, step: -1 | 1) => void;
+  /** Reloads an open connection's schema (right-click menu). */
+  onRefresh?: (profile: ConnectionProfile) => void;
+  /** Closes an open connection (right-click menu). */
+  onDisconnect?: (profile: ConnectionProfile) => void;
+};
+
+type Menu = { profile: ConnectionProfile; x: number; y: number };
+
+type RowProps = Props & {
+  profile: ConnectionProfile;
+  onMenu: (menu: Menu) => void;
 };
 
 const ACTION = "text-xs text-zinc-400 hover:text-zinc-100";
 
-function Row(props: Props & { profile: ConnectionProfile }) {
+function Row(props: RowProps) {
   const { profile, openIds, rememberedIds = new Set(), activeId } = props;
-  const { onOpen, onEdit, onDelete, onDuplicate, onMove } = props;
+  const { onOpen, onEdit, onDelete, onDuplicate, onMove, onMenu } = props;
   const isOpen = openIds.has(profile.id);
+  const hasMenu = isOpen && (props.onRefresh !== undefined || props.onDisconnect !== undefined);
+  const onContextMenu = (event: MouseEvent<HTMLLIElement>) => {
+    if (!hasMenu) return;
+    event.preventDefault();
+    onMenu({ profile, x: event.clientX, y: event.clientY });
+  };
   const remembered = rememberedIds.has(profile.id);
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     const step = { ArrowUp: -1, ArrowDown: 1 }[event.key] as -1 | 1 | undefined;
@@ -31,6 +50,7 @@ function Row(props: Props & { profile: ConnectionProfile }) {
   };
   return (
     <li
+      onContextMenu={onContextMenu}
       className={`group flex items-center gap-2 px-3 py-1.5 text-sm ${
         profile.id === activeId ? "bg-zinc-800" : "hover:bg-zinc-800/60"
       }`}
@@ -133,6 +153,10 @@ function Row(props: Props & { profile: ConnectionProfile }) {
 /** Saved connections, grouped by folder (task 8.13). Folders collapse; the order is the user's. */
 export function ConnectionList(props: Props) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  const [menu, setMenu] = useState<Menu | null>(null);
+  const closeMenu = useCallback(() => {
+    setMenu(null);
+  }, []);
   if (props.profiles.length === 0) {
     return (
       <p className="px-3 py-2 text-xs text-zinc-500">
@@ -148,34 +172,72 @@ export function ConnectionList(props: Props) {
     });
   };
   return (
-    <ul aria-label="Connections" className="flex flex-col">
-      {groupByFolder(props.profiles).map(({ folder, profiles }) => {
-        const rows = profiles.map((profile) => (
-          <Row key={profile.id} {...props} profile={profile} />
-        ));
-        if (folder === null) return rows;
-        const open = !collapsed.has(folder);
-        return (
-          <li key={`folder:${folder}`}>
-            <button
-              type="button"
-              aria-expanded={open}
-              className="flex w-full items-center gap-1 px-3 py-1 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-300"
-              onClick={() => {
-                toggle(folder);
-              }}
-            >
-              <span aria-hidden="true">{open ? "▾" : "▸"}</span>
-              {folder}
-            </button>
-            {open && (
-              <ul aria-label={folder} className="flex flex-col">
-                {rows}
-              </ul>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      <ul aria-label="Connections" className="flex flex-col">
+        {groupByFolder(props.profiles).map(({ folder, profiles }) => {
+          const rows = profiles.map((profile) => (
+            <Row key={profile.id} {...props} profile={profile} onMenu={setMenu} />
+          ));
+          if (folder === null) return rows;
+          const open = !collapsed.has(folder);
+          return (
+            <li key={`folder:${folder}`}>
+              <button
+                type="button"
+                aria-expanded={open}
+                className="flex w-full items-center gap-1 px-3 py-1 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-300"
+                onClick={() => {
+                  toggle(folder);
+                }}
+              >
+                <span aria-hidden="true">{open ? "▾" : "▸"}</span>
+                {folder}
+              </button>
+              {open && (
+                <ul aria-label={folder} className="flex flex-col">
+                  {rows}
+                </ul>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {menu && (
+        <ContextMenu
+          label={`Actions for ${menu.profile.name}`}
+          x={menu.x}
+          y={menu.y}
+          items={connectionMenuItems(menu.profile, props)}
+          onClose={closeMenu}
+        />
+      )}
+    </>
   );
+}
+
+function connectionMenuItems(profile: ConnectionProfile, props: Props): ContextMenuItem[] {
+  const { onRefresh, onDisconnect } = props;
+  return [
+    ...(onRefresh
+      ? [
+          {
+            label: "Refresh schema",
+            onSelect: () => {
+              onRefresh(profile);
+            },
+          },
+        ]
+      : []),
+    ...(onDisconnect
+      ? [
+          {
+            label: "Close connection",
+            destructive: true,
+            onSelect: () => {
+              onDisconnect(profile);
+            },
+          },
+        ]
+      : []),
+  ];
 }

@@ -18,6 +18,8 @@ import { persistTabs } from "./features/editor/persistence";
 import { SavedQueries } from "./features/saved/SavedQueries";
 import { useSavedQueries } from "./features/saved/savedQueriesStore";
 import { SchemaTree } from "./features/schema/SchemaTree";
+import { useSchema } from "./features/schema/schemaStore";
+import { disconnect } from "./features/sessions/disconnect";
 import { useSessions } from "./features/sessions/sessionsStore";
 import { HostKeyDialog } from "./features/ssh/HostKeyDialog";
 import { lazyPanel } from "./lib/lazyPanel";
@@ -278,6 +280,15 @@ export function App() {
                 .catch((caught: unknown) => {
                   toast.error(toAppError(caught).message);
                 });
+            }}
+            onRefresh={(profile) => {
+              const sessionId = sessions[profile.id]?.sessionId;
+              if (sessionId) void useSchema.getState().refresh(sessionId);
+            }}
+            onDisconnect={(profile) => {
+              void disconnect(profile.id).then((problem) => {
+                if (problem) toast.error(problem);
+              });
             }}
           />
           {(loadError ?? actionError) && (

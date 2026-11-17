@@ -1,5 +1,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { ContextMenu } from "../../components/ContextMenu";
 
 import { type AppError, toAppError } from "../../ipc";
 import { type ObjectAction, OBJECT_ACTIONS, runObjectAction } from "./actions";
@@ -23,6 +25,9 @@ export function SchemaTree({ sessions }: { sessions: TreeSessionInfo[] }) {
   const [menu, setMenu] = useState<Menu | null>(null);
   const [actionError, setActionError] = useState<AppError | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const closeMenu = useCallback(() => {
+    setMenu(null);
+  }, []);
 
   // A newly opened session starts expanded.
   useEffect(() => {
@@ -140,12 +145,15 @@ export function SchemaTree({ sessions }: { sessions: TreeSessionInfo[] }) {
         </div>
       </div>
       {menu && (
-        <ObjectMenu
-          menu={menu}
-          onAction={(action) => void act(action, menu.row)}
-          onClose={() => {
-            setMenu(null);
-          }}
+        <ContextMenu
+          label={`Actions for ${menu.row.object.name}`}
+          x={menu.x}
+          y={menu.y}
+          items={OBJECT_ACTIONS.map(({ action, label }) => ({
+            label,
+            onSelect: () => void act(action, menu.row),
+          }))}
+          onClose={closeMenu}
         />
       )}
     </section>
@@ -244,56 +252,4 @@ function Row({ row, onToggle, onAction, onMenu }: RowProps) {
     case "empty":
       return <p className="h-6 text-xs leading-6 text-zinc-500">{row.label}</p>;
   }
-}
-
-function ObjectMenu({
-  menu,
-  onAction,
-  onClose,
-}: {
-  menu: Menu;
-  onAction: (action: ObjectAction) => void;
-  onClose: () => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    ref.current?.querySelector("button")?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    const onPointer = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("mousedown", onPointer);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("mousedown", onPointer);
-    };
-  }, [onClose]);
-
-  return (
-    <div
-      ref={ref}
-      role="menu"
-      aria-label={`Actions for ${menu.row.object.name}`}
-      className="fixed z-50 flex min-w-44 flex-col rounded border border-zinc-700 bg-zinc-900 py-1 shadow-lg"
-      style={{ left: menu.x, top: menu.y }}
-    >
-      {OBJECT_ACTIONS.map(({ action, label }) => (
-        <button
-          key={action}
-          type="button"
-          role="menuitem"
-          className="px-3 py-1 text-left text-sm hover:bg-zinc-800 focus:bg-zinc-800 focus:outline-none"
-          onClick={() => {
-            onAction(action);
-          }}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
 }

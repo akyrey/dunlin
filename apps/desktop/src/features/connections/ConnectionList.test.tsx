@@ -46,3 +46,94 @@ describe("ConnectionList", () => {
     expect(screen.getByText("ro")).toBeInTheDocument();
   });
 });
+
+describe("ConnectionList context menu", () => {
+  const renderList = (openIds: Set<string>) => {
+    const profile = sqliteProfile();
+    const onRefresh = vi.fn();
+    const onDisconnect = vi.fn();
+    render(
+      <ConnectionList
+        profiles={[profile]}
+        openIds={openIds}
+        activeId={null}
+        onOpen={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onRefresh={onRefresh}
+        onDisconnect={onDisconnect}
+      />,
+    );
+    return { profile, onRefresh, onDisconnect };
+  };
+
+  it("offers refresh and close on an open connection", async () => {
+    const profile = sqliteProfile();
+    const onRefresh = vi.fn();
+    const onDisconnect = vi.fn();
+    render(
+      <ConnectionList
+        profiles={[profile]}
+        openIds={new Set([profile.id])}
+        activeId={profile.id}
+        onOpen={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onRefresh={onRefresh}
+        onDisconnect={onDisconnect}
+      />,
+    );
+
+    await userEvent.pointer({
+      keys: "[MouseRight]",
+      target: screen.getByRole("button", { name: /^Local/ }),
+    });
+    const menu = screen.getByRole("menu", { name: "Actions for Local" });
+    expect(menu).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("menuitem", { name: "Refresh schema" }));
+    expect(onRefresh).toHaveBeenCalledWith(profile);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+    await userEvent.pointer({
+      keys: "[MouseRight]",
+      target: screen.getByRole("button", { name: /^Local/ }),
+    });
+    await userEvent.click(screen.getByRole("menuitem", { name: "Close connection" }));
+    expect(onDisconnect).toHaveBeenCalledWith(profile);
+  });
+
+  it("closes the menu on Escape", async () => {
+    const profile = sqliteProfile();
+    render(
+      <ConnectionList
+        profiles={[profile]}
+        openIds={new Set([profile.id])}
+        activeId={null}
+        onOpen={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onRefresh={vi.fn()}
+        onDisconnect={vi.fn()}
+      />,
+    );
+
+    await userEvent.pointer({
+      keys: "[MouseRight]",
+      target: screen.getByRole("button", { name: /^Local/ }),
+    });
+    await userEvent.keyboard("{Escape}");
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("shows no menu on a connection that is not open", async () => {
+    const { profile } = renderList(new Set());
+
+    await userEvent.pointer({
+      keys: "[MouseRight]",
+      target: screen.getByRole("button", { name: profile.name }),
+    });
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+});
