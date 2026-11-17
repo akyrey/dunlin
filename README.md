@@ -84,7 +84,7 @@ Read in this order:
 ## Prerequisites
 
 - Rust stable (edition 2024) with `rustfmt` and `clippy`
-- Node 22+ and pnpm
+- Node 22+ and pnpm 12 (pinned by `packageManager` in `apps/desktop/package.json`)
 - Docker (integration tests only)
 - Tauri 2 system dependencies for your OS
 
