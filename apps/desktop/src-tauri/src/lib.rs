@@ -34,7 +34,7 @@ pub fn run() -> Result<(), tauri::Error> {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .manage(updates::PendingUpdate::default())
+        .manage(updates::pending())
         // Size, position and maximised or full screen state (task 8.12).
         .plugin(
             tauri_plugin_window_state::Builder::new()

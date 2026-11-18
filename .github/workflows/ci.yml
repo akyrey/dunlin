@@ -44,11 +44,12 @@ jobs:
         run: |
           sudo apt-get install -y gnome-keyring dbus-x11
           dbus-run-session -- sh -c 'echo -n ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null &&
-            cargo test -p dbc-store --lib keychain_round_trip -- --ignored'
+            cargo test -p dbc-store --lib keychain_round_trip -- --ignored &&
+            cargo test -p roost-keychain --lib keychain_round_trip -- --ignored'
 
       - name: Coverage per crate (80% lines)
         run: |
-          for crate in dbc-core dbc-driver-sqlite dbc-store; do
+          for crate in dbc-core dbc-driver-sqlite dbc-store roost-shell roost-keychain; do
             # The conformance suite (conformance.rs and conformance/) is test-support code,
             # exercised by the driver crates.
             cargo llvm-cov --package "$crate" --all-features --fail-under-lines 80 --summary-only \
