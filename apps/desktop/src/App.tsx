@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { Button, ConfirmDialog, PanelBoundary, Toaster, toast } from "@roost/ui";
+import { Button, ConfirmDialog, PanelBoundary, SidebarResizer, Toaster, toast } from "@roost/ui";
 import { KeyBrowser } from "./features/keys/KeyBrowser";
 import { StatusBar } from "./components/StatusBar";
 import { ConnectionForm } from "./features/connections/ConnectionForm";
@@ -28,7 +28,7 @@ import { useApplyTheme } from "./features/settings/theme";
 import { EditorAppearance } from "./features/editor/appearance";
 import { TrustedHosts } from "./features/ssh/TrustedHosts";
 import { describeConnectError, hostKeyFrom } from "./features/ssh/hostKey";
-import { SidebarResizer } from "./features/workspace/SidebarResizer";
+import { SIDEBAR_WIDTH } from "./features/workspace/layout";
 import { Workspace } from "./features/workspace/Workspace";
 import { useLayoutRestore } from "./features/workspace/useLayoutRestore";
 import { forgetEndedSessions } from "./features/workspace/lifecycle";
@@ -324,7 +324,12 @@ function AppShell() {
             </Button>
           </div>
         </aside>
-        <SidebarResizer width={layout.sidebarWidth} onResize={layout.setSidebarWidth} />
+        <SidebarResizer
+          width={layout.sidebarWidth}
+          min={SIDEBAR_WIDTH.min}
+          max={SIDEBAR_WIDTH.max}
+          onResize={layout.setSidebarWidth}
+        />
         <main className="min-w-0 flex-1">
           {activeSession ? (
             <PanelBoundary key={activeSession.sessionId} name="workspace">
