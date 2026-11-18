@@ -3,7 +3,8 @@
 1. Move the `[Unreleased]` section of `CHANGELOG.md` under a new version heading.
 2. Set that version in the workspace `Cargo.toml` and in `apps/desktop/package.json` (the
    `packaging` test fails if they differ), and commit.
-3. Tag `vX.Y.Z` and push the tag. `.github/workflows/release.yml` builds the universal macOS
+3. Tag `vX.Y.Z` and push the tag. `.github/workflows/release.yml` (which runs the shared
+   `release-app.yml`, D-039) builds the universal macOS
    app and dmg (and checks both architectures), and the Linux deb, rpm and AppImage for x86_64
    and arm64. Then it creates a draft release with every package, a `SHA256SUMS` file and the
    changelog section. Review the draft and publish it.
