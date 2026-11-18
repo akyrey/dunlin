@@ -1,4 +1,4 @@
-import { Skeleton, Button } from "@roost/ui";
+import { Skeleton, Button, hasTypographicQuotes, straightenQuotes } from "@roost/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -20,7 +20,6 @@ import {
   toAppError,
 } from "../../ipc";
 import { serialQueue } from "../../lib/serial";
-import { hasTypographicQuotes, straightenQuotes } from "../../lib/quotes";
 import { useCompletion } from "../editor/completionStore";
 import { ResultView } from "../grid/ResultView";
 import { ChangesBar, EditToolbar } from "../edit/EditBars";

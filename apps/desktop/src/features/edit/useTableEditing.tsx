@@ -10,7 +10,7 @@ import {
   toAppError,
 } from "../../ipc";
 import type { GridColumn, GridEditing } from "../grid/DataGrid";
-import type { CellPos, Range } from "../grid/selection";
+import type { CellPos, Range } from "@roost/grid";
 import { useSettings } from "../settings/settingsStore";
 import { useEdits } from "./editStore";
 import { editText, editorKind, formatHint, parseInput, toggled } from "./editors";

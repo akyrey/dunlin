@@ -10,7 +10,7 @@ import { LazyReadOnlyCode as ReadOnlyCode } from "../editor/lazy";
 const ExportDialog = lazyPanel(async () => (await import("../export/ExportDialog")).ExportDialog);
 const CellViewer = lazyPanel(async () => (await import("./CellViewer")).CellViewer);
 import { DataGrid, type GridColumn, type GridEditing } from "./DataGrid";
-import type { CellPos, Range } from "./selection";
+import type { CellPos, Range } from "@roost/grid";
 
 export type ViewMode = "grid" | "json";
 
