@@ -36,34 +36,7 @@ export default tseslint.config(
       "@typescript-eslint/restrict-template-expressions": ["error", { allowNumber: true }],
       "no-console": "error",
       // Components never call `invoke` directly; only src/ipc does.
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [INVOKE],
-          patterns: [
-            { group: ["**/kit/*", "**/kit/**"], message: "Import kit code as @roost/<package>." },
-          ],
-        },
-      ],
-    },
-  },
-  {
-    // The shared kit (src/kit/README.md) becomes the Roost repository: it must not reach into the
-    // app, and its packages import each other by package name.
-    files: ["src/kit/**/*.{ts,tsx}"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [INVOKE],
-          patterns: [
-            {
-              group: ["../*", "!../index"],
-              message: "Kit code imports npm packages and @roost/<package> only.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": ["error", { paths: [INVOKE] }],
     },
   },
   {
