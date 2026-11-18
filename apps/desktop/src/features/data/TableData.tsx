@@ -1,9 +1,10 @@
 import { Skeleton } from "../../components/Skeleton";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "../../components/Button";
 import {
   type AppError,
+  type DriverKind,
   type KeyArg,
   type RowCount,
   type SortKey,
@@ -20,12 +21,14 @@ import {
   toAppError,
 } from "../../ipc";
 import { serialQueue } from "../../lib/serial";
-import { NO_TEXT_SUBSTITUTION, hasTypographicQuotes, straightenQuotes } from "../../lib/quotes";
+import { hasTypographicQuotes, straightenQuotes } from "../../lib/quotes";
+import { useCompletion } from "../editor/completionStore";
 import { ResultView } from "../grid/ResultView";
 import { ChangesBar, EditToolbar } from "../edit/EditBars";
 import { type EditingProfile, useTableEditing } from "../edit/useTableEditing";
 import { tableKey } from "../workspace/workspaceStore";
 import { loadFilters, rememberFilter } from "./filterHistory";
+import { LazyFilterEditor } from "./lazyFilter";
 import { pageSizes, describeMatch, followTarget, gridColumns, nextSort, rowKeyOf } from "./model";
 import { currentSettings } from "../settings/settingsStore";
 import { lazyPanel } from "../../lib/lazyPanel";
@@ -35,6 +38,8 @@ const ImportDialog = lazyPanel(async () => (await import("../import/ImportDialog
 type Props = {
   sessionId: string;
   connectionId: string;
+  /** For the filter's SQL dialect. */
+  driver: DriverKind;
   table: TableRef;
   match: KeyArg[];
   /** A foreign key cell was followed. */
@@ -71,6 +76,7 @@ const formatCount = (count: RowCount | null): string => {
 export function TableData({
   sessionId,
   connectionId,
+  driver,
   table,
   match: initialMatch,
   onFollow,
@@ -81,7 +87,7 @@ export function TableData({
   const viewId = useMemo(() => crypto.randomUUID(), []);
   // Counts and whole cells use a second connection, so they never wait for (or block) a page.
   const auxId = `${viewId}:aux`;
-  const filterId = useId();
+  const completion = useCompletion((state) => state.completions[sessionId]);
   const historyKey = `${connectionId}.${tableKey(table)}`;
   const [query, setQuery] = useState<Query>({
     filter: "",
@@ -269,26 +275,20 @@ export function TableData({
             applyFilter(draft);
           }}
         >
-          <label htmlFor={filterId} className="font-mono text-zinc-500">
-            WHERE
-          </label>
-          <input
-            id={filterId}
-            list={`${filterId}-recent`}
-            className="input min-w-0 flex-1 py-0.5 font-mono text-xs"
-            placeholder="a filter expression, e.g. total > 100"
-            aria-label="Filter"
-            {...NO_TEXT_SUBSTITUTION}
-            value={draft}
-            onChange={(e) => {
-              setDraft(e.target.value);
-            }}
-          />
-          <datalist id={`${filterId}-recent`}>
-            {recent.map((f) => (
-              <option key={f} value={f} />
-            ))}
-          </datalist>
+          <span className="font-mono text-zinc-500">WHERE</span>
+          <div className="input flex min-w-0 flex-1 items-center py-0.5 font-mono text-xs">
+            <LazyFilterEditor
+              value={draft}
+              onChange={setDraft}
+              onSubmit={applyFilter}
+              driver={driver}
+              completion={completion}
+              columns={names}
+              recent={recent}
+              placeholder="a filter expression, e.g. total > 100"
+              label="Filter"
+            />
+          </div>
           <Button type="submit" className="py-0.5 text-xs">
             Apply
           </Button>

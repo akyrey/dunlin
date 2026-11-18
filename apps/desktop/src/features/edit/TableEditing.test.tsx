@@ -39,6 +39,7 @@ function show(name: string, alwaysPreview = false) {
     <TableData
       sessionId="s1"
       connectionId="c1"
+      driver="sqlite"
       table={{ namespace: main, name }}
       match={[]}
       onFollow={vi.fn()}

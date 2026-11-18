@@ -147,6 +147,7 @@ export function Workspace({ session, profile }: Props) {
               <TableData
                 sessionId={sessionId}
                 connectionId={session.connectionId}
+                driver={session.driver}
                 table={view.table}
                 match={view.match}
                 onFollow={(table, match) => {

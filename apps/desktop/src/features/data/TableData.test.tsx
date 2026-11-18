@@ -5,6 +5,27 @@ import userEvent from "@testing-library/user-event";
 import { createMockBackend } from "../../test/mockBackend";
 import { TableData } from "./TableData";
 
+// CodeMirror does not run under jsdom; a plain input stands in (FilterEditor.test covers it).
+vi.mock("./FilterEditor", () => ({
+  FilterEditor: (props: import("./FilterEditor").FilterEditorProps) => (
+    <>
+      <input
+        aria-label={props.label}
+        data-columns={props.columns.join(",")}
+        value={props.value}
+        onChange={(e) => {
+          props.onChange(e.target.value);
+        }}
+      />
+      <ul aria-label="Recent filters">
+        {props.recent.map((f) => (
+          <li key={f}>{f}</li>
+        ))}
+      </ul>
+    </>
+  ),
+}));
+
 const main = { catalog: null, schema: "main" };
 let calls: { cmd: string; args: Record<string, unknown> }[] = [];
 /** Statements the backend refused because the view's connection was busy. */
@@ -46,6 +67,7 @@ function show(
     <TableData
       sessionId="s1"
       connectionId="c1"
+      driver="sqlite"
       table={{ namespace: main, name }}
       match={match}
       onFollow={onFollow}
@@ -158,7 +180,7 @@ describe("TableData", () => {
   it("keeps the last page under a filter error, remembers filters, and clears", async () => {
     show("events");
     await screen.findByText(/Rows 1–200/);
-    const filter = screen.getByLabelText("Filter");
+    const filter = await screen.findByLabelText("Filter");
 
     await userEvent.type(filter, "kind = 'login'{Enter}");
     await waitFor(() => {
@@ -168,7 +190,9 @@ describe("TableData", () => {
     await userEvent.type(filter, "kind FRM x{Enter}");
     expect(await screen.findByRole("alert")).toHaveTextContent("syntax error");
     expect(status()).toHaveTextContent("Rows 1–150");
-    expect(document.querySelectorAll("datalist option")).toHaveLength(2);
+    expect(
+      within(screen.getByRole("list", { name: "Recent filters" })).getAllByRole("listitem"),
+    ).toHaveLength(2);
 
     await userEvent.click(screen.getByRole("button", { name: "Clear" }));
     await waitFor(() => {
@@ -196,7 +220,7 @@ describe("TableData", () => {
     });
 
     await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
-    await userEvent.type(screen.getByLabelText("Filter"), "pg_sleep(30) > 0{Enter}");
+    await userEvent.type(await screen.findByLabelText("Filter"), "pg_sleep(30) > 0{Enter}");
     await userEvent.click(await screen.findByRole("button", { name: "Cancel" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("canceling statement");
     expect(calls.some((c) => c.cmd === "query_cancel")).toBe(true);
@@ -221,12 +245,11 @@ describe("TableData", () => {
 
   it("warns about typographic quotes and straightens them", async () => {
     show("events");
-    await userEvent.type(screen.getByLabelText("Filter"), "kind = \u201Clogin\u201D");
+    await userEvent.type(await screen.findByLabelText("Filter"), "kind = \u201Clogin\u201D");
 
     await userEvent.click(screen.getByRole("button", { name: "Use straight quotes" }));
 
     expect(screen.getByLabelText("Filter")).toHaveValue('kind = "login"');
-    expect(screen.getByLabelText("Filter")).toHaveAttribute("spellcheck", "false");
     expect(screen.queryByRole("button", { name: "Use straight quotes" })).toBeNull();
   });
 
