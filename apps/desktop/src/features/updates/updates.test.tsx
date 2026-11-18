@@ -2,7 +2,7 @@ import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { useToasts } from "../../components/toastStore";
+import { useToasts } from "@roost/ui";
 import type { UpdateInfo } from "../../ipc";
 import { useEdits } from "../edit/editStore";
 import { UpdatePrompt } from "./UpdatePrompt";

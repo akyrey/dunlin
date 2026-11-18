@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { Button } from "../../components/Button";
+import { Button } from "@roost/ui";
 import type { KeyEdit } from "../../ipc";
 import { ttlEdit } from "./edits";
 

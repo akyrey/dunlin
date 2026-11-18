@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { toast } from "../../components/toastStore";
+import { toast } from "@roost/ui";
 import { useWorkspace } from "../workspace/workspaceStore";
 import { KeyTreeList } from "./KeyTreeList";
 import { listOf, useKeys } from "./keysStore";

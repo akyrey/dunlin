@@ -1,4 +1,4 @@
-import { Button } from "../../components/Button";
+import { Button } from "@roost/ui";
 import type { useTableEditing } from "./useTableEditing";
 
 type Editing = ReturnType<typeof useTableEditing>;

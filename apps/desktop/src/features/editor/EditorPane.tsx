@@ -1,7 +1,6 @@
-import { toast } from "../../components/toastStore";
+import { toast, Button, ConfirmDialog } from "@roost/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Button } from "../../components/Button";
 import { type ConnectionProfile, type SessionInfo, toAppError } from "../../ipc";
 import type { Span } from "../../lib/text";
 import { HistoryPanel } from "../history/HistoryPanel";
@@ -20,7 +19,6 @@ import { useCompletion } from "./completionStore";
 import { type EditorTab, useEditor } from "./editorStore";
 import { progress, type RunMode, type Selection } from "./run";
 import { useEdits } from "../edit/editStore";
-import { ConfirmDialog } from "../../components/ConfirmDialog";
 
 /** How long typing pauses before the text is split again (task 5.5). */
 const SPLIT_DELAY_MS = 250;

@@ -1,7 +1,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { ContextMenu } from "../../components/ContextMenu";
+import { ContextMenu } from "@roost/ui";
 
 import { type AppError, toAppError } from "../../ipc";
 import { type ObjectAction, OBJECT_ACTIONS, runObjectAction } from "./actions";

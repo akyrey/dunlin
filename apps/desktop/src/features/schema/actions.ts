@@ -1,6 +1,6 @@
 /** What the tree's context menu does with a table or view (task 4.10). */
 import { type TableRef, schemaSnippets } from "../../ipc";
-import { copyWithToast } from "../../lib/copy";
+import { copyWithToast } from "@roost/ui";
 import { useEditor } from "../editor/editorStore";
 import { useSessions } from "../sessions/sessionsStore";
 import { useWorkspace } from "../workspace/workspaceStore";

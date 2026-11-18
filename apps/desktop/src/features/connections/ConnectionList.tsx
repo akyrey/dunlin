@@ -1,6 +1,6 @@
 import { type KeyboardEvent, type MouseEvent, useCallback, useState } from "react";
 
-import { ContextMenu, type ContextMenuItem } from "../../components/ContextMenu";
+import { ContextMenu, type ContextMenuItem } from "@roost/ui";
 
 import type { ConnectionProfile } from "../../ipc";
 import { groupByFolder } from "./folders";

@@ -4,6 +4,8 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+const INVOKE = { name: "@tauri-apps/api/core", message: "Use the wrappers in src/ipc." };
+
 export default tseslint.config(
   {
     ignores: [
@@ -36,7 +38,31 @@ export default tseslint.config(
       // Components never call `invoke` directly; only src/ipc does.
       "no-restricted-imports": [
         "error",
-        { paths: [{ name: "@tauri-apps/api/core", message: "Use the wrappers in src/ipc." }] },
+        {
+          paths: [INVOKE],
+          patterns: [
+            { group: ["**/kit/*", "**/kit/**"], message: "Import kit code as @roost/<package>." },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // The shared kit (src/kit/README.md) becomes the Roost repository: it must not reach into the
+    // app, and its packages import each other by package name.
+    files: ["src/kit/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [INVOKE],
+          patterns: [
+            {
+              group: ["../*", "!../index"],
+              message: "Kit code imports npm packages and @roost/<package> only.",
+            },
+          ],
+        },
       ],
     },
   },

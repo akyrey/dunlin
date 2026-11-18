@@ -1,5 +1,4 @@
-import { Button } from "../../components/Button";
-import { Modal } from "../../components/Modal";
+import { Button, Modal } from "@roost/ui";
 
 type Props = {
   count: number;

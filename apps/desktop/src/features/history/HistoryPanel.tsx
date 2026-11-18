@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Button } from "../../components/Button";
+import { Button } from "@roost/ui";
 import { type AppError, type HistoryEntry, historyClear, historyList, toAppError } from "../../ipc";
 
 const PAGE = 50;

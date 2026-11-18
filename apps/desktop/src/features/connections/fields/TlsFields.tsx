@@ -1,6 +1,6 @@
 import { useId } from "react";
 
-import { Button } from "../../../components/Button";
+import { Button } from "@roost/ui";
 import { type TlsMode, type TlsSettings, pickPemFile } from "../../../ipc";
 import { isUnverified } from "../draft";
 import { Field } from "./Field";

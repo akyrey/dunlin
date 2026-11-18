@@ -2,7 +2,7 @@ import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { useToasts } from "../../components/toastStore";
+import { useToasts } from "@roost/ui";
 import { useWorkspace, workspaceOf } from "../workspace/workspaceStore";
 
 import { createMockBackend } from "../../test/mockBackend";
