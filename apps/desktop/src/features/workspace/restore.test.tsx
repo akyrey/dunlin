@@ -7,13 +7,26 @@ import { createMockBackend } from "../../test/mockBackend";
 import { useConnections } from "../connections/connectionsStore";
 import { useEditor } from "../editor/editorStore";
 import { useSessions } from "../sessions/sessionsStore";
+import { DEFAULT_SETTINGS } from "../settings/defaults";
+import { useSettings } from "../settings/settingsStore";
 import { loadLayout } from "./layout";
 
 const restart = () => {
   useConnections.setState({ drivers: [], profiles: [], loaded: false, error: null });
   useSessions.setState({ sessions: {}, activeConnectionId: null, remembered: [] });
   useEditor.setState({ tabs: {} });
+  useSettings.setState({ settings: DEFAULT_SETTINGS, loaded: false, error: null });
 };
+
+/** The mock backend, answering `settings_get` with `reconnectOnStart` and recording opens. */
+function backendWithReconnect(reconnectOnStart: boolean, opened: string[]) {
+  const backend = createMockBackend();
+  mockIPC((cmd, payload) => {
+    if (cmd === "settings_get") return { ...DEFAULT_SETTINGS, reconnectOnStart };
+    if (cmd === "session_open") opened.push(cmd);
+    return backend(cmd, payload);
+  });
+}
 
 beforeEach(() => {
   restart();
@@ -80,5 +93,31 @@ describe("restoring the previous layout", () => {
     await waitFor(() => {
       expect(connection("Second")).not.toHaveTextContent("(open last time)");
     });
+  });
+
+  it("reconnects nothing at start when the setting is off, remembering every open connection", async () => {
+    const opened: string[] = [];
+    backendWithReconnect(false, opened);
+    const first = render(<App />);
+    await add("First");
+    await add("Second");
+    await userEvent.click(connection("Second"));
+    await screen.findByRole("button", { name: "Run" });
+    await userEvent.click(connection("First"));
+    await waitFor(() => {
+      expect(loadLayout().openConnections).toHaveLength(2);
+    });
+    first.unmount();
+    restart();
+    opened.length = 0;
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(connection("First")).toHaveTextContent("(open last time)");
+    });
+    expect(connection("Second")).toHaveTextContent("(open last time)");
+    expect(opened).toHaveLength(0);
+    expect(useSessions.getState().activeConnectionId).toBeNull();
   });
 });

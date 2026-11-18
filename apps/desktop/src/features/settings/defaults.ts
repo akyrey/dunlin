@@ -11,6 +11,7 @@ export const DEFAULT_SETTINGS: Settings = {
   previewPolicy: "once_per_session",
   nullText: "NULL",
   checkForUpdates: true,
+  reconnectOnStart: true,
 };
 
 /** Bounds checked again by the backend (`Settings::validate`). */

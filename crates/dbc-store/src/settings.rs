@@ -49,6 +49,8 @@ pub struct Settings {
     pub null_text: String,
     /// Whether the app asks the release server for a newer version when it starts (D-036).
     pub check_for_updates: bool,
+    /// Whether the connection active when the app quit reconnects when it starts (D-026).
+    pub reconnect_on_start: bool,
 }
 
 impl Default for Settings {
@@ -63,6 +65,7 @@ impl Default for Settings {
             preview_policy: PreviewPolicy::OncePerSession,
             null_text: "NULL".to_owned(),
             check_for_updates: true,
+            reconnect_on_start: true,
         }
     }
 }
@@ -155,6 +158,7 @@ mod tests {
         assert_eq!(partial.theme, Theme::Dark);
         assert_eq!(partial.default_page_size, 200);
         assert!(partial.check_for_updates);
+        assert!(partial.reconnect_on_start);
     }
 
     #[test]

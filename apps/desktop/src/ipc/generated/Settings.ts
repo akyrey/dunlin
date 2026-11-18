@@ -14,4 +14,8 @@ nullText: string,
 /**
  * Whether the app asks the release server for a newer version when it starts (D-036).
  */
-checkForUpdates: boolean, };
+checkForUpdates: boolean, 
+/**
+ * Whether the connection active when the app quit reconnects when it starts (D-026).
+ */
+reconnectOnStart: boolean, };

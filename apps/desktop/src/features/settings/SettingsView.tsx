@@ -153,6 +153,22 @@ export function SettingsView({ onClose, onShowTrustedHosts }: Props) {
             }}
           />
         </Row>
+        <Row
+          label="On start"
+          hint="Reconnects the connection that was active when Dunlin quit. The others always wait until you open them."
+        >
+          <label className="flex items-center gap-2 text-zinc-300">
+            <input
+              type="checkbox"
+              aria-label="Reconnect the last active connection at startup"
+              checked={draft.reconnectOnStart}
+              onChange={(e) => {
+                change({ reconnectOnStart: e.target.checked });
+              }}
+            />
+            Reconnect the last active connection
+          </label>
+        </Row>
         <Row label="Updates" hint="Asks GitHub for a newer release when Dunlin starts.">
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 text-zinc-300">

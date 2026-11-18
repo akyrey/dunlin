@@ -47,6 +47,18 @@ describe("SettingsView", () => {
     expect(useSettings.getState().settings.checkForUpdates).toBe(false);
   });
 
+  it("saves the reconnect at startup setting", async () => {
+    const { onClose } = show();
+
+    await userEvent.click(screen.getByLabelText("Reconnect the last active connection at startup"));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
+    expect(useSettings.getState().settings.reconnectOnStart).toBe(false);
+  });
+
   it("checks for updates on request", async () => {
     show();
 
