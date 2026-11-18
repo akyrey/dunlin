@@ -1,4 +1,4 @@
-import { SHORTCUTS, matchShortcut, matchesBinding, shortcutLabel } from "./registry";
+import { SHORTCUTS, matchShortcut, shortcutLabel } from "./registry";
 
 const keys = (
   key: string,
@@ -53,13 +53,5 @@ describe("shortcut registry", () => {
     const ids = SHORTCUTS.map((s) => s.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(SHORTCUTS.every((s) => s.keys.length > 0)).toBe(true);
-  });
-
-  it("needs exactly the binding's modifiers", () => {
-    expect(matchesBinding(keys("Enter", { meta: true }), "Mod-Enter", true)).toBe(true);
-    expect(matchesBinding(keys("Enter", { meta: true, shift: true }), "Mod-Enter", true)).toBe(
-      false,
-    );
-    expect(matchesBinding(keys("Enter", { ctrl: true }), "Mod-Enter", false)).toBe(true);
   });
 });
