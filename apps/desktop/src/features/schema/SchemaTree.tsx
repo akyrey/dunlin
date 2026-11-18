@@ -7,6 +7,7 @@ import { type AppError, toAppError } from "../../ipc";
 import { type ObjectAction, OBJECT_ACTIONS, runObjectAction } from "./actions";
 import { SESSION_KEY, useSchema } from "./schemaStore";
 import { type TreeRow, visibleRows } from "./tree";
+import { NO_TEXT_SUBSTITUTION } from "../../lib/quotes";
 
 const ROW_HEIGHT = 24;
 const INDENT = 12;
@@ -79,6 +80,7 @@ export function SchemaTree({ sessions }: { sessions: TreeSessionInfo[] }) {
           className="input min-w-0 flex-1 py-0.5 text-xs"
           placeholder="Filter tables"
           aria-label="Filter tables"
+          {...NO_TEXT_SUBSTITUTION}
           value={filter}
           onChange={(e) => {
             setFilter(e.target.value);

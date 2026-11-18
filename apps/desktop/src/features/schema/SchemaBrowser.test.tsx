@@ -76,6 +76,8 @@ describe("schema browser", () => {
     const tree = await openConnection();
     await within(tree).findByRole("button", { name: "people" });
 
+    expect(screen.getByLabelText("Filter tables")).toHaveAttribute("spellcheck", "false");
+    expect(screen.getByLabelText("Filter tables")).toHaveAttribute("autocorrect", "off");
     await userEvent.type(screen.getByLabelText("Filter tables"), "ord");
     expect(within(tree).queryByRole("button", { name: "people" })).toBeNull();
     expect(within(tree).getByRole("button", { name: "orders" })).toBeInTheDocument();
