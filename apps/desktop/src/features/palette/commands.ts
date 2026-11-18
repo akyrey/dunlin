@@ -1,17 +1,20 @@
+import type { PaletteItem } from "@roost/palette";
+
 import type { ConnectionProfile, SavedQuery, SessionInfo, TableRef } from "../../ipc";
-import type { ShortcutId } from "../shortcuts/registry";
+import { type ShortcutId, shortcutLabel } from "../shortcuts/registry";
 
 export type CommandGroup = "Actions" | "Connections" | "Tables" | "Saved queries";
 
-export type PaletteCommand = {
-  id: string;
+export type PaletteCommand = Omit<PaletteItem, "group" | "hint"> & {
   group: CommandGroup;
-  label: string;
-  /** Shown on the right: a shortcut or where the item lives. */
-  detail?: string;
   shortcut?: ShortcutId;
-  run: () => void;
 };
+
+/** The palette's row for a command: its shortcut shown the platform's way. */
+export function toPaletteItem(command: PaletteCommand, mac?: boolean): PaletteItem {
+  const { shortcut, ...item } = command;
+  return shortcut ? { ...item, hint: shortcutLabel(shortcut, mac) } : item;
+}
 
 export type PaletteContext = {
   profiles: readonly ConnectionProfile[];
