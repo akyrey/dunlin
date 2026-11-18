@@ -1,5 +1,5 @@
 import { sqliteProfile, sessionFor } from "../../test/fixtures";
-import { type PaletteHandlers, paletteCommands } from "./commands";
+import { type PaletteHandlers, paletteCommands, toPaletteItem } from "./commands";
 
 const handlers = (): PaletteHandlers => ({
   newConnection: vi.fn(),
@@ -64,5 +64,32 @@ describe("paletteCommands", () => {
     });
     expect(on.newTab).toHaveBeenCalledWith(session.sessionId);
     expect(on.disconnect).toHaveBeenCalledWith(profile.id);
+  });
+});
+
+describe("toPaletteItem", () => {
+  it("shows a command's shortcut the platform's way", () => {
+    const run = vi.fn();
+    expect(
+      toPaletteItem(
+        { id: "s", group: "Actions", label: "Settings", shortcut: "settings", run },
+        true,
+      ),
+    ).toEqual({
+      id: "s",
+      group: "Actions",
+      label: "Settings",
+      hint: "⌘,",
+      run,
+    });
+    expect(
+      toPaletteItem({ id: "c", group: "Connections", label: "db", detail: "open", run }),
+    ).toEqual({
+      id: "c",
+      group: "Connections",
+      label: "db",
+      detail: "open",
+      run,
+    });
   });
 });

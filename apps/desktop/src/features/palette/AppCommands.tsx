@@ -8,8 +8,9 @@ import { useSchema } from "../schema/schemaStore";
 import { disconnect } from "../sessions/disconnect";
 import { useSessions } from "../sessions/sessionsStore";
 import { useWorkspace } from "../workspace/workspaceStore";
-import { CommandPalette } from "./CommandPalette";
-import { paletteCommands } from "./commands";
+import { CommandPalette } from "@roost/palette";
+
+import { paletteCommands, toPaletteItem } from "./commands";
 import { useUpdates } from "../updates/updateStore";
 import { useSessionTables } from "./useSessionTables";
 
@@ -66,11 +67,17 @@ export function AppCommands(props: Props) {
             });
           },
         },
-      ),
+      ).map((command) => toPaletteItem(command)),
     // The handlers are recreated with the props on every render of App; the list need not be.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [profiles, sessions, activeConnectionId, tables, savedQueries],
   );
 
-  return <CommandPalette commands={commands} onClose={onClose} />;
+  return (
+    <CommandPalette
+      commands={commands}
+      onClose={onClose}
+      placeholder="Search commands, connections, tables and saved queries"
+    />
+  );
 }
