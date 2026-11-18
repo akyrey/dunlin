@@ -23,6 +23,7 @@ dbc-driver-sqlite.workspace = true
 dbc-driver-redis.workspace = true
 dbc-store = { workspace = true, features = ["ts"] }
 dbc-tunnel.workspace = true
+roost-shell = { workspace = true, features = ["ts"] }
 secrecy = "0.10"
 serde.workspace = true
 serde_json.workspace = true

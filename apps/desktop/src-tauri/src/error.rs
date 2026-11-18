@@ -97,6 +97,12 @@ impl From<DbError> for AppError {
     }
 }
 
+impl From<roost_shell::ShellError> for AppError {
+    fn from(error: roost_shell::ShellError) -> Self {
+        Self::new(error.code, error.message)
+    }
+}
+
 impl From<StoreError> for AppError {
     fn from(error: StoreError) -> Self {
         match error {

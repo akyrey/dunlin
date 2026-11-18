@@ -1363,9 +1363,8 @@ dependencies = [
 name = "dbc-store"
 version = "0.1.4"
 dependencies = [
- "apple-native-keyring-store",
  "dbc-core",
- "keyring-core",
+ "roost-keychain",
  "rstest",
  "rusqlite",
  "secrecy",
@@ -1375,7 +1374,6 @@ dependencies = [
  "thiserror 2.0.21",
  "ts-rs",
  "uuid",
- "zbus-secret-service-keyring-store",
 ]
 
 [[package]]
@@ -1675,6 +1673,7 @@ dependencies = [
  "dbc-store",
  "dbc-tunnel",
  "proptest",
+ "roost-shell",
  "rusqlite",
  "secrecy",
  "serde",
@@ -4985,6 +4984,35 @@ dependencies = [
  "libc",
  "untrusted",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "roost-keychain"
+version = "0.1.4"
+dependencies = [
+ "apple-native-keyring-store",
+ "keyring-core",
+ "secrecy",
+ "thiserror 2.0.21",
+ "uuid",
+ "zbus-secret-service-keyring-store",
+]
+
+[[package]]
+name = "roost-shell"
+version = "0.1.4"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin-updater",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "ts-rs",
 ]
 
 [[package]]

@@ -13,7 +13,7 @@ ts = ["dep:ts-rs", "dbc-core/ts"]
 
 [dependencies]
 dbc-core.workspace = true
-keyring-core = "1"
+roost-keychain.workspace = true
 rusqlite.workspace = true
 secrecy = "0.10"
 serde.workspace = true
@@ -21,13 +21,6 @@ serde_json.workspace = true
 thiserror.workspace = true
 ts-rs = { workspace = true, optional = true }
 uuid.workspace = true
-
-[target.'cfg(target_os = "macos")'.dependencies]
-apple-native-keyring-store = { version = "1", features = ["keychain"] }
-
-# The freedesktop Secret Service (GNOME Keyring, KWallet), over zbus: no libdbus or OpenSSL.
-[target.'cfg(target_os = "linux")'.dependencies]
-zbus-secret-service-keyring-store = { version = "1", features = ["rt-tokio-crypto-rust"] }
 
 [dev-dependencies]
 rstest.workspace = true
