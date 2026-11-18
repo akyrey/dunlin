@@ -25,6 +25,7 @@ import { useStartup } from "./features/settings/startup";
 import { UpdatePrompt } from "./features/updates/UpdatePrompt";
 import { useUpdates } from "./features/updates/updateStore";
 import { useApplyTheme } from "./features/settings/theme";
+import { EditorAppearance } from "./features/editor/appearance";
 import { TrustedHosts } from "./features/ssh/TrustedHosts";
 import { describeConnectError, hostKeyFrom } from "./features/ssh/hostKey";
 import { SidebarResizer } from "./features/workspace/SidebarResizer";
@@ -65,7 +66,7 @@ function unappliedNote(profile: ConnectionProfile): string {
     : "";
 }
 
-export function App() {
+function AppShell() {
   const { drivers, profiles, loaded, error: loadError } = useConnections();
   const { sessions, activeConnectionId, notice, remembered } = useSessions();
   const [hostKeyPrompt, setHostKeyPrompt] = useState<HostKeyPrompt | null>(null);
@@ -421,5 +422,14 @@ export function App() {
         />
       )}
     </div>
+  );
+}
+
+/** The app, with every editor following the settings' theme and font. */
+export function App() {
+  return (
+    <EditorAppearance>
+      <AppShell />
+    </EditorAppearance>
   );
 }
