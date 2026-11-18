@@ -2,6 +2,19 @@
 
 All notable changes to Dunlin. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). The version lives in the workspace `Cargo.toml` only.
 
+## [0.1.4] - 2026-11-18
+
+### Added
+
+- A script tab's connection can be changed from the editor toolbar; the tab moves to that connection with its SQL.
+- Autocomplete in the table data `WHERE` filter.
+- A setting to turn off reconnecting the connections that were open when the app quit.
+
+### Fixed
+
+- JSON and XML are highlighted when the cell viewer opens to edit them.
+- No spelling correction in the table filter.
+
 ## [0.1.3] - 2026-11-17
 
 ### Added
