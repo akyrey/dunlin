@@ -1,11 +1,13 @@
 /** Which editor a cell gets, and how its text becomes a `Value` (task 7.7). Pure. */
+import type { EditorKind, Parsed as KitParsed } from "@roost/grid";
+
 import type { Value } from "../../ipc";
 import { rawText } from "../../lib/value";
 import { prettyXml } from "../../lib/xml";
 import type { GridColumn } from "../grid/DataGrid";
 
 /** `long`: JSON, XML and long or multi-line text, edited in the cell viewer panel. */
-export type EditorKind = "text" | "number" | "bool" | "temporal" | "long" | "binary" | "none";
+export type { EditorKind } from "@roost/grid";
 
 const LONG_TEXT = 200;
 const INTEGER = /^[-+]?\d+$/;
@@ -88,7 +90,7 @@ export function editText(value: Value): string {
   return value.t === "null" ? "" : rawText(value);
 }
 
-export type Parsed = { value: Value } | { error: string };
+export type Parsed = KitParsed<Value>;
 
 function numberValue(text: string, column: GridColumn, original: Value): Parsed {
   const trimmed = text.trim();

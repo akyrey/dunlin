@@ -3,7 +3,7 @@ import { useId, useState } from "react";
 import { type ColumnMeta, type TableRef, type Value, exportText, toAppError } from "../../ipc";
 import { copyText } from "@roost/ui";
 import { toTsv } from "../grid/copy";
-import type { Range } from "../grid/selection";
+import type { Range } from "@roost/grid";
 import { DEFAULT_EXPORT, toFormat } from "./format";
 
 type Choice = "tsv" | "tsv-header" | "csv" | "json" | "insert";

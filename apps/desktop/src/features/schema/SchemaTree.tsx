@@ -1,13 +1,12 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { ContextMenu } from "@roost/ui";
+import { ContextMenu, NO_TEXT_SUBSTITUTION } from "@roost/ui";
 
 import { type AppError, toAppError } from "../../ipc";
 import { type ObjectAction, OBJECT_ACTIONS, runObjectAction } from "./actions";
 import { SESSION_KEY, useSchema } from "./schemaStore";
 import { type TreeRow, visibleRows } from "./tree";
-import { NO_TEXT_SUBSTITUTION } from "../../lib/quotes";
 
 const ROW_HEIGHT = 24;
 const INDENT = 12;
