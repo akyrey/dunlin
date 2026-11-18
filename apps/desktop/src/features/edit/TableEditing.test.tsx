@@ -2,6 +2,7 @@ import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { replaceEditorText } from "../../test/codeEditor";
 import { createMockBackend } from "../../test/mockBackend";
 import { TableData } from "../data/TableData";
 import { DEFAULT_SETTINGS } from "../settings/defaults";
@@ -165,12 +166,10 @@ describe("table editing", () => {
     await userEvent.dblClick(await screen.findByRole("gridcell", { name: /broken/ }));
 
     const editor = await screen.findByLabelText("Edit body");
-    await userEvent.clear(editor);
-    await userEvent.type(editor, "{{oops");
+    replaceEditorText(editor, "{oops");
     await userEvent.click(screen.getByRole("button", { name: "Set value" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Not valid JSON");
-    await userEvent.clear(editor);
-    await userEvent.type(editor, '{{"fixed": true}');
+    replaceEditorText(editor, '{"fixed": true}');
     await userEvent.click(screen.getByRole("button", { name: "Set value" }));
 
     expect(pendingStatus()).toHaveTextContent("1 edited");

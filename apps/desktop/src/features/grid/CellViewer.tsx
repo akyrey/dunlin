@@ -6,9 +6,9 @@ import { decodeBase64, hexDump, imageType } from "../../lib/binary";
 import { copyWithToast } from "../../lib/copy";
 import { prettyJson } from "../../lib/json";
 import { formatSize, rawText } from "../../lib/value";
-import { NO_TEXT_SUBSTITUTION } from "../../lib/quotes";
 import { prettyXml } from "../../lib/xml";
 import type { Parsed } from "../edit/editors";
+import { CodeEditor } from "../editor/CodeEditor";
 import { type CodeLanguage, ReadOnlyCode } from "../editor/ReadOnlyCode";
 import type { GridColumn } from "./DataGrid";
 
@@ -144,15 +144,14 @@ export function CellViewer({ column, value, loadFull, noFullReason, onClose, edi
       <div className="min-h-0 flex-1">
         {edit && draft !== null ? (
           <div className="flex h-full flex-col gap-1 p-2">
-            <textarea
-              aria-label={`Edit ${column.name}`}
-              aria-invalid={invalid !== null}
-              autoFocus
-              {...NO_TEXT_SUBSTITUTION}
-              className={`min-h-0 flex-1 resize-none rounded bg-zinc-950 p-2 font-mono text-xs text-zinc-100 outline outline-1 ${invalid ? "outline-rose-500" : "outline-zinc-700"} ${wrap ? "" : "whitespace-pre"}`}
-              value={draft}
-              onChange={(e) => {
-                setDraft(e.target.value);
+            <CodeEditor
+              initialText={draft}
+              label={`Edit ${column.name}`}
+              language={editLanguage(shown, column.category)}
+              wrap={wrap}
+              invalid={invalid !== null}
+              onChange={(text) => {
+                setDraft(text);
                 setInvalid(null);
               }}
             />
@@ -255,6 +254,16 @@ function describe(value: Value, category: GridColumn["category"]): Content {
       : { kind: "code", text: pretty, language: "xml", note: null };
   }
   return detect(text, value.t === "text" && value.truncated === true);
+}
+
+/** The editor's language: the column's, or what the stored text holds. Taken from the value, not
+ * the draft, so typing never switches it (which would rebuild the editor). */
+function editLanguage(value: Value, category: GridColumn["category"]): CodeLanguage {
+  if (value.t === "json" || category === "json") return "json";
+  if (value.t === "xml" || category === "xml") return "xml";
+  if (value.t !== "text") return "text";
+  const content = detect(value.v, false);
+  return content.kind === "code" ? content.language : "text";
 }
 
 /** Text that holds JSON or XML is shown as such: JSON is tried first, then XML, then plain text.

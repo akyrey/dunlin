@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 
 import type { Value } from "../../ipc";
 import { copyText } from "../../lib/clipboard";
-import { CellViewer } from "./CellViewer";
+import { replaceEditorText } from "../../test/codeEditor";
+import { CellViewer, type ViewerEdit } from "./CellViewer";
 import type { GridColumn } from "./DataGrid";
 
 vi.mock("../../lib/clipboard", () => ({ copyText: vi.fn(() => Promise.resolve()) }));
@@ -113,5 +114,60 @@ describe("CellViewer", () => {
     show(text, { t: "null" });
 
     expect(screen.getByText("The value is NULL.")).toBeInTheDocument();
+  });
+
+  describe("editing", () => {
+    function edit(column: GridColumn, raw: string, onSave = vi.fn()) {
+      const viewerEdit: ViewerEdit = {
+        initialText: raw,
+        parse: (draft) =>
+          draft.startsWith("{") ? { value: { t: "text", v: draft } } : { error: "Bad" },
+        onSave,
+        start: true,
+      };
+      render(
+        <CellViewer
+          column={column}
+          value={{ t: "text", v: raw }}
+          loadFull={null}
+          noFullReason=""
+          onClose={vi.fn()}
+          edit={viewerEdit}
+        />,
+      );
+      return onSave;
+    }
+
+    /** Highlighted tokens are spans with a generated class inside a line. */
+    const highlighted = (editor: HTMLElement) =>
+      editor.querySelectorAll(".cm-line span:not([class^='cm-'])").length;
+
+    it("highlights text that holds JSON when the viewer opens to edit", () => {
+      edit(text, '{"a": 1, "b": true}');
+
+      const editor = screen.getByLabelText("Edit note");
+      expect(editor).toHaveTextContent('{"a": 1, "b": true}');
+      expect(highlighted(editor)).toBeGreaterThan(0);
+    });
+
+    it("does not highlight plain text", () => {
+      edit(text, "plain words 1 true");
+
+      expect(highlighted(screen.getByLabelText("Edit note"))).toBe(0);
+    });
+
+    it("saves the edited text, and reports text that does not parse", async () => {
+      const onSave = edit(text, '{"a": 1}');
+      const editor = screen.getByLabelText("Edit note");
+
+      replaceEditorText(editor, "oops");
+      await userEvent.click(screen.getByRole("button", { name: "Set value" }));
+      expect(screen.getByRole("alert")).toHaveTextContent("Bad");
+
+      replaceEditorText(editor, '{"b": 2}');
+      expect(screen.queryByRole("alert")).toBeNull();
+      await userEvent.click(screen.getByRole("button", { name: "Set value" }));
+      expect(onSave).toHaveBeenCalledWith({ t: "text", v: '{"b": 2}' });
+    });
   });
 });
