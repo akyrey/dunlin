@@ -101,6 +101,9 @@ type EditorState = {
   finishTransaction: (tabId: string, commit: boolean) => Promise<void>;
   /** Closes the tab and its backend connection. */
   closeTab: (tabId: string) => Promise<void>;
+  /** Moves the tab to another session (connection), keeping its text; its results, which came
+   * from the old connection, are dropped. Does nothing while it runs or holds a transaction. */
+  moveTab: (tabId: string, sessionId: string) => Promise<void>;
   /** Forgets every tab of a session the backend already closed. */
   dropSession: (sessionId: string) => void;
 };
@@ -273,6 +276,20 @@ export const useEditor = create<EditorState>()((set, get) => {
       update(tabId, { transaction });
     } catch {
       // The session is gone (closed or lost); its tabs are dropped elsewhere.
+    }
+  };
+
+  /** Closes the tab's backend connection; a session already gone closed it too. */
+  const releaseConnection = async (sessionId: string, tabId: string) => {
+    try {
+      await tabClose(sessionId, tabId);
+    } catch (caught) {
+      const error = toAppError(caught);
+      if (error.code !== "not_found") {
+        useSessions.setState({
+          notice: `The tab's connection did not close cleanly: ${error.message}`,
+        });
+      }
     }
   };
 
@@ -466,17 +483,25 @@ export const useEditor = create<EditorState>()((set, get) => {
       if (!tab) return;
       set({ tabs: Object.fromEntries(Object.entries(get().tabs).filter(([k]) => k !== tabId)) });
       useWorkspace.getState().close(tab.sessionId, tabId);
-      try {
-        await tabClose(tab.sessionId, tabId);
-      } catch (caught) {
-        // The session may already be gone, which closed the connection too.
-        const error = toAppError(caught);
-        if (error.code !== "not_found") {
-          useSessions.setState({
-            notice: `The tab's connection did not close cleanly: ${error.message}`,
-          });
-        }
-      }
+      await releaseConnection(tab.sessionId, tabId);
+    },
+
+    moveTab: async (tabId, sessionId) => {
+      const tab = get().tabs[tabId];
+      if (!tab || tab.sessionId === sessionId || tab.running || tab.transaction.open) return;
+      update(tabId, {
+        sessionId,
+        run: null,
+        notice: null,
+        confirmation: null,
+        shown: 0,
+        explained: null,
+        split: null,
+        transaction: { manual: false, open: false },
+      });
+      useWorkspace.getState().close(tab.sessionId, tabId);
+      useWorkspace.getState().openEditor(sessionId, tabId);
+      await releaseConnection(tab.sessionId, tabId);
     },
 
     dropSession: dropSessionTabs,

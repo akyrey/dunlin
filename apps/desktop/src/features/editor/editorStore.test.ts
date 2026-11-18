@@ -320,3 +320,59 @@ describe("running", () => {
     expect(useEditor.getState().tabs).toEqual({});
   });
 });
+
+describe("moving a tab to another connection", () => {
+  it("moves the tab to the other session's workspace, keeping its text", async () => {
+    useEditor.getState().setText(tabId, "SELECT 1");
+    tabClose.mockResolvedValue(undefined);
+
+    await useEditor.getState().moveTab(tabId, "s2");
+
+    expect(tab().sessionId).toBe("s2");
+    expect(tab().text).toBe("SELECT 1");
+    expect(tabClose).toHaveBeenCalledWith(SESSION, tabId);
+    expect(workspaceOf(useWorkspace.getState(), SESSION).views).toEqual([]);
+    expect(workspaceOf(useWorkspace.getState(), "s2")).toEqual({
+      views: [{ kind: "editor", key: tabId }],
+      active: tabId,
+    });
+  });
+
+  it("forgets the results, split and transaction state of the old connection", async () => {
+    tabClose.mockResolvedValue(undefined);
+    await useEditor.getState().run(tabId, cursor(0), "statement");
+    useEditor.setState({
+      tabs: { [tabId]: { ...tab(), transaction: { manual: true, open: false } } },
+    });
+
+    await useEditor.getState().moveTab(tabId, "s2");
+
+    expect(tab().run).toBeNull();
+    expect(tab().split).toBeNull();
+    expect(tab().explained).toBeNull();
+    expect(tab().transaction).toEqual({ manual: false, open: false });
+  });
+
+  it("does not move a running tab or one with an open transaction", async () => {
+    useEditor.setState({ tabs: { [tabId]: { ...tab(), running: true } } });
+    await useEditor.getState().moveTab(tabId, "s2");
+    expect(tab().sessionId).toBe(SESSION);
+
+    useEditor.setState({
+      tabs: { [tabId]: { ...tab(), running: false, transaction: { manual: true, open: true } } },
+    });
+    await useEditor.getState().moveTab(tabId, "s2");
+    expect(tab().sessionId).toBe(SESSION);
+    expect(tabClose).not.toHaveBeenCalled();
+  });
+
+  it("still moves the tab when its old connection is already gone", async () => {
+    useSessions.setState({ notice: null });
+    tabClose.mockRejectedValue({ code: "not_found", message: "no session" });
+
+    await useEditor.getState().moveTab(tabId, "s2");
+
+    expect(tab().sessionId).toBe("s2");
+    expect(useSessions.getState().notice).toBeNull();
+  });
+});

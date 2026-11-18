@@ -13,6 +13,7 @@ import { shortcutLabel } from "../shortcuts/registry";
 import { ResultPanel } from "./ResultPanel";
 import { TransactionControls } from "./TransactionControls";
 import { RowLimitSelect } from "./RowLimitSelect";
+import { ConnectionSelect } from "./ConnectionSelect";
 import type { EditorHandle } from "./SqlEditor";
 import { LazySqlEditor as SqlEditor } from "./lazy";
 import { useCompletion } from "./completionStore";
@@ -149,6 +150,12 @@ export function EditorPane({ tabId, session, profile }: Props) {
           )}
           {tab.running && tab.startedAt !== null && <ElapsedTimer startedAt={tab.startedAt} />}
           <span className="ml-auto flex items-center gap-3">
+            <ConnectionSelect
+              tabId={tabId}
+              connectionId={session.connectionId}
+              disabled={tab.running || tab.transaction.open}
+              guard={guardEdits}
+            />
             {!session.capabilities.keyValue && <TransactionControls tab={tab} />}
             <RowLimitSelect
               key={tab.rowLimit}
