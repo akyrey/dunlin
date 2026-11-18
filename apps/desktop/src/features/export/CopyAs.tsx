@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 
 import { type ColumnMeta, type TableRef, type Value, exportText, toAppError } from "../../ipc";
-import { copyText } from "../../lib/clipboard";
+import { copyText } from "@roost/ui";
 import { toTsv } from "../grid/copy";
 import type { Range } from "../grid/selection";
 import { DEFAULT_EXPORT, toFormat } from "./format";

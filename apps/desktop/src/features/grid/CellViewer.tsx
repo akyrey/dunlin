@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { Button } from "../../components/Button";
+import { Button, copyWithToast } from "@roost/ui";
 import { type AppError, type Value, toAppError } from "../../ipc";
 import { decodeBase64, hexDump, imageType } from "../../lib/binary";
-import { copyWithToast } from "../../lib/copy";
 import { prettyJson } from "../../lib/json";
 import { formatSize, rawText } from "../../lib/value";
 import { prettyXml } from "../../lib/xml";

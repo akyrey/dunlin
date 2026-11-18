@@ -1,4 +1,4 @@
-import { Skeleton } from "../../components/Skeleton";
+import { Skeleton } from "@roost/ui";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import {

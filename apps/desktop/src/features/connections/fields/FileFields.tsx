@@ -1,4 +1,4 @@
-import { Button } from "../../../components/Button";
+import { Button } from "@roost/ui";
 import { pickDatabaseFile, pickNewDatabaseFile } from "../../../ipc";
 import { Field } from "./Field";
 

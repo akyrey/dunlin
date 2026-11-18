@@ -1,4 +1,4 @@
-import { Button } from "../../components/Button";
+import { Button } from "@roost/ui";
 import type { KeyEdit } from "../../ipc";
 import { ACTIONS, buildEdit, type Field, fieldsOf, type Inputs } from "./edits";
 

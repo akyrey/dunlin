@@ -1,4 +1,5 @@
 /// <reference types="vitest/config" />
+import { fileURLToPath } from "node:url";
 import process from "node:process";
 
 import tailwindcss from "@tailwindcss/vite";
@@ -10,6 +11,15 @@ const host = process.env.TAURI_DEV_HOST;
 // https://v2.tauri.app/start/frontend/vite/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  resolve: {
+    // Shared kit (src/kit/README.md); becomes the Roost packages.
+    alias: [
+      {
+        find: /^@roost\/([a-z-]+)$/,
+        replacement: fileURLToPath(new URL("./src/kit/$1/index.ts", import.meta.url)),
+      },
+    ],
+  },
   // Keep Rust errors visible in `tauri dev`.
   clearScreen: false,
   server: {

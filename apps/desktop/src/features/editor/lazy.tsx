@@ -1,7 +1,7 @@
 /** CodeMirror and its language packages load on first use, not at start (task 8.14). */
 import { type ComponentProps, Suspense, lazy } from "react";
 
-import { Skeleton } from "../../components/Skeleton";
+import { Skeleton } from "@roost/ui";
 
 const SqlEditorModule = lazy(async () => ({ default: (await import("./SqlEditor")).SqlEditor }));
 const ReadOnlyCodeModule = lazy(async () => ({

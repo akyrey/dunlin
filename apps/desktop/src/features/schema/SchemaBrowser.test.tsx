@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { App } from "../../App";
-import { copyText } from "../../lib/clipboard";
+import { clipboardWrite, installClipboard } from "../../test/clipboard";
 import { createMockBackend } from "../../test/mockBackend";
 import { useConnections } from "../connections/connectionsStore";
 import { useEditor } from "../editor/editorStore";
@@ -11,7 +11,7 @@ import { useSessions } from "../sessions/sessionsStore";
 import { useWorkspace } from "../workspace/workspaceStore";
 import { useSchema } from "./schemaStore";
 
-vi.mock("../../lib/clipboard", () => ({ copyText: vi.fn(() => Promise.resolve()) }));
+installClipboard();
 
 type Backend = ReturnType<typeof createMockBackend>;
 let calls: string[] = [];
@@ -32,7 +32,7 @@ beforeEach(() => {
   useEditor.setState({ tabs: {} });
   useSchema.setState({ trees: {}, filter: "", showSystem: false });
   useWorkspace.setState({ workspaces: {} });
-  vi.mocked(copyText).mockClear();
+  clipboardWrite.mockClear();
   vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(400);
   vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
 });
@@ -147,7 +147,7 @@ describe("schema browser", () => {
       within(await actions()).getByRole("menuitem", { name: "Generate SELECT" }),
     );
 
-    expect(vi.mocked(copyText).mock.calls).toEqual([["people"], ['"main"."people"']]);
+    expect(clipboardWrite.mock.calls).toEqual([["people"], ['"main"."people"']]);
     const tabs = Object.values(useEditor.getState().tabs);
     expect(tabs.map((tab) => [tab.title, tab.text])).toEqual([
       ["Query 1", ""],

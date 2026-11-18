@@ -2,10 +2,10 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import type { Value } from "../../ipc";
-import { copyText } from "../../lib/clipboard";
+import { clipboardWrite, installClipboard } from "../../test/clipboard";
 import { DataGrid, type GridColumn } from "./DataGrid";
 
-vi.mock("../../lib/clipboard", () => ({ copyText: vi.fn(() => Promise.resolve()) }));
+installClipboard();
 
 const columns: GridColumn[] = [
   { name: "id", typeName: "INTEGER", category: "integer", primaryKey: true },
@@ -29,7 +29,7 @@ const rows: Value[][] = [
 beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(400);
   vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
-  vi.mocked(copyText).mockClear();
+  clipboardWrite.mockClear();
 });
 
 afterEach(() => {
@@ -67,7 +67,7 @@ describe("DataGrid", () => {
 
     grid.focus();
     fireEvent.keyDown(grid, { key: "c", ctrlKey: true });
-    expect(copyText).toHaveBeenCalledWith("1\t<img src=x onerror=alert(1)>\n2\t");
+    expect(clipboardWrite).toHaveBeenCalledWith("1\t<img src=x onerror=alert(1)>\n2\t");
 
     fireEvent.keyDown(grid, { key: "ArrowDown" });
     expect(onFocusCell).toHaveBeenLastCalledWith({ row: 2, col: 1 });

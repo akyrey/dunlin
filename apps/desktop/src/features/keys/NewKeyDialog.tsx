@@ -1,7 +1,6 @@
 import { useState } from "react";
 
-import { Button } from "../../components/Button";
-import { Modal } from "../../components/Modal";
+import { Button, Modal } from "@roost/ui";
 import { isAppError, type KeyEdit, kvRead } from "../../ipc";
 import { ACTIONS, buildEdit, CREATE_ACTIONS, type Inputs, keyIdOf } from "./edits";
 import { KeyEditDialog } from "./KeyEditDialog";

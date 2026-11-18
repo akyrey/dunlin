@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { ConfirmDialog } from "@roost/ui";
 import { onQuitRequested, quitApp } from "../../ipc";
 import { describeUnsavedWork, hasUnsavedWork, unsavedWork } from "./unsavedWork";
 

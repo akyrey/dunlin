@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { ConfirmDialog } from "@roost/ui";
 import { type SavedQuery, toAppError } from "../../ipc";
 import { openSavedQuery } from "./openSaved";
 import { queriesFor, useSavedQueries } from "./savedQueriesStore";

@@ -2,12 +2,12 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import type { Value } from "../../ipc";
-import { copyText } from "../../lib/clipboard";
+import { clipboardWrite, installClipboard } from "../../test/clipboard";
 import { replaceEditorText } from "../../test/codeEditor";
 import { CellViewer, type ViewerEdit } from "./CellViewer";
 import type { GridColumn } from "./DataGrid";
 
-vi.mock("../../lib/clipboard", () => ({ copyText: vi.fn(() => Promise.resolve()) }));
+installClipboard();
 
 const json: GridColumn = { name: "body", typeName: "JSON", category: "json" };
 const text: GridColumn = { name: "note", typeName: "TEXT", category: "text" };
@@ -33,7 +33,7 @@ describe("CellViewer", () => {
 
     expect(screen.getByLabelText("Cell value")).toHaveTextContent('"a": [');
     await userEvent.click(screen.getByRole("button", { name: "Copy" }));
-    expect(copyText).toHaveBeenCalledWith('{"a":[1,2]}');
+    expect(clipboardWrite).toHaveBeenCalledWith('{"a":[1,2]}');
   });
 
   it("shows text that is not valid JSON as text, without throwing", () => {

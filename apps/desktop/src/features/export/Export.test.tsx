@@ -3,13 +3,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import type { ColumnMeta, Value } from "../../ipc";
-import { copyText } from "../../lib/clipboard";
+import { clipboardWrite, installClipboard } from "../../test/clipboard";
 import { createMockBackend } from "../../test/mockBackend";
 import { CopyAs } from "./CopyAs";
 import { ExportDialog } from "./ExportDialog";
 import { toFormat } from "./format";
 
-vi.mock("../../lib/clipboard", () => ({ copyText: vi.fn(() => Promise.resolve()) }));
+installClipboard();
 
 const main = { catalog: null, schema: "main" };
 const columns: ColumnMeta[] = [
@@ -38,7 +38,7 @@ beforeEach(() => {
     });
     return backend(cmd, payload);
   });
-  vi.mocked(copyText).mockClear();
+  clipboardWrite.mockClear();
 });
 
 afterEach(() => {
@@ -170,13 +170,13 @@ describe("CopyAs", () => {
     await userEvent.selectOptions(screen.getByLabelText("Copy as"), "json");
 
     await waitFor(() => {
-      expect(vi.mocked(copyText).mock.calls).toEqual([["id\tname\n1\tAda"], ['[["1","Ada"]]']]);
+      expect(clipboardWrite.mock.calls).toEqual([["id\tname\n1\tAda"], ['[["1","Ada"]]']]);
     });
     expect(screen.getByRole("status")).toHaveTextContent("Copied 1 row");
   });
 
   it("copies everything when nothing is selected, and reports failures", async () => {
-    vi.mocked(copyText).mockRejectedValueOnce(new Error("clipboard refused"));
+    clipboardWrite.mockRejectedValueOnce(new Error("clipboard refused"));
     render(
       <CopyAs
         sessionId="s1"

@@ -1,7 +1,6 @@
 import { useId, useState } from "react";
 
-import { Button } from "../../components/Button";
-import { Modal } from "../../components/Modal";
+import { Button, Modal } from "@roost/ui";
 import {
   type AppError,
   type ConnectionDraft,

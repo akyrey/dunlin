@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { Button } from "../../components/Button";
-import { Modal } from "../../components/Modal";
+import { Button, Modal } from "@roost/ui";
 import { type AppError, type KeyEdit, kvEdit, toAppError } from "../../ipc";
 
 type Props = {

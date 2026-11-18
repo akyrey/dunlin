@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from "react";
 
-import { Button } from "../../../components/Button";
+import { Button } from "@roost/ui";
 import {
   type SshAuthMethod,
   type SshHostSettings,

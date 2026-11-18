@@ -1,7 +1,6 @@
 import { useState } from "react";
 
-import { Button } from "../../components/Button";
-import { Modal } from "../../components/Modal";
+import { Button, Modal } from "@roost/ui";
 import { LazyReadOnlyCode as ReadOnlyCode } from "../editor/lazy";
 
 type Props = {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { ConfirmDialog } from "@roost/ui";
 import type { ConnectionProfile, SessionInfo } from "../../ipc";
 import { EditorPane } from "../editor/EditorPane";
 import { useCompletion } from "../editor/completionStore";
