@@ -17,7 +17,7 @@ import { dialectFor } from "./dialects";
 import { redisLanguage } from "./redisLanguage";
 import type { RunMode, Selection } from "./run";
 import { bindingOf } from "../shortcuts/registry";
-import { useEditorAppearance } from "./appearance";
+import { useEditorAppearance } from "@roost/editor";
 
 export type EditorHandle = {
   selection: () => Selection;

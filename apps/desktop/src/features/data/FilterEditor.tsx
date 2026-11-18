@@ -7,7 +7,7 @@ import { minimalSetup } from "codemirror";
 import { useEffect, useRef } from "react";
 
 import type { DriverKind } from "../../ipc";
-import { useEditorAppearance } from "../editor/appearance";
+import { useEditorAppearance } from "@roost/editor";
 import { dialectFor } from "../editor/dialects";
 import type { Completion } from "../editor/SqlEditor";
 import { columnSource, recentSource, singleLine } from "./filterCompletion";

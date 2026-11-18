@@ -1,14 +1,7 @@
-import { json } from "@codemirror/lang-json";
 import { sql } from "@codemirror/lang-sql";
-import { xml } from "@codemirror/lang-xml";
-import type { Extension } from "@codemirror/state";
+import type { LanguageSet } from "@roost/editor";
+
+/** Dunlin's languages on top of the kit's built-in ones. One object, so editors are not rebuilt. */
+export const LANGUAGES: LanguageSet = { sql: () => sql() };
 
 export type CodeLanguage = "sql" | "json" | "xml" | "text";
-
-/** The CodeMirror language extension for each highlighted language. */
-export const LANGUAGES: Record<CodeLanguage, () => Extension> = {
-  sql: () => sql(),
-  json: () => json(),
-  xml: () => xml(),
-  text: () => [],
-};
