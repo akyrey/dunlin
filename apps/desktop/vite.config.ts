@@ -1,5 +1,4 @@
 /// <reference types="vitest/config" />
-import { fileURLToPath } from "node:url";
 import process from "node:process";
 
 import tailwindcss from "@tailwindcss/vite";
@@ -12,12 +11,20 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
-    // Shared kit (src/kit/README.md); becomes the Roost packages.
-    alias: [
-      {
-        find: /^@roost\/([a-z-]+)$/,
-        replacement: fileURLToPath(new URL("./src/kit/$1/index.ts", import.meta.url)),
-      },
+    // @roost/* ship TypeScript source with these as peers: one copy each, also when Roost is
+    // linked from a local checkout (scripts/link-roost.sh).
+    dedupe: [
+      "react",
+      "react-dom",
+      "zustand",
+      "@tanstack/react-virtual",
+      "codemirror",
+      "@codemirror/state",
+      "@codemirror/view",
+      "@codemirror/language",
+      "@codemirror/lang-json",
+      "@codemirror/lang-xml",
+      "@lezer/highlight",
     ],
   },
   // Keep Rust errors visible in `tauri dev`.
@@ -36,6 +43,8 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
+    // Roost's packages are TypeScript source: compile them like the app's own.
+    server: { deps: { inline: [/@roost\//] } },
     include: ["src/**/*.test.{ts,tsx}", "scripts/**/*.test.mjs"],
     coverage: {
       provider: "v8",

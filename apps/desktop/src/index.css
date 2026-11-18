@@ -1,5 +1,8 @@
 @import "tailwindcss";
-@import "./kit/ui/theme-light.css";
+@import "@roost/ui/theme-light.css";
+
+/* Roost's components use Tailwind classes too (D-039). */
+@source "../node_modules/@roost";
 
 @layer base {
   html,

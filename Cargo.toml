@@ -8,8 +8,6 @@ members = [
     "crates/dbc-driver-redis",
     "crates/dbc-store",
     "crates/dbc-tunnel",
-    "crates/roost-keychain",
-    "crates/roost-shell",
     "apps/desktop/src-tauri",
 ]
 
@@ -28,9 +26,9 @@ dbc-driver-sqlite = { path = "crates/dbc-driver-sqlite" }
 dbc-driver-redis = { path = "crates/dbc-driver-redis" }
 dbc-store = { path = "crates/dbc-store" }
 dbc-tunnel = { path = "crates/dbc-tunnel" }
-# The shared kit (Roost): moves to the Roost repository, then becomes a git dependency.
-roost-keychain = { path = "crates/roost-keychain" }
-roost-shell = { path = "crates/roost-shell" }
+# The kit shared with Whimbrel (D-039). scripts/link-roost.sh points these at a local checkout.
+roost-keychain = { git = "https://github.com/akyrey/roost", tag = "v0.1.0" }
+roost-shell = { git = "https://github.com/akyrey/roost", tag = "v0.1.0" }
 
 async-trait = "0.1"
 base64 = "0.23"

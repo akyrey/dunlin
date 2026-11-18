@@ -22,14 +22,13 @@ crates/dbc-driver-sqlite     SQLite driver
 crates/dbc-driver-redis      Redis/Valkey driver (key-value; D-032)
 crates/dbc-tunnel            SSH local port forwarding
 crates/dbc-store             saved connections, history, saved queries, keychain
-crates/roost-shell           shared with Whimbrel: in-app updates, log files (D-039)
-crates/roost-keychain        shared with Whimbrel: the OS keychain (D-039)
 apps/desktop/src-tauri       Tauri commands, session manager (thin)
 apps/desktop/src             React frontend, organised by feature
-apps/desktop/src/kit         shared with Whimbrel, imported as @roost/<package> (D-039, kit/README.md)
 ```
 
-Dependency rule: `roost-*` crates and `src/kit` depend on no Dunlin code (they move to the Roost repository). `dbc-core` depends on no other workspace crate. Drivers, tunnel and store depend only on `dbc-core`. Only `src-tauri` depends on everything. No driver-specific type crosses a crate boundary.
+Shared with Whimbrel (D-039, D-040): the `roost-shell` and `roost-keychain` crates and the `@roost/*` packages (ui, editor, grid, palette, shortcuts, updates) come from the Roost repository by tag, as does the release workflow. To change them, work in a Roost checkout and point Dunlin at it with `scripts/link-roost.sh ../roost`; run `scripts/unlink-roost.sh` before committing (CI refuses a linked manifest). Code only Dunlin uses stays here.
+
+Dependency rule: `dbc-core` depends on no other workspace crate. Drivers, tunnel and store depend only on `dbc-core`. Only `src-tauri` depends on everything. No driver-specific type crosses a crate boundary.
 
 ## Rust conventions
 
