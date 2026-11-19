@@ -4988,27 +4988,24 @@ dependencies = [
 
 [[package]]
 name = "roost-keychain"
-version = "0.1.4"
+version = "0.1.0"
+source = "git+https://github.com/akyrey/roost?tag=v0.1.1#e0b0275c6e725610af9a591a633f77382b5a0ed7"
 dependencies = [
  "apple-native-keyring-store",
  "keyring-core",
  "secrecy",
  "thiserror 2.0.21",
- "uuid",
  "zbus-secret-service-keyring-store",
 ]
 
 [[package]]
 name = "roost-shell"
-version = "0.1.4"
+version = "0.1.0"
+source = "git+https://github.com/akyrey/roost?tag=v0.1.1#e0b0275c6e725610af9a591a633f77382b5a0ed7"
 dependencies = [
  "serde",
- "serde_json",
- "tauri",
  "tauri-plugin-updater",
- "tempfile",
  "thiserror 2.0.21",
- "tokio",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
