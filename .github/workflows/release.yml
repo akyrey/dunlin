@@ -27,9 +27,9 @@ permissions:
 
 jobs:
   release:
-    uses: akyrey/roost/.github/workflows/release-app.yml@v0.1.0
+    uses: akyrey/roost/.github/workflows/release-app.yml@v0.1.1
     with:
-      roost-ref: v0.1.0
+      roost-ref: v0.1.1
       app-dir: apps/desktop
       product-name: Dunlin
       binary-name: dunlin
