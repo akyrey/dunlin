@@ -3,6 +3,7 @@ import { type KeyboardEvent, type MouseEvent, useCallback, useState } from "reac
 import { ContextMenu, type ContextMenuItem } from "@roost/ui";
 
 import type { ConnectionProfile } from "../../ipc";
+import { DriverIcon } from "./DriverIcon";
 import { groupByFolder } from "./folders";
 
 type Props = {
@@ -60,6 +61,7 @@ function Row(props: RowProps) {
         className="h-2.5 w-2.5 shrink-0 rounded-full"
         style={{ backgroundColor: profile.color ?? "transparent" }}
       />
+      <DriverIcon driver={profile.driver} className="h-3.5 w-3.5 text-zinc-400" />
       <button
         type="button"
         className="flex-1 truncate text-left"

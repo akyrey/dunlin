@@ -253,3 +253,9 @@ Format: context, decision, consequences. Keep entries short.
 **Context.** D-039 extracted the shared kit inside Dunlin; it now lives in the Roost repository (`akyrey/roost`).
 **Decision.** Dunlin depends on Roost `v0.1.0`: Cargo git dependencies for `roost-shell` and `roost-keychain`, pnpm git dependencies with a sub-path for `@roost/*`, and `release.yml` calls Roost's `release-app.yml` at the same tag. The packages are TypeScript source: Vitest inlines them, Vite dedupes their peers (React, Zustand, CodeMirror, TanStack Virtual), Tailwind reads their classes through `@source`, and `tsconfig.json` pins the React types. `scripts/link-roost.sh` points both manifests at a local checkout for work across the two repositories; CI fails if a linked manifest is committed.
 **Consequences.** A kit change reaches Dunlin only when Dunlin bumps the tag, and the bump's CI is the check. Cargo fetches a git dependency even when a `[patch]` replaces it, so linking rewrites the manifests rather than patching them.
+
+## D-041 The connection list shows each driver's logo (2026-11-19)
+
+**Context.** Saved connections were told apart only by name and the user's colour dot, so a PostgreSQL connection looked like a Redis one. The frontend must not branch on `DriverKind` (DRIVER_API).
+**Decision.** `DriverIcon` maps every `DriverKind` to a logo from `simple-icons` (CC0), drawn monochrome in the text colour so it does not compete with the connection's colour. The map is a `Record<DriverKind, …>`, so a new driver fails to compile until it has an icon. Redis and Valkey share the Redis logo; simple-icons has no Valkey logo.
+**Consequences.** This is the one place the frontend reads `DriverKind`, and only for presentation: features still come from `Capabilities`.
