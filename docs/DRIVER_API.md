@@ -93,7 +93,7 @@ pub struct Capabilities {
 }
 ```
 
-The frontend hides or disables features from these flags. It must never branch on `DriverKind`.
+The frontend hides or disables features from these flags. It must never branch on `DriverKind`; the only exception is the driver logo in the connection list, which is presentation (D-041).
 
 ## Value model
 
