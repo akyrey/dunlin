@@ -2,6 +2,12 @@
 
 All notable changes to Dunlin. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). The version lives in the workspace `Cargo.toml` only.
 
+## [0.2.0] - 2026-11-20
+
+### Changed
+
+- The editor, data grid, command palette, shortcuts, update prompt, keychain, updater and logging come from Roost, the kit Dunlin shares with Whimbrel; the release workflow is Roost's shared `release-app.yml`. Behaviour is unchanged.
+
 ## [0.1.4] - 2026-11-18
 
 ### Added
