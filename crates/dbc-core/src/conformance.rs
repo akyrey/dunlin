@@ -2,6 +2,7 @@
 //! [`Harness`]. Each check returns a [`Failure`] naming what went wrong instead of panicking.
 
 mod changes;
+mod explain_analyze;
 mod import;
 mod introspection;
 mod schema_edit;
@@ -17,6 +18,7 @@ pub use changes::{
     WriteCase, WriteSupport, apply_changes_group, change_cases, literal_cases,
     literal_round_trip_group,
 };
+pub use explain_analyze::explain_analyze_group;
 pub use import::import_group;
 pub use introspection::{IntrospectionSupport, introspection_group};
 pub use schema_edit::{schema_edit_cases, schema_edit_table};
@@ -127,6 +129,10 @@ pub trait Harness: Send + Sync {
     fn write_support(&self) -> Option<WriteSupport> {
         None
     }
+    /// Plans report row counts, so a large full scan is flagged (not SQLite).
+    fn plans_count_rows(&self) -> bool {
+        true
+    }
     fn introspection_support(&self) -> IntrospectionSupport {
         IntrospectionSupport::default()
     }
@@ -153,6 +159,7 @@ pub async fn run_all(harness: &dyn Harness) -> Result<(), Failure> {
     apply_changes_group(harness).await?;
     import_group(harness).await?;
     schema_edit_group(harness).await?;
+    explain_analyze_group(harness).await?;
     stream_group(harness).await
 }
 
