@@ -1,6 +1,7 @@
 /** Forgets the frontend state of sessions that ended (closed, deleted or lost). */
 import { useCompletion } from "../editor/completionStore";
 import { useEditor } from "../editor/editorStore";
+import { useSchemaEdits } from "../schema/schemaEditStore";
 import { useSchema } from "../schema/schemaStore";
 import { useWorkspace } from "./workspaceStore";
 
@@ -8,6 +9,7 @@ export function forgetEndedSessions(open: Set<string>): void {
   const known = new Set([
     ...Object.keys(useSchema.getState().trees),
     ...Object.keys(useWorkspace.getState().workspaces),
+    ...Object.values(useSchemaEdits.getState().sessions),
     ...Object.keys(useCompletion.getState().defaults),
     ...Object.values(useEditor.getState().tabs).map((t) => t.sessionId),
   ]);
@@ -17,5 +19,6 @@ export function forgetEndedSessions(open: Set<string>): void {
     useWorkspace.getState().dropSession(sessionId);
     useCompletion.getState().dropSession(sessionId);
     useEditor.getState().dropSession(sessionId);
+    useSchemaEdits.getState().dropSession(sessionId);
   }
 }

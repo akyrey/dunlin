@@ -38,6 +38,7 @@ pub async fn schema_edit_preview(
     let plan = session.schema_edit_plan(&args.edit).await;
     let plan = super::schema::finish(state, &session, plan).await?;
     Ok(SchemaEditPreview {
+        statement_offset: plan.before.len(),
         statements: plan.preview(),
         warnings: plan.warnings,
         destructive: plan.destructive,

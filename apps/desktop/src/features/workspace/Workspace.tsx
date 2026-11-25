@@ -8,6 +8,7 @@ import { useEditor } from "../editor/editorStore";
 import { loadTabs } from "../editor/persistence";
 import { TableData } from "../data/TableData";
 import { useEdits } from "../edit/editStore";
+import { useSchemaEdits } from "../schema/schemaEditStore";
 import { TableDetails } from "../schema/TableDetails";
 import { useSessions } from "../sessions/sessionsStore";
 import { matchShortcut } from "../shortcuts/registry";
@@ -47,7 +48,8 @@ export function Workspace({ session, profile }: Props) {
   const active = workspace.views.find((v) => v.key === workspace.active) ?? null;
 
   const requestClose = (view: View) => {
-    if ((view.kind === "data" || view.kind === "editor") && useEdits.getState().pending[view.key]) {
+    const editable = view.kind === "data" || view.kind === "editor" || view.kind === "table";
+    if (editable && useEdits.getState().pending[view.key]) {
       setDiscarding(view.key);
       return;
     }
@@ -125,6 +127,12 @@ export function Workspace({ session, profile }: Props) {
             onOpenTable={(table) => {
               useWorkspace.getState().openTable(sessionId, table);
             }}
+            viewKey={active.key}
+            editable={!session.readOnly && session.capabilities.schemaEditing}
+            connection={{
+              name: profile?.name ?? "this connection",
+              color: profile?.color ?? null,
+            }}
           />
         )}
         {active?.kind === "key" && (
@@ -172,6 +180,7 @@ export function Workspace({ session, profile }: Props) {
           message="This tab has edits that were not applied. Closing it discards them; nothing was written to the database."
           confirmLabel="Discard and close"
           onConfirm={() => {
+            useSchemaEdits.getState().clear(discarding, sessionId);
             if (tabs[discarding]) void useEditor.getState().closeTab(discarding);
             else useWorkspace.getState().close(sessionId, discarding);
             setDiscarding(null);
