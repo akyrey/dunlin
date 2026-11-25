@@ -132,6 +132,22 @@ export function EditorPane({ tabId, session, profile }: Props) {
               Explain
             </Button>
           )}
+          {session.capabilities.explainAnalyze && (
+            <Button
+              disabled={tab.running}
+              title={
+                session.capabilities.explainAnalyzeWrites
+                  ? "Run the statement and show its measured plan; a change is rolled back afterwards"
+                  : "Run the query and show its measured plan (queries only on this database)"
+              }
+              onClick={() => {
+                const selection = editor.current?.selection() ?? { from: 0, to: 0, head: 0 };
+                guardEdits(() => void actions.explain(tabId, selection, true));
+              }}
+            >
+              Explain analyze
+            </Button>
+          )}
           {tab.running && session.capabilities.cancel && (
             <Button
               variant="danger"
@@ -283,6 +299,18 @@ export function EditorPane({ tabId, session, profile }: Props) {
           }}
           onCancel={() => {
             setSaving(false);
+          }}
+        />
+      )}
+      {tab.analyzeConfirmation && (
+        <ConfirmDialog
+          title="Run this statement to measure it?"
+          message={`${tab.analyzeConfirmation.reason}. Explain analyze runs the statement; a change is rolled back afterwards, but it holds its locks while it runs.`}
+          detail={tab.analyzeConfirmation.sql}
+          confirmLabel="Run and measure"
+          onConfirm={() => void actions.confirmAnalyze(tabId)}
+          onCancel={() => {
+            actions.dismissAnalyze(tabId);
           }}
         />
       )}
