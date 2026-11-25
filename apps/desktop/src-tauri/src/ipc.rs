@@ -288,6 +288,10 @@ pub struct SchemaEditPreview {
     pub destructive: bool,
     /// All or nothing; otherwise statements before a failure stay applied (MySQL).
     pub transactional: bool,
+    /// Where the plan's own statements start in `statements` (settings come first on SQLite):
+    /// a failure's `detail.statement` counts from here.
+    #[ts(type = "number")]
+    pub statement_offset: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]

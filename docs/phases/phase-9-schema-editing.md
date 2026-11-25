@@ -80,10 +80,17 @@ Notes from implementation:
 - [ ] 9.8 Conformance group "schema edit": every change kind is applied, then the table is described again and equals the expected `TableInfo`; a failing change rolls back everything (PostgreSQL, SQLite) or stops and reports the applied statements (MySQL); a stale `TableInfo` is refused.
 - [x] 9.9 `Capabilities::schema_editing`; `schema_edit_preview` and `schema_edit_apply` commands with the backend checks under Rules; cache invalidation.
 - [x] 9.10 Frontend: pending schema changes as a pure reducer over immutable state (add, change, revert, drop an added item removes it), with unit tests for every transition.
-- [ ] 9.11 Frontend: Edit mode on the detail tab. Columns: inline name, type (free text with the driver's common types suggested), nullable, default, comment; add and drop. Indexes: add (columns, unique, method, predicate) and drop. Constraints: primary key, unique, foreign key (referenced table picker from the tree), check; add and drop. Changed rows are marked, with per-item revert.
-- [ ] 9.12 Changes bar, preview dialog (SQL, warnings, connection colour), confirmation for drops, apply, error with the failing statement marked, and the "applied so far" list for MySQL.
-- [ ] 9.13 Guards: prompt on tab close, session close and refresh while schema changes are pending.
+- [x] 9.11 Frontend: Edit mode on the detail tab. Columns: inline name, type (free text with the driver's common types suggested), nullable, default, comment; add and drop. Indexes: add (columns, unique, method, predicate) and drop. Constraints: primary key, unique, foreign key (referenced table picker from the tree), check; add and drop. Changed rows are marked, with per-item revert.
+- [x] 9.12 Changes bar, preview dialog (SQL, warnings, connection colour), confirmation for drops, apply, error with the failing statement marked, and the "applied so far" list for MySQL.
+- [x] 9.13 Guards: prompt on tab close, session close and refresh while schema changes are pending.
 - [ ] 9.14 E2E tests: add a column and apply; drop an index with confirmation; a failed apply keeps the pending changes.
+
+## Notes from frontend implementation
+
+- Staged changes live in `useSchemaEdits` by view key, because the detail tab is unmounted while hidden; their count goes to the edit store, so the tab-close, disconnect and quit guards cover them as they cover row edits.
+- The referenced table of a new foreign key is typed as `schema.table` (or `table`, in the same schema), not picked from the tree.
+- The UI does not know which databases support comments or index methods; the backend refuses them in the preview (SQLite).
+- After a plan without a transaction fails part-way, the staged changes are cleared and the table reloaded: they were made against a table that no longer exists in that form.
 
 ## Acceptance criteria
 
