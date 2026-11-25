@@ -4,6 +4,7 @@
 mod changes;
 mod import;
 mod introspection;
+mod schema_edit;
 mod stream;
 mod table_data;
 
@@ -17,6 +18,7 @@ pub use changes::{
 };
 pub use import::import_group;
 pub use introspection::{IntrospectionSupport, introspection_group};
+pub use schema_edit::{schema_edit_cases, schema_edit_table};
 pub use stream::stream_group;
 pub use table_data::{page_sql_cases, table_data_group};
 
