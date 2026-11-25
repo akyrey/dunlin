@@ -135,7 +135,9 @@ fn table(object: &Map<String, Json>) -> PlanNode {
             .into_iter()
             .collect(),
         filter: text(object, "attached_condition"),
-        estimated_rows: number(object, "rows"),
+        // Rows kept, like `actual_rows`, so the two compare.
+        estimated_rows: number(object, "rows")
+            .map(|rows| rows * number(object, "filtered").unwrap_or(100.0) / 100.0),
         cost: number(object, "cost"),
         rows_read: read,
         actual_rows: read.map(|rows| rows * filtered),

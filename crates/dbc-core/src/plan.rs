@@ -3,6 +3,15 @@
 
 use serde::Serialize;
 
+mod filter;
+mod hints;
+
+pub use filter::single_column;
+pub use hints::{
+    FULL_SCAN_ROWS, HintKind, IndexSuggestion, MANY_LOOPS, MISESTIMATE_FACTOR,
+    MISESTIMATE_MIN_ROWS, PlanHint, hints, index_is_missing,
+};
+
 /// One step of a plan. Numbers are the server's estimates, in its own units.
 #[derive(Debug, Clone, PartialEq, Default, Serialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
