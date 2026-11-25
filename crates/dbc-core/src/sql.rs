@@ -1,7 +1,7 @@
 //! Lexer-level SQL utilities: statement splitting and classification.
 
 mod classify;
-mod lexer;
+pub mod lexer;
 mod source;
 mod split;
 

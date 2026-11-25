@@ -15,6 +15,7 @@ pub mod kv;
 pub mod plan;
 pub mod result;
 pub mod schema;
+pub mod schema_edit;
 pub mod sql;
 pub mod value;
 

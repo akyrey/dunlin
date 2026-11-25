@@ -39,6 +39,7 @@ impl Driver for SqliteDriver {
                 read_only_session: true,
                 transactional_ddl: true,
                 explain: true,
+                schema_editing: false,
                 ..Capabilities::default()
             },
             options: vec![OptionField {

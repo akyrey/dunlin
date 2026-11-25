@@ -50,6 +50,7 @@ impl Driver for RedisDriver {
                 read_only_session: false,
                 transactional_ddl: false,
                 explain: false,
+                schema_editing: false,
                 tls: true,
                 tunnel: true,
                 key_value: true,

@@ -51,6 +51,9 @@ pub struct Capabilities {
     pub read_only_session: bool,
     pub transactional_ddl: bool,
     pub explain: bool,
+    /// `Connection::plan_schema_edit` (D-042).
+    #[serde(default)]
+    pub schema_editing: bool,
     pub tls: bool,
     /// False for file databases.
     pub tunnel: bool,
@@ -279,6 +282,16 @@ pub trait Connection: Send + Sync {
     /// The server's plan for one statement, without running it (no `ANALYZE`).
     async fn explain(&self, _statement: &str) -> Result<crate::plan::PlanNode, DbError> {
         Err(DbError::unsupported("explain"))
+    }
+
+    /// The statements that make a schema edit (D-042). Reads the database where it must (SQLite
+    /// reads its stored `CREATE` text) but never changes it. Runs
+    /// [`expected_table`](crate::schema_edit::expected_table) first.
+    async fn plan_schema_edit(
+        &self,
+        _edit: &crate::schema_edit::SchemaEdit,
+    ) -> Result<crate::schema_edit::SchemaPlan, DbError> {
+        Err(DbError::unsupported("plan_schema_edit"))
     }
 
     async fn completion_schema(

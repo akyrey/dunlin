@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use crate::driver::{CancelHandle, Connection};
 use crate::error::{DbError, DbErrorCode};
 use crate::result::{ColumnMeta, ExecuteOptions, ResultSet, StatementOutcome, TypeCategory};
-use crate::schema::TableRef;
+use crate::schema::{TableInfo, TableRef};
 use crate::value::Value;
 
 #[derive(Default)]
@@ -24,6 +24,8 @@ pub struct Scripted {
     /// `execute` statements that fail, such as `"COMMIT"`.
     pub failing: Vec<&'static str>,
     pub estimate: Option<u64>,
+    /// What `describe_table` answers; `None` is `NotFound`.
+    pub described: Option<TableInfo>,
 }
 
 impl Scripted {
@@ -104,6 +106,11 @@ impl Connection for Scripted {
     }
     async fn estimate_rows(&self, _table: &TableRef) -> Result<Option<u64>, DbError> {
         Ok(self.estimate)
+    }
+    async fn describe_table(&self, table: &TableRef) -> Result<TableInfo, DbError> {
+        self.described
+            .clone()
+            .ok_or_else(|| DbError::new(DbErrorCode::NotFound, format!("{} not found", table.name)))
     }
     fn cancel_handle(&self) -> Arc<dyn CancelHandle> {
         Arc::new(NoCancel)
