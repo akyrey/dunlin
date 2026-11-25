@@ -10,6 +10,14 @@ const step = (patch: Partial<PlanNode>): PlanNode => ({
   details: [],
   cost: null,
   children: [],
+  actualRows: null,
+  loops: null,
+  actualTimeMs: null,
+  rowsRead: null,
+  fullScan: false,
+  table: null,
+  filter: null,
+  spilled: false,
   ...patch,
 });
 

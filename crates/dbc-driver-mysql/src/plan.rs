@@ -35,7 +35,10 @@ pub(crate) fn from_table(result: &ResultSet) -> PlanNode {
         .map(|row| {
             let access = text(row, access).unwrap_or_default();
             let relation = text(row, table);
+            let full_scan = access == "ALL" && relation.is_some();
             PlanNode {
+                full_scan,
+                table: relation.clone(),
                 operation: match (access.as_str(), &relation) {
                     ("ALL", Some(_)) => "Table scan".to_owned(),
                     ("", _) => "Step".to_owned(),
@@ -50,8 +53,7 @@ pub(crate) fn from_table(result: &ResultSet) -> PlanNode {
                 .flatten()
                 .collect(),
                 estimated_rows: text(row, rows).and_then(|r| r.parse().ok()),
-                cost: None,
-                children: Vec::new(),
+                ..PlanNode::default()
             }
         })
         .collect();

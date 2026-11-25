@@ -19,4 +19,36 @@ details: Array<string>, estimatedRows: number | null,
 /**
  * The server's total cost estimate for this step and everything under it.
  */
-cost: number | null, children: Array<PlanNode>, };
+cost: number | null, children: Array<PlanNode>, 
+/**
+ * Measured (`EXPLAIN ANALYZE`, D-043): rows the step returned per loop, as servers report.
+ */
+actualRows: number | null, 
+/**
+ * Measured: how many times the step ran.
+ */
+loops: number | null, 
+/**
+ * Measured: milliseconds in this step and everything under it, over all loops.
+ */
+actualTimeMs: number | null, 
+/**
+ * Rows the step read per loop before its filter, when the server says.
+ */
+rowsRead: number | null, 
+/**
+ * Reads every row of a table (not an index, not a temporary table).
+ */
+fullScan: boolean, 
+/**
+ * The table the step reads, as the plan names it (an alias when the query used one).
+ */
+table: string | null, 
+/**
+ * The step's own filter condition, as the server prints it.
+ */
+filter: string | null, 
+/**
+ * A sort or hash that wrote to disk.
+ */
+spilled: boolean, };

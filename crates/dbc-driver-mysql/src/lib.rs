@@ -5,9 +5,11 @@ mod connection;
 mod decode;
 mod errors;
 mod introspect;
+mod mariadb_plan;
 mod plan;
 mod schema_edit;
 
+pub use mariadb_plan::from_mariadb_json as plan_from_mariadb_json;
 pub use schema_edit::plan_schema_edit;
 
 use std::sync::Arc;
@@ -49,6 +51,8 @@ impl Driver for MysqlDriver {
                 read_only_session: true,
                 transactional_ddl: false,
                 explain: true,
+                explain_analyze: true,
+                explain_analyze_writes: false,
                 schema_editing: true,
                 tls: true,
                 tunnel: true,

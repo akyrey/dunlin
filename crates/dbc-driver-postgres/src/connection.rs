@@ -464,6 +464,33 @@ impl Connection for PostgresConnection {
         Arc::clone(&self.cancel) as Arc<dyn CancelHandle>
     }
 
+    /// `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`; with `rollback`, inside a transaction that is
+    /// rolled back whatever happens.
+    async fn explain_analyze(
+        &self,
+        statement: &str,
+        rollback: bool,
+    ) -> Result<dbc_core::plan::AnalyzedPlan, DbError> {
+        let sql = format!(
+            "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {}",
+            dbc_core::plan::statement_body(statement)
+        );
+        let options = ExecuteOptions::default();
+        if rollback {
+            self.execute("BEGIN", &options).await?;
+        }
+        let outcome = self.execute(&sql, &options).await;
+        if rollback {
+            let undone = self.execute("ROLLBACK", &options).await;
+            // The statement's own error is the one to report; a failed rollback otherwise.
+            if outcome.is_ok() {
+                undone?;
+            }
+        }
+        let text = dbc_core::plan::column_text(&outcome?, 0).concat();
+        crate::plan::analyzed_from_json(&text)
+    }
+
     async fn plan_schema_edit(
         &self,
         edit: &dbc_core::schema_edit::SchemaEdit,

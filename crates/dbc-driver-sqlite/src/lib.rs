@@ -42,6 +42,8 @@ impl Driver for SqliteDriver {
                 read_only_session: true,
                 transactional_ddl: true,
                 explain: true,
+                explain_analyze: true,
+                explain_analyze_writes: true,
                 schema_editing: true,
                 ..Capabilities::default()
             },
