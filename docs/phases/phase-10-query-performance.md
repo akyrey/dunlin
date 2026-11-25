@@ -95,7 +95,7 @@ Statement text is shown as the server normalised it; selecting one opens it in a
 - [x] 10.3 PostgreSQL: `explain_analyze` with rollback for writes; parser tests from captured JSON.
 - [x] 10.4 MySQL (TREE text) and MariaDB (`ANALYZE FORMAT=JSON`) parsers, reads only; tests per flavour.
 - [x] 10.5 SQLite: plan plus total time, writes rolled back.
-- [ ] 10.6 `query_explain_analyze` command: read-only and danger checks, refusal of writes in a manual transaction, cancellation. Command tests.
+- [x] 10.6 `query_explain_analyze` command: read-only and danger checks, refusal of writes in a manual transaction, cancellation. Command tests.
 - [x] 10.7 `dbc_core::plan::hints` with unit tests for every hint and threshold edge.
 - [x] 10.8 Filter parsing and the index suggestion, with tests for each accepted condition form and each rejection (two columns, `OR`, function on the column, already indexed, unknown table).
 - [ ] 10.9 Frontend: Explain analyze action, measured columns in the plan view, hint badges, "Create index…" staging an `AddIndex` in the detail tab.

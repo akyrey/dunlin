@@ -4,8 +4,9 @@ use dbc_core::WireValue;
 use dbc_core::data::SortKey;
 use dbc_core::driver::{Capabilities, DriverKind};
 use dbc_core::export::{CsvOptions, ExportFormat};
+use dbc_core::plan::{HintKind, PlanNode};
 use dbc_core::result::ColumnMeta;
-use dbc_core::schema::{NamespaceRef, TableRef};
+use dbc_core::schema::{Index, NamespaceRef, TableRef};
 use dbc_core::schema_edit::SchemaEdit;
 use dbc_core::sql::StatementClass;
 use dbc_store::{ConnectionDraft, ConnectionProfile, SavedQueryDraft, SecretKind, Settings};
@@ -579,6 +580,47 @@ pub struct QueryExplainArgs {
     pub session_id: String,
     pub tab_id: String,
     pub sql: String,
+}
+
+/// Explain analyze (D-043): the statement runs. `confirmed` acknowledges a dangerous one.
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct QueryExplainAnalyzeArgs {
+    pub session_id: String,
+    pub tab_id: String,
+    pub sql: String,
+    #[serde(default)]
+    #[ts(optional)]
+    pub confirmed: Option<bool>,
+}
+
+/// A plan with its hints; `measured` when the statement ran (explain analyze).
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanReport {
+    pub plan: PlanNode,
+    pub measured: bool,
+    pub total_ms: Option<f64>,
+    pub hints: Vec<ReportedHint>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportedHint {
+    /// Child indexes from the root to the step; empty for the root.
+    #[ts(type = "number[]")]
+    pub path: Vec<usize>,
+    pub kind: HintKind,
+    pub message: String,
+    /// A one-column index the table lacks, ready to stage in its detail tab.
+    pub index: Option<SuggestedIndex>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SuggestedIndex {
+    pub table: TableRef,
+    pub index: Index,
 }
 
 #[derive(Debug, Clone, Deserialize, TS)]

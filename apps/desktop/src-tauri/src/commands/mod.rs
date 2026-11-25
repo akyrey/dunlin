@@ -3,6 +3,7 @@
 
 mod changes;
 pub(crate) mod connections;
+mod explain;
 mod export;
 pub(crate) mod handlers;
 mod history;
@@ -23,12 +24,13 @@ pub use connections::{
     connection_delete, connection_duplicate, connection_list, connection_reorder, connection_save,
     connection_test, driver_list,
 };
+pub use explain::{query_explain, query_explain_analyze};
 pub use export::{export_result, export_table, export_text};
 pub use history::{history_clear, history_list};
 pub use import::{import_csv, import_preview};
 pub use kv::{kv_edit, kv_read, kv_scan};
 pub use queries::{
-    MAX_ROW_LIMIT, query_cancel, query_execute, query_explain, sql_split, transaction_finish,
+    MAX_ROW_LIMIT, query_cancel, query_execute, sql_split, transaction_finish,
     transaction_mode_set, transaction_status,
 };
 pub use saved_queries::{saved_query_delete, saved_query_list, saved_query_save};
