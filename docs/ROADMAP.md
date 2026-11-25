@@ -1,6 +1,6 @@
 # Roadmap
 
-Eight phases. Each ends with something runnable and has a brief in `docs/phases/` with tasks, tests and acceptance criteria.
+Ten phases. Each ends with something runnable and has a brief in `docs/phases/` with tasks, tests and acceptance criteria.
 
 ## Status
 
@@ -12,6 +12,8 @@ Eight phases. Each ends with something runnable and has a brief in `docs/phases/
 - [ ] [Phase 6: Data viewing](phases/phase-6-data-viewing.md) — table grid, sort, filter, JSON view, cell viewer
 - [ ] [Phase 7: Data editing](phases/phase-7-data-editing.md) — staged edits, SQL preview, safeguards
 - [ ] [Phase 8: Polish](phases/phase-8-polish.md) — export, saved queries, shortcuts, packaging
+- [ ] [Phase 9: Schema editing](phases/phase-9-schema-editing.md) — columns, indexes, keys and constraints from the table detail tab
+- [ ] [Phase 10: Query performance](phases/phase-10-query-performance.md) — measured plans, plan hints, table and server statistics (draft)
 
 ## Order and dependencies
 
@@ -20,7 +22,10 @@ Eight phases. Each ends with something runnable and has a brief in `docs/phases/
       │
       └──► 4 ──► 5
            │
-           └──► 6 ──► 7 ──► 8
+           ├──► 6 ──► 7 ──► 8
+           │          │
+           │          └──► 9
+           └──► 10 (also needs 5)
 ```
 
 Phases 3, 5 and 6 can be reordered among themselves once their predecessors are done. Phase 1 and 2 come first because they prove the driver abstraction, which is the most expensive thing to get wrong.
@@ -36,6 +41,8 @@ Phases 3, 5 and 6 can be reordered among themselves once their predecessors are 
 | FR-5 Data editing | 7 |
 | FR-6 Safeguards | 2 (read-only session), 5 (confirmation for dangerous statements), 7 (staged edits) |
 | FR-7 Export | 8 |
+| Schema editing (post-v1) | 9 |
+| Query performance (post-v1) | 10 |
 
 ## Risks to retire early
 
@@ -61,6 +68,6 @@ Roughly in order of likely value:
 8. ~~MySQL `DELIMITER` support in the splitter~~ (done)
 9. ~~SQLite `rowid` addressing for tables without a primary key~~ (done, D-031)
 10. More drivers (MariaDB-specific features, SQL Server, DuckDB, ClickHouse)
-11. ER diagrams, schema diff
+11. ER diagrams, schema diff (schema editing is Phase 9)
 12. ~~Linux packaging~~ (done, D-035); Windows packaging
 13. ~~Auto-update~~ (done, D-036)
