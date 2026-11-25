@@ -101,7 +101,7 @@ Statement text is shown as the server normalised it; selecting one opens it in a
 - [x] 10.9 Frontend: Explain analyze action, measured columns in the plan view, hint badges, "Create index…" staging an `AddIndex` in the detail tab.
 - [x] 10.10 `table_stats` per driver and the Statistics sub-tab, with unused indexes marked.
 - [x] 10.11 `query_stats` per driver and the Query statistics view, with the not-enabled messages.
-- [ ] 10.12 Conformance group "explain analyze": a read returns measured numbers where supported; a write is rolled back (row count unchanged); read-only refuses writes.
+- [x] 10.12 Conformance group "explain analyze": a read returns measured numbers where supported; a write is rolled back (row count unchanged); read-only refuses writes.
 - [ ] 10.13 E2E: explain analyze a read, see measured numbers and a hint; create the suggested index through the preview.
 
 ## Acceptance criteria

@@ -27,6 +27,11 @@ impl Harness for SqliteHarness {
         Arc::new(SqliteDriver)
     }
 
+    /// `EXPLAIN QUERY PLAN` has no row counts.
+    fn plans_count_rows(&self) -> bool {
+        false
+    }
+
     async fn database(&self, read_only: bool) -> ConnectionConfig {
         config(self.databases.fixture(), read_only)
     }
@@ -227,6 +232,13 @@ async fn stream_group() {
 #[tokio::test]
 async fn schema_edit_group() {
     conformance::schema_edit_group(&SqliteHarness::default())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn explain_analyze_group() {
+    conformance::explain_analyze_group(&SqliteHarness::default())
         .await
         .unwrap();
 }
