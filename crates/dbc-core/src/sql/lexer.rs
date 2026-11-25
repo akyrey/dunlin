@@ -3,7 +3,7 @@
 use super::SplitterRules;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum TokenKind {
+pub enum TokenKind {
     Word,
     QuotedIdent,
     String,
@@ -16,7 +16,7 @@ pub(crate) enum TokenKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Token {
+pub struct Token {
     pub kind: TokenKind,
     pub start: usize,
     pub end: usize,
@@ -32,7 +32,7 @@ impl Token {
     }
 }
 
-pub(crate) fn tokenize(source: &str, rules: SplitterRules) -> Vec<Token> {
+pub fn tokenize(source: &str, rules: SplitterRules) -> Vec<Token> {
     let mut lexer = Lexer {
         source,
         bytes: source.as_bytes(),

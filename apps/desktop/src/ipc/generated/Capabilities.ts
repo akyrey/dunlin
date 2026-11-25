@@ -15,7 +15,11 @@ multipleDatabases: boolean, cancel: boolean,
 /**
  * Server-enforced read-only sessions.
  */
-readOnlySession: boolean, transactionalDdl: boolean, explain: boolean, tls: boolean, 
+readOnlySession: boolean, transactionalDdl: boolean, explain: boolean, 
+/**
+ * `Connection::plan_schema_edit` (D-042).
+ */
+schemaEditing: boolean, tls: boolean, 
 /**
  * False for file databases.
  */

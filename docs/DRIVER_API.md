@@ -289,15 +289,15 @@ pub struct ColumnDefinition {
     pub comment: Option<String>,
 }
 
-pub enum SchemaChange {
-    AddColumn(ColumnDefinition),
-    AlterColumn { name: String, definition: ColumnDefinition, using: Option<String> }, // rename = new name
+pub enum SchemaChange {                     // serialised with a "kind" tag
+    AddColumn { column: ColumnDefinition },
+    AlterColumn { name: String, column: ColumnDefinition, using: Option<String> }, // rename = new name
     DropColumn { name: String },
-    AddPrimaryKey(Key),        DropPrimaryKey,
-    AddUnique(Key),            DropUnique(Key),          // the original, as introspected
-    AddForeignKey(ForeignKey), DropForeignKey(ForeignKey),
-    AddCheck(Check),           DropCheck(Check),
-    AddIndex(Index),           DropIndex(Index),
+    AddPrimaryKey { key: Key },                DropPrimaryKey,
+    AddUnique { key: Key },                    DropUnique { key: Key },   // the original, as introspected
+    AddForeignKey { foreign_key: ForeignKey }, DropForeignKey { foreign_key: ForeignKey },
+    AddCheck { check: Check },                 DropCheck { check: Check },
+    AddIndex { index: Index },                 DropIndex { index: Index },
     RenameTable { name: String },
     SetComment { comment: Option<String> },
 }
@@ -318,7 +318,7 @@ pub struct SchemaApplyFailure {
 }
 ```
 
-`Connection::plan_schema_edit(&SchemaEdit) -> Result<SchemaPlan, DbError>` is per driver (defaults to `Unsupported`): it reads but never changes the database (SQLite reads its stored `CREATE` text and the `foreign_keys` setting). `dbc_core::schema_edit::validate` runs first and is shared: unknown or duplicate columns, empty keys, a dropped column still used by a kept key or index, and user SQL that is more than one expression. A drop names the original object: PostgreSQL and MySQL drop it by name, SQLite matches it by value.
+`Connection::plan_schema_edit(&SchemaEdit) -> Result<SchemaPlan, DbError>` is per driver (defaults to `Unsupported`): it reads but never changes the database (SQLite reads its stored `CREATE` text and the `foreign_keys` setting). `dbc_core::schema_edit::expected_table` runs first and is shared: it returns the description the table should have afterwards (the SQLite planner and the conformance group use it) and refuses unknown or duplicate columns, empty keys, a dropped column still used by a kept key or index, and user SQL that is more than one expression. A drop names the original object: PostgreSQL and MySQL drop it by name, SQLite matches it by value.
 
 `dbc_core::schema_edit::apply` runs `before`, then the statements (in one transaction when `transactional`, else one by one, stopping at the first failure), then `after`, whatever happened. Plans contain no bound parameters: identifiers are quoted, comments are `string_literal`s, and everything else is the user's own SQL text (SECURITY.md#generated-sql).
 

@@ -7,6 +7,7 @@ export const sqliteCapabilities: Capabilities = {
   readOnlySession: true,
   transactionalDdl: true,
   explain: true,
+  schemaEditing: false,
   tls: false,
   tunnel: false,
   keyValue: false,
@@ -63,6 +64,7 @@ export const redisDriver: DriverInfo = {
   capabilities: {
     ...networkCapabilities,
     explain: false,
+    schemaEditing: false,
     transactionalDdl: false,
     readOnlySession: false,
     keyValue: true,
