@@ -6,6 +6,7 @@ mod decode;
 mod errors;
 mod introspect;
 mod schema_edit;
+mod stats;
 mod worker;
 
 pub use schema_edit::{TableSource, plan_schema_edit};
@@ -45,6 +46,7 @@ impl Driver for SqliteDriver {
                 explain_analyze: true,
                 explain_analyze_writes: true,
                 schema_editing: true,
+                table_stats: true,
                 ..Capabilities::default()
             },
             options: vec![OptionField {

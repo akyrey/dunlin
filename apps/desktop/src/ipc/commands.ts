@@ -38,6 +38,7 @@ import type {
   TablePage,
   TablePageArgs,
   TableRef,
+  TableStats,
   TableSnippets,
   Value,
   TransactionState,
@@ -189,6 +190,9 @@ export const schemaTable = (sessionId: string, table: TableRef): Promise<TableIn
 
 export const schemaTableDdl = (sessionId: string, table: TableRef): Promise<string> =>
   call("schema_table_ddl", { sessionId, table });
+
+export const schemaTableStats = (sessionId: string, table: TableRef): Promise<TableStats> =>
+  call("schema_table_stats", { sessionId, table });
 
 export const schemaSnippets = (sessionId: string, table: TableRef): Promise<TableSnippets> =>
   call("schema_snippets", { sessionId, table });

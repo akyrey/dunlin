@@ -1096,6 +1096,21 @@ export function createMockBackend() {
       }
       return edited.get(table.name) ?? mockTable(table);
     },
+    schema_table_stats: () => ({
+      totalBytes: 81920,
+      tableBytes: 49152,
+      indexBytes: 32768,
+      estimatedRows: 3,
+      indexes: [
+        { name: "people_pkey", bytes: 16384, scans: 42 },
+        { name: "people_name_idx", bytes: 16384, scans: 0 },
+      ],
+      deadRows: 0,
+      lastVacuum: null,
+      lastAnalyze: "2026-11-20 10:00:00+00",
+      updatedAt: null,
+      countedSince: "2026-11-01 00:00:00+00",
+    }),
     schema_edit_preview: (a) => {
       const edit = a.edit as SchemaEdit;
       return {

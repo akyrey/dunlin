@@ -254,6 +254,16 @@ impl Session {
         self.check_metadata(&connection, result).await
     }
 
+    /// Table statistics, read through the metadata connection and never cached: they change.
+    pub async fn schema_table_stats(
+        &self,
+        table: &TableRef,
+    ) -> Result<dbc_core::stats::TableStats, DbError> {
+        let connection = self.metadata().await?;
+        let result = connection.table_stats(table).await;
+        self.check_metadata(&connection, result).await
+    }
+
     /// The plan for a schema edit, read through the metadata connection (D-042).
     pub async fn schema_edit_plan(&self, edit: &SchemaEdit) -> Result<SchemaPlan, DbError> {
         let connection = self.metadata().await?;

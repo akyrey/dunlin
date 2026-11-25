@@ -348,6 +348,18 @@ pub async fn changes_apply(
 }
 
 #[tauri::command]
+pub async fn schema_table_stats(
+    state: State<'_, AppState>,
+    args: SchemaTableArgs,
+) -> Result<dbc_core::stats::TableStats, AppError> {
+    logged(
+        "schema_table_stats",
+        commands::schema_table_stats(&state, args),
+    )
+    .await
+}
+
+#[tauri::command]
 pub async fn schema_edit_preview(
     state: State<'_, AppState>,
     args: SchemaEditArgs,

@@ -10,6 +10,7 @@ mod params;
 mod plan;
 mod raw;
 mod schema_edit;
+mod stats;
 mod tls;
 
 pub use schema_edit::plan_schema_edit;
@@ -53,6 +54,7 @@ impl Driver for PostgresDriver {
                 explain_analyze: true,
                 explain_analyze_writes: true,
                 schema_editing: true,
+                table_stats: true,
                 tls: true,
                 tunnel: true,
                 key_value: false,

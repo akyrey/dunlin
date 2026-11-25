@@ -36,7 +36,7 @@ pub use queries::{
 pub use saved_queries::{saved_query_delete, saved_query_list, saved_query_save};
 pub use schema::{
     schema_completion, schema_namespaces, schema_objects, schema_refresh, schema_snippets,
-    schema_table, schema_table_ddl,
+    schema_table, schema_table_ddl, schema_table_stats,
 };
 pub use schema_edit::{schema_edit_apply, schema_edit_preview};
 pub use sessions::{session_close, session_open, tab_close};

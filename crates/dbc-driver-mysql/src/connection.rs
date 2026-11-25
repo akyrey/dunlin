@@ -380,6 +380,11 @@ impl Connection for MysqlConnection {
         introspect::describe_table(conn, flavour, table).await
     }
 
+    async fn table_stats(&self, table: &TableRef) -> Result<dbc_core::stats::TableStats, DbError> {
+        let mut guard = self.conn.lock().await;
+        crate::stats::table_stats(guard.as_mut().ok_or_else(closed)?, table).await
+    }
+
     async fn default_namespace(&self) -> Result<Option<NamespaceRef>, DbError> {
         let mut guard = self.conn.lock().await;
         let conn = guard.as_mut().ok_or_else(closed)?;
