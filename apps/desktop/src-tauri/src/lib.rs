@@ -74,6 +74,7 @@ pub fn run() -> Result<(), tauri::Error> {
             handlers::query_execute,
             handlers::query_cancel,
             handlers::query_explain,
+            handlers::query_explain_analyze,
             handlers::ssh_config_hosts,
             handlers::kv_scan,
             handlers::kv_read,
