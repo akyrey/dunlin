@@ -24,6 +24,8 @@ pub struct Scripted {
     /// `execute` statements that fail, such as `"COMMIT"`.
     pub failing: Vec<&'static str>,
     pub estimate: Option<u64>,
+    /// `execute` statements that answer one row instead of `Affected`.
+    pub returning_rows: Vec<&'static str>,
     /// What `describe_table` answers; `None` is `NotFound`.
     pub described: Option<TableInfo>,
 }
@@ -87,6 +89,9 @@ impl Connection for Scripted {
                 DbErrorCode::Execution,
                 format!("{sql} failed"),
             ));
+        }
+        if self.returning_rows.contains(&sql) {
+            return rows(vec![Value::Int(1)]);
         }
         Ok(StatementOutcome::Affected { rows: 0 })
     }

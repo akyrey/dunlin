@@ -57,7 +57,15 @@ The procedure from the SQLite manual ("Making Other Kinds Of Table Schema Change
 8. `COMMIT`, or `ROLLBACK` on any failure.
 9. Always, after commit or rollback: restore `PRAGMA foreign_keys` to its previous value.
 
-The new definition is the original `CREATE TABLE` text edited piece by piece, not regenerated from `TableInfo`: the text is split into column definitions, table constraints and table options (`WITHOUT ROWID`, `STRICT`), unchanged pieces are kept byte for byte, so collations, `AUTOINCREMENT`, conflict clauses, `DEFERRABLE` and generated columns survive. A renamed column is renamed in every piece and in the recreated indexes and triggers by identifier token (not inside strings, and not in another table's `REFERENCES` list). Views and triggers on **other** tables that name a renamed or dropped column are listed in the preview as a warning; they are not rewritten.
+The new definition is the original `CREATE TABLE` text edited piece by piece, not regenerated from `TableInfo`: the text is split into column definitions, table constraints and table options (`WITHOUT ROWID`, `STRICT`), unchanged pieces are kept byte for byte, so collations, `AUTOINCREMENT`, conflict clauses, `DEFERRABLE` and generated columns survive.
+
+Notes from implementation:
+
+- The copy is renamed back with `PRAGMA legacy_alter_table = ON`: since SQLite 3.26 a rename checks every view and trigger in the schema, and views on the table fail that check while the old table is gone. The setting is restored in `after`.
+- The rebuild keeps the columns' original names. Column and table renames run last, natively, with `legacy_alter_table` back off, so SQLite itself rewrites indexes, triggers, views and other tables' foreign keys. A new column cannot take the old name of a column renamed in the same edit. Expressions in new checks and indexes must use the old names when the same edit renames those columns.
+- The `AUTOINCREMENT` counter is copied through `sqlite_sequence` before the old table is dropped.
+- The foreign key check is a `SchemaCheck` (a query that must return no rows), run before the commit and only when `foreign_keys` was on.
+- Adding a `NOT NULL` column without a default, or one with an expression or `CURRENT_*` default, rebuilds the table, since `ADD COLUMN` refuses those.
 
 ## Tasks
 
@@ -67,8 +75,8 @@ The new definition is the original `CREATE TABLE` text edited piece by piece, no
 - [x] 9.4 PostgreSQL `plan_schema_edit`, with `insta` snapshots for every change kind, awkward identifiers and combinations.
 - [x] 9.5a `dbc_core::sql`: split a `CREATE TABLE` body into column definitions, table constraints and table options, and a column definition into its clauses, keeping every piece's text as written. Shared by the MySQL and SQLite planners.
 - [x] 9.5 MySQL/MariaDB `plan_schema_edit` from `SHOW CREATE TABLE`, snapshots per flavour (pure planner over the `CREATE` text).
-- [ ] 9.6 SQLite: split a `CREATE TABLE` into pieces and rename identifiers by token; property test that splitting and joining an unchanged definition gives the original text.
-- [ ] 9.7 SQLite `plan_schema_edit`: native statements where they suffice, the rebuild otherwise; foreign keys, triggers and indexes survive (in-process tests, no Docker).
+- [x] 9.6 SQLite: split a `CREATE TABLE` into pieces (shared with MySQL, 9.5a); property test that splitting and joining an unchanged definition gives the original text. Renames need no token rewriting: see the rebuild notes.
+- [x] 9.7 SQLite `plan_schema_edit`: native statements where they suffice, the rebuild otherwise; foreign keys, triggers and indexes survive (in-process tests, no Docker).
 - [ ] 9.8 Conformance group "schema edit": every change kind is applied, then the table is described again and equals the expected `TableInfo`; a failing change rolls back everything (PostgreSQL, SQLite) or stops and reports the applied statements (MySQL); a stale `TableInfo` is refused.
 - [ ] 9.9 `Capabilities::schema_editing`; `schema_edit_preview` and `schema_edit_apply` commands with the backend checks under Rules; cache invalidation.
 - [ ] 9.10 Frontend: pending schema changes as a pure reducer over immutable state (add, change, revert, drop an added item removes it), with unit tests for every transition.

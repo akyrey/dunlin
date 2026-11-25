@@ -3,6 +3,7 @@
 use super::*;
 use crate::fake::{Scripted, block_on};
 use crate::schema::{NamespaceRef, ObjectKind, TableRef};
+use crate::schema_edit::SchemaCheck;
 
 fn plan(transactional: bool) -> SchemaPlan {
     SchemaPlan {
@@ -12,6 +13,7 @@ fn plan(transactional: bool) -> SchemaPlan {
         transactional,
         destructive: false,
         warnings: vec![],
+        checks: vec![],
     }
 }
 
@@ -163,4 +165,75 @@ fn the_table_must_still_match_the_description_the_edit_was_made_against() {
 fn a_table_that_is_gone_is_not_found() {
     let error = block_on(check_current(&Scripted::default(), &info())).unwrap_err();
     assert_eq!(error.code, DbErrorCode::NotFound);
+}
+
+fn checked(transactional: bool) -> SchemaPlan {
+    SchemaPlan {
+        checks: vec![SchemaCheck {
+            sql: "PRAGMA foreign_key_check".into(),
+            message: "Rows violate a foreign key".into(),
+        }],
+        ..plan(transactional)
+    }
+}
+
+#[test]
+fn checks_run_before_the_commit() {
+    let connection = Scripted::default();
+    block_on(apply(&connection, &checked(true))).unwrap();
+    assert_eq!(
+        connection.log()[4..],
+        [
+            "ALTER 3",
+            "PRAGMA foreign_key_check",
+            "COMMIT",
+            "PRAGMA foreign_keys = ON"
+        ]
+    );
+}
+
+#[test]
+fn a_check_that_returns_rows_rolls_back() {
+    let connection = Scripted {
+        returning_rows: vec!["PRAGMA foreign_key_check"],
+        ..Scripted::default()
+    };
+    let failure = block_on(apply(&connection, &checked(true))).unwrap_err();
+    assert_eq!(failure.error.code, DbErrorCode::Constraint);
+    assert_eq!(failure.error.message, "Rows violate a foreign key");
+    assert_eq!(failure.statement, None);
+    assert_eq!(failure.applied, 0);
+    assert_eq!(
+        connection.log()[5..],
+        [
+            "PRAGMA foreign_key_check",
+            "ROLLBACK",
+            "PRAGMA foreign_keys = ON"
+        ]
+    );
+}
+
+#[test]
+fn a_failing_check_without_a_transaction_leaves_everything_applied() {
+    let connection = Scripted {
+        returning_rows: vec!["PRAGMA foreign_key_check"],
+        ..Scripted::default()
+    };
+    let failure = block_on(apply(&connection, &checked(false))).unwrap_err();
+    assert_eq!(failure.applied, 3);
+}
+
+#[test]
+fn the_preview_lists_checks_after_the_statements() {
+    assert_eq!(
+        checked(true).preview(),
+        [
+            "PRAGMA foreign_keys = OFF",
+            "ALTER 1",
+            "ALTER 2",
+            "ALTER 3",
+            "PRAGMA foreign_key_check",
+            "PRAGMA foreign_keys = ON"
+        ]
+    );
 }

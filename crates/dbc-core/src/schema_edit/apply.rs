@@ -3,7 +3,7 @@
 use super::{SchemaPlan, refused};
 use crate::driver::Connection;
 use crate::error::{DbError, DbErrorCode};
-use crate::result::ExecuteOptions;
+use crate::result::{ExecuteOptions, StatementOutcome};
 use crate::schema::TableInfo;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -84,10 +84,21 @@ async fn run_before_and_statements(
     };
     run_all(connection, &plan.before).await.map_err(outside)?;
     if !plan.transactional {
-        return run_statements(connection, &plan.statements).await;
+        run_statements(connection, &plan.statements).await?;
+        return run_checks(connection, plan)
+            .await
+            .map_err(|error| SchemaApplyFailure {
+                statement: None,
+                applied: plan.statements.len(),
+                error,
+            });
     }
     run(connection, "BEGIN").await.map_err(outside)?;
-    if let Err(failure) = run_statements(connection, &plan.statements).await {
+    let ran = match run_statements(connection, &plan.statements).await {
+        Ok(()) => run_checks(connection, plan).await.map_err(outside),
+        Err(failure) => Err(failure),
+    };
+    if let Err(failure) = ran {
         rollback(connection).await;
         return Err(SchemaApplyFailure {
             applied: 0,
@@ -113,6 +124,21 @@ async fn run_statements(
                 applied: index,
                 error,
             })?;
+    }
+    Ok(())
+}
+
+/// Fails with the check's message when its query returns a row.
+async fn run_checks(connection: &dyn Connection, plan: &SchemaPlan) -> Result<(), DbError> {
+    for check in &plan.checks {
+        let outcome = connection
+            .execute(&check.sql, &ExecuteOptions::default())
+            .await?;
+        if let StatementOutcome::Rows(result) = outcome
+            && !result.rows.is_empty()
+        {
+            return Err(DbError::new(DbErrorCode::Constraint, check.message.clone()));
+        }
     }
     Ok(())
 }

@@ -130,6 +130,19 @@ pub struct SchemaPlan {
     pub destructive: bool,
     /// Shown in the preview.
     pub warnings: Vec<String>,
+    /// Queries run after the statements, before the commit: any row fails the plan.
+    #[serde(default)]
+    pub checks: Vec<SchemaCheck>,
+}
+
+/// A query that must return no rows, such as SQLite's `PRAGMA foreign_key_check`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaCheck {
+    pub sql: String,
+    /// The error when it returns rows.
+    pub message: String,
 }
 
 impl SchemaPlan {
@@ -138,6 +151,7 @@ impl SchemaPlan {
         self.before
             .iter()
             .chain(&self.statements)
+            .chain(self.checks.iter().map(|c| &c.sql))
             .chain(&self.after)
             .cloned()
             .collect()
