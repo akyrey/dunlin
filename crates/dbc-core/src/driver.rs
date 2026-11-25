@@ -63,6 +63,9 @@ pub struct Capabilities {
     /// `Connection::table_stats` (Phase 10).
     #[serde(default)]
     pub table_stats: bool,
+    /// `Connection::query_stats` (Phase 10).
+    #[serde(default)]
+    pub query_stats: bool,
     pub tls: bool,
     /// False for file databases.
     pub tunnel: bool,
@@ -307,6 +310,11 @@ pub trait Connection: Send + Sync {
     /// Sizes, row estimate, index usage and maintenance of one table (Phase 10).
     async fn table_stats(&self, _table: &TableRef) -> Result<crate::stats::TableStats, DbError> {
         Err(DbError::unsupported("table_stats"))
+    }
+
+    /// The heaviest statements the server has recorded (Phase 10), most total time first.
+    async fn query_stats(&self) -> Result<crate::stats::QueryStats, DbError> {
+        Err(DbError::unsupported("query_stats"))
     }
 
     /// The statements that make a schema edit (D-042). Reads the database where it must (SQLite

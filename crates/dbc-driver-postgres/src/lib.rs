@@ -55,6 +55,7 @@ impl Driver for PostgresDriver {
                 explain_analyze_writes: true,
                 schema_editing: true,
                 table_stats: true,
+                query_stats: true,
                 tls: true,
                 tunnel: true,
                 key_value: false,

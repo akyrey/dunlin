@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 
 use dbc_core::schema::TableRef;
-use dbc_core::stats::{IndexStats, TableStats};
+use dbc_core::stats::{IndexStats, QUERY_STATS_LIMIT, QueryStat, QueryStats, TableStats};
 use dbc_core::{DbError, DbErrorCode};
 use mysql_async::Conn;
 
@@ -101,4 +101,49 @@ async fn server_start(conn: &mut Conn) -> Option<String> {
     .await
     .ok()?;
     found.first().and_then(|row| text(row, 0))
+}
+
+const OFF: &str = "performance_schema is off on this server. Set performance_schema=ON in the \
+    server configuration and restart it to record statements.";
+
+/// The heaviest statement digests from `performance_schema`, or how to enable it. Timers are in
+/// picoseconds.
+pub(crate) async fn query_stats(conn: &mut Conn) -> Result<QueryStats, DbError> {
+    let on = rows(conn, "SELECT @@performance_schema", Vec::new())
+        .await
+        .ok()
+        .and_then(|found| found.first().and_then(|row| text(row, 0)));
+    if on.as_deref() != Some("1") {
+        return Ok(QueryStats::Unavailable { reason: OFF.into() });
+    }
+    let sql = format!(
+        "SELECT DIGEST_TEXT, COUNT_STAR, SUM_TIMER_WAIT / 1000000000, AVG_TIMER_WAIT / 1000000000, \
+                SUM_ROWS_SENT \
+         FROM performance_schema.events_statements_summary_by_digest \
+         WHERE DIGEST_TEXT IS NOT NULL ORDER BY SUM_TIMER_WAIT DESC LIMIT {QUERY_STATS_LIMIT}"
+    );
+    let found = match rows(conn, &sql, Vec::new()).await {
+        Ok(found) => found,
+        Err(error) => {
+            return Ok(QueryStats::Unavailable {
+                reason: error.message,
+            });
+        }
+    };
+    let float = |row: &mysql_async::Row, i: usize| {
+        text(row, i)
+            .and_then(|v| v.parse::<f64>().ok())
+            .unwrap_or(0.0)
+    };
+    let statements = found
+        .iter()
+        .map(|row| QueryStat {
+            statement: text(row, 0).unwrap_or_default(),
+            calls: number(text(row, 1)).unwrap_or(0),
+            total_ms: float(row, 2),
+            mean_ms: float(row, 3),
+            rows: number(text(row, 4)),
+        })
+        .collect();
+    Ok(QueryStats::Available { statements })
 }

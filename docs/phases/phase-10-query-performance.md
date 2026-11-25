@@ -80,7 +80,7 @@ An index with zero scans since the statistics were reset is marked "unused"; the
 
 ## Server query statistics
 
-A "Query statistics" view per session (palette and session menu): the 50 statements with the most total time, with calls, total and mean time, rows. `Connection::query_stats() -> Option<Vec<QueryStat>>`:
+A "Query statistics" dialog per session, opened from the command palette: the 50 statements with the most total time, with calls, total and mean time, rows. `Connection::query_stats() -> Option<Vec<QueryStat>>`:
 
 - PostgreSQL: `pg_stat_statements` when the extension is installed and readable; otherwise a message saying how to enable it.
 - MySQL and MariaDB: `performance_schema.events_statements_summary_by_digest` when `performance_schema` is on.
@@ -100,7 +100,7 @@ Statement text is shown as the server normalised it; selecting one opens it in a
 - [x] 10.8 Filter parsing and the index suggestion, with tests for each accepted condition form and each rejection (two columns, `OR`, function on the column, already indexed, unknown table).
 - [x] 10.9 Frontend: Explain analyze action, measured columns in the plan view, hint badges, "Create index…" staging an `AddIndex` in the detail tab.
 - [x] 10.10 `table_stats` per driver and the Statistics sub-tab, with unused indexes marked.
-- [ ] 10.11 `query_stats` per driver and the Query statistics view, with the not-enabled messages.
+- [x] 10.11 `query_stats` per driver and the Query statistics view, with the not-enabled messages.
 - [ ] 10.12 Conformance group "explain analyze": a read returns measured numbers where supported; a write is rolled back (row count unchanged); read-only refuses writes.
 - [ ] 10.13 E2E: explain analyze a read, see measured numbers and a hint; create the suggested index through the preview.
 

@@ -385,6 +385,11 @@ impl Connection for MysqlConnection {
         crate::stats::table_stats(guard.as_mut().ok_or_else(closed)?, table).await
     }
 
+    async fn query_stats(&self) -> Result<dbc_core::stats::QueryStats, DbError> {
+        let mut guard = self.conn.lock().await;
+        crate::stats::query_stats(guard.as_mut().ok_or_else(closed)?).await
+    }
+
     async fn default_namespace(&self) -> Result<Option<NamespaceRef>, DbError> {
         let mut guard = self.conn.lock().await;
         let conn = guard.as_mut().ok_or_else(closed)?;

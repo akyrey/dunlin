@@ -69,6 +69,8 @@ export type * from "./QueryExplainAnalyzeArgs";
 export type * from "./QueryExplainArgs";
 export type * from "./QueryOutcome";
 export type * from "./QueryResult";
+export type * from "./QueryStat";
+export type * from "./QueryStats";
 export type * from "./ReferentialAction";
 export type * from "./ReportedHint";
 export type * from "./RowCount";

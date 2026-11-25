@@ -2,7 +2,7 @@
 
 use dbc_core::DbError;
 use dbc_core::schema::TableRef;
-use dbc_core::stats::{IndexStats, TableStats, count};
+use dbc_core::stats::{IndexStats, QUERY_STATS_LIMIT, QueryStat, QueryStats, TableStats, count};
 use tokio_postgres::Client;
 
 use crate::introspect::{self, get, query};
@@ -62,4 +62,54 @@ async fn indexes(
             })
         })
         .collect()
+}
+
+const NOT_INSTALLED: &str = "pg_stat_statements is not installed in this database. Add it to \
+    shared_preload_libraries in postgresql.conf, restart the server, then run \
+    CREATE EXTENSION pg_stat_statements.";
+
+/// The heaviest statements of the current database from `pg_stat_statements`, or how to enable
+/// it. A server that refuses to read it (not preloaded, no privilege) says why.
+pub(crate) async fn query_stats(client: &Client) -> Result<QueryStats, DbError> {
+    let installed = query(
+        client,
+        "SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements'",
+        &[],
+    )
+    .await?;
+    if installed.is_empty() {
+        return Ok(QueryStats::Unavailable {
+            reason: NOT_INSTALLED.into(),
+        });
+    }
+    let limit = i64::try_from(QUERY_STATS_LIMIT).unwrap_or(50);
+    let found = query(
+        client,
+        "SELECT query, calls, total_exec_time, mean_exec_time, rows FROM pg_stat_statements \
+         WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database()) \
+         ORDER BY total_exec_time DESC LIMIT $1",
+        &[&limit],
+    )
+    .await;
+    let rows = match found {
+        Ok(rows) => rows,
+        Err(error) => {
+            return Ok(QueryStats::Unavailable {
+                reason: error.message,
+            });
+        }
+    };
+    let statements = rows
+        .iter()
+        .map(|row| {
+            Ok(QueryStat {
+                statement: get::<Option<String>>(row, 0)?.unwrap_or_default(),
+                calls: count(get(row, 1)?).unwrap_or(0),
+                total_ms: get(row, 2)?,
+                mean_ms: get(row, 3)?,
+                rows: count(get(row, 4)?),
+            })
+        })
+        .collect::<Result<_, DbError>>()?;
+    Ok(QueryStats::Available { statements })
 }

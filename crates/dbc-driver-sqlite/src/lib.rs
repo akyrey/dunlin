@@ -47,6 +47,7 @@ impl Driver for SqliteDriver {
                 explain_analyze_writes: true,
                 schema_editing: true,
                 table_stats: true,
+                query_stats: false,
                 ..Capabilities::default()
             },
             options: vec![OptionField {

@@ -32,6 +32,7 @@ export type PaletteHandlers = {
   checkForUpdates: () => void;
   newTab: (sessionId: string) => void;
   refreshSchema: (sessionId: string) => void;
+  queryStats: (sessionId: string) => void;
   disconnect: (connectionId: string) => void;
   openConnection: (profile: ConnectionProfile) => void;
   openTable: (sessionId: string, table: TableRef) => void;
@@ -83,6 +84,18 @@ function actions(context: PaletteContext, on: PaletteHandlers): PaletteCommand[]
         on.refreshSchema(session.sessionId);
       },
     },
+    ...(session.capabilities.queryStats
+      ? [
+          {
+            id: "query-stats",
+            group: "Actions" as const,
+            label: "Query statistics",
+            run: () => {
+              on.queryStats(session.sessionId);
+            },
+          },
+        ]
+      : []),
     {
       id: "disconnect",
       group: "Actions",
