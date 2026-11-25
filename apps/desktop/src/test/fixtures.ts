@@ -7,7 +7,7 @@ export const sqliteCapabilities: Capabilities = {
   readOnlySession: true,
   transactionalDdl: true,
   explain: true,
-  schemaEditing: false,
+  schemaEditing: true,
   tls: false,
   tunnel: false,
   keyValue: false,

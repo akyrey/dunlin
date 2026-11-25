@@ -29,6 +29,8 @@ import type {
   QueryResult,
   SecretKind,
   StatementRange,
+  SchemaChange,
+  SchemaEdit,
   TableInfo,
   TableRef,
   Value,
@@ -459,6 +461,49 @@ const SLEEP = /sleep\(/i;
 
 const VIEW_STATEMENT_MS = 5;
 
+/** One statement per change, enough for the preview to read. */
+function mockDdl(change: SchemaChange): string {
+  switch (change.kind) {
+    case "add_column":
+      return `ALTER TABLE t ADD COLUMN "${change.column.name}" ${change.column.typeName}`;
+    case "drop_column":
+      return `ALTER TABLE t DROP COLUMN "${change.name}"`;
+    case "drop_index":
+      return `DROP INDEX "${change.index.name}"`;
+    case "add_index":
+      return `CREATE INDEX "${change.index.name}" ON t (${change.index.columns.join(", ")})`;
+    default:
+      return `-- ${change.kind}`;
+  }
+}
+
+/** The mock server applies the column and index changes the e2e tests make. */
+function applyMockSchemaEdit(info: TableInfo, change: SchemaChange): TableInfo {
+  switch (change.kind) {
+    case "add_column":
+      return {
+        ...info,
+        columns: [
+          ...info.columns,
+          column(
+            change.column.name,
+            change.column.typeName,
+            change.column.nullable,
+            info.columns.length + 1,
+          ),
+        ],
+      };
+    case "drop_column":
+      return { ...info, columns: info.columns.filter((c) => c.name !== change.name) };
+    case "drop_index":
+      return { ...info, indexes: info.indexes.filter((i) => i.name !== change.index.name) };
+    case "add_index":
+      return { ...info, indexes: [...info.indexes, change.index] };
+    default:
+      return info;
+  }
+}
+
 export function createMockBackend() {
   let settings: Settings = { ...DEFAULT_SETTINGS };
   const profiles = new Map<string, ConnectionProfile>();
@@ -471,6 +516,8 @@ export function createMockBackend() {
   const savedQueries: SavedQuery[] = [];
   /** Paths exports were written to. */
   const exports: string[] = [];
+  /** Tables as schema edits left them, by name. */
+  const edited = new Map<string, TableInfo>();
   /** Top-level parameters besides `args` of the current call (a progress channel). */
   let extras: Record<string, unknown> = {};
   /** This backend's own copy of the tables, so edits stay in one test. */
@@ -1000,10 +1047,38 @@ export function createMockBackend() {
       if (!MOCK_OBJECTS.some((o) => o.name === table.name)) {
         return reject("not_found", `${table.name} does not exist`);
       }
-      return mockTable(table);
+      return edited.get(table.name) ?? mockTable(table);
+    },
+    schema_edit_preview: (a) => {
+      const edit = a.edit as SchemaEdit;
+      return {
+        statements: edit.changes.map(mockDdl),
+        warnings: [],
+        destructive: edit.changes.some((c) => c.kind.startsWith("drop_")),
+        transactional: true,
+        statementOffset: 0,
+      };
+    },
+    schema_edit_apply: (a) => {
+      const edit = a.edit as SchemaEdit;
+      if (edit.changes.some((c) => c.kind.startsWith("drop_")) && a.confirmed !== true) {
+        return reject("confirmation_required", "The changes drop something");
+      }
+      const broken = edit.changes.findIndex(
+        (c) => c.kind === "add_column" && c.column.name === "broken",
+      );
+      if (broken >= 0) {
+        return Promise.reject({
+          code: "execution",
+          message: 'near "broken": syntax error',
+          detail: { statement: broken, applied: 0 },
+        });
+      }
+      edited.set(edit.original.table.name, edit.changes.reduce(applyMockSchemaEdit, edit.original));
+      return { statements: edit.changes.length };
     },
     schema_table_ddl: (a) => {
-      const info = mockTable(a.table as TableRef);
+      const info = edited.get((a.table as TableRef).name) ?? mockTable(a.table as TableRef);
       const columns = info.columns.map((c) => `    ${c.name} ${c.typeName}`).join(",\n");
       return `CREATE TABLE ${info.table.name} (\n${columns}\n);\n`;
     },
