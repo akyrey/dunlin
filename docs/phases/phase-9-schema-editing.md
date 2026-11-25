@@ -66,7 +66,7 @@ The new definition is the original `CREATE TABLE` text edited piece by piece, no
 - [x] 9.3 `dbc_core::schema_edit::apply`: transactional plans in one transaction; non-transactional plans stop at the first failure and report which statements ran; `before`/`after` statements around the transaction, `after` always runs. Tests against the fake connection.
 - [x] 9.4 PostgreSQL `plan_schema_edit`, with `insta` snapshots for every change kind, awkward identifiers and combinations.
 - [x] 9.5a `dbc_core::sql`: split a `CREATE TABLE` body into column definitions, table constraints and table options, and a column definition into its clauses, keeping every piece's text as written. Shared by the MySQL and SQLite planners.
-- [ ] 9.5 MySQL/MariaDB `plan_schema_edit` from `SHOW CREATE TABLE`, snapshots per flavour (pure planner over the `CREATE` text).
+- [x] 9.5 MySQL/MariaDB `plan_schema_edit` from `SHOW CREATE TABLE`, snapshots per flavour (pure planner over the `CREATE` text).
 - [ ] 9.6 SQLite: split a `CREATE TABLE` into pieces and rename identifiers by token; property test that splitting and joining an unchanged definition gives the original text.
 - [ ] 9.7 SQLite `plan_schema_edit`: native statements where they suffice, the rebuild otherwise; foreign keys, triggers and indexes survive (in-process tests, no Docker).
 - [ ] 9.8 Conformance group "schema edit": every change kind is applied, then the table is described again and equals the expected `TableInfo`; a failing change rolls back everything (PostgreSQL, SQLite) or stops and reports the applied statements (MySQL); a stale `TableInfo` is refused.

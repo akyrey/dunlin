@@ -6,6 +6,9 @@ mod decode;
 mod errors;
 mod introspect;
 mod plan;
+mod schema_edit;
+
+pub use schema_edit::plan_schema_edit;
 
 use std::sync::Arc;
 
