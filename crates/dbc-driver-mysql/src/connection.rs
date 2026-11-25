@@ -478,6 +478,16 @@ impl Connection for MysqlConnection {
         Arc::clone(&self.cancel) as Arc<dyn CancelHandle>
     }
 
+    /// Reads `SHOW CREATE TABLE`, then plans without the server (D-042).
+    async fn plan_schema_edit(
+        &self,
+        edit: &dbc_core::schema_edit::SchemaEdit,
+    ) -> Result<dbc_core::schema_edit::SchemaPlan, DbError> {
+        let create = self.table_ddl(&edit.original.table).await?;
+        let create = create.trim_end().trim_end_matches(';');
+        crate::schema_edit::plan_schema_edit(edit, create)
+    }
+
     async fn close(&self) -> Result<(), DbError> {
         let conn = self.conn.lock().await.take();
         match conn {

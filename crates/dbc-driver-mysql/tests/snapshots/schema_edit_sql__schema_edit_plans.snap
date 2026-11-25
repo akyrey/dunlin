@@ -1,0 +1,62 @@
+---
+source: crates/dbc-driver-mysql/tests/schema_edit_sql.rs
+expression: "rendered.join(\"\\n\\n\")"
+---
+-- add column
+ALTER TABLE `shop`.`orders` ADD COLUMN `shipped` smallint NOT NULL DEFAULT 0 COMMENT 'Units shipped, it''s counted';
+
+-- add nullable column with an awkward name
+ALTER TABLE `shop`.`orders` ADD COLUMN `new "col"` integer;
+
+-- rename column
+ALTER TABLE `shop`.`orders` CHANGE COLUMN `total` `amount` int DEFAULT NULL;
+
+-- change type with conversion
+-- warning: MySQL has no USING: the values of total are converted by the server's own casting rules
+-- warning: Changing the type of total rebuilds the table and may lock it while it runs
+ALTER TABLE `shop`.`orders` CHANGE COLUMN `total` `total` numeric(10,2) DEFAULT NULL;
+
+-- change type and default
+-- warning: Changing the type of note rebuilds the table and may lock it while it runs
+ALTER TABLE `shop`.`orders` CHANGE COLUMN `note` `note` varchar(200) DEFAULT 'unknown';
+
+-- set not null and comment
+ALTER TABLE `shop`.`orders` CHANGE COLUMN `customer_id` `customer_id` int NOT NULL COMMENT 'Who ordered';
+
+-- drop default
+ALTER TABLE `shop`.`orders` CHANGE COLUMN `note` `note` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+
+-- drop column after its key (destructive)
+ALTER TABLE `shop`.`orders` DROP INDEX `orders_note_key`, DROP COLUMN `note`;
+
+-- replace primary key (destructive)
+-- warning: MySQL cannot undo schema changes: these 2 statements run one at a time, and if one fails, the ones before it stay applied
+ALTER TABLE `shop`.`orders` DROP PRIMARY KEY;
+ALTER TABLE `shop`.`orders` ADD PRIMARY KEY (`id`, `customer_id`);
+
+-- add unique
+ALTER TABLE `shop`.`orders` ADD CONSTRAINT `orders_customer_total_key` UNIQUE (`customer_id`, `total`);
+
+-- add and drop foreign keys (destructive)
+-- warning: MySQL cannot undo schema changes: these 2 statements run one at a time, and if one fails, the ones before it stay applied
+ALTER TABLE `shop`.`orders` DROP FOREIGN KEY `orders_customer_fk`;
+ALTER TABLE `shop`.`orders` ADD CONSTRAINT `orders_customer_fk` FOREIGN KEY (`customer_id`) REFERENCES `shop`.`customers` (`id`) ON UPDATE CASCADE ON DELETE SET NULL, ADD FOREIGN KEY (`odd "name"`) REFERENCES `shop`.`odd "table"` (`id`) ON DELETE RESTRICT;
+
+-- add and drop checks (destructive)
+ALTER TABLE `shop`.`orders` DROP CONSTRAINT `orders_total_check`, ADD CONSTRAINT `orders_total_positive` CHECK (total > 0 AND note <> 'a;b');
+
+-- add and drop indexes (destructive)
+ALTER TABLE `shop`.`orders` DROP INDEX `orders_total_idx`, ADD UNIQUE INDEX `orders_customer_total_idx` (`customer_id`, `total`) USING BTREE, ADD INDEX `orders_note_lower_idx` ((lower(note)));
+
+-- rename table and set comment
+-- warning: MySQL cannot undo schema changes: these 2 statements run one at a time, and if one fails, the ones before it stay applied
+ALTER TABLE `shop`.`orders` RENAME TO `purchases`;
+ALTER TABLE `shop`.`purchases` COMMENT = 'Every purchase';
+
+-- clear comment
+ALTER TABLE `shop`.`orders` COMMENT = '';
+
+-- several changes at once (destructive)
+-- warning: MySQL cannot undo schema changes: these 2 statements run one at a time, and if one fails, the ones before it stay applied
+ALTER TABLE `shop`.`orders` DROP INDEX `orders_total_idx`, ADD COLUMN `shipped_at` timestamp, CHANGE COLUMN `total` `amount` int NOT NULL;
+ALTER TABLE `shop`.`orders` ADD CONSTRAINT `orders_amount_fk` FOREIGN KEY (`amount`) REFERENCES `shop`.`amounts` (`value`), ADD INDEX `orders_amount_idx` (`amount`);
