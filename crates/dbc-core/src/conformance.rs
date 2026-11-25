@@ -5,6 +5,7 @@ mod changes;
 mod import;
 mod introspection;
 mod schema_edit;
+mod schema_edit_apply;
 mod stream;
 mod table_data;
 
@@ -19,6 +20,7 @@ pub use changes::{
 pub use import::import_group;
 pub use introspection::{IntrospectionSupport, introspection_group};
 pub use schema_edit::{schema_edit_cases, schema_edit_table};
+pub use schema_edit_apply::schema_edit_group;
 pub use stream::stream_group;
 pub use table_data::{page_sql_cases, table_data_group};
 
@@ -150,6 +152,7 @@ pub async fn run_all(harness: &dyn Harness) -> Result<(), Failure> {
     literal_round_trip_group(harness).await?;
     apply_changes_group(harness).await?;
     import_group(harness).await?;
+    schema_edit_group(harness).await?;
     stream_group(harness).await
 }
 
