@@ -104,6 +104,8 @@ function AppShell() {
                 connectionId: profile.id,
                 sessionId: session.sessionId,
                 label: profile.name,
+                driver: profile.driver,
+                color: profile.color,
                 readOnly: session.readOnly,
               },
             ]
@@ -122,6 +124,8 @@ function AppShell() {
                 connectionId: profile.id,
                 sessionId: session.sessionId,
                 label: profile.name,
+                driver: profile.driver,
+                color: profile.color,
                 readOnly: session.readOnly,
               },
             ]

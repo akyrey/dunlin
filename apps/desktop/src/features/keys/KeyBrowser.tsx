@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
 import { toast } from "@roost/ui";
+import type { DriverKind } from "../../ipc";
+import { ConnectionMark } from "../connections/ConnectionMark";
 import { useWorkspace } from "../workspace/workspaceStore";
 import { KeyTreeList } from "./KeyTreeList";
 import { listOf, useKeys } from "./keysStore";
@@ -10,6 +12,8 @@ export type KeySessionInfo = {
   connectionId: string;
   sessionId: string;
   label: string;
+  driver: DriverKind;
+  color: string | null;
   readOnly?: boolean;
 };
 
@@ -43,8 +47,9 @@ function KeyList({ session }: { session: KeySessionInfo }) {
           Scan
         </button>
       </form>
-      <div className="flex items-center px-3">
-        <p className="flex-1 text-[11px] uppercase tracking-wide text-zinc-500">{label}</p>
+      <div className="flex items-center gap-1.5 px-3">
+        <ConnectionMark driver={session.driver} color={session.color} />
+        <p className="flex-1 truncate text-[11px] uppercase tracking-wide text-zinc-500">{label}</p>
         {!session.readOnly && (
           <button
             type="button"

@@ -25,13 +25,26 @@ afterEach(() => {
   clearMocks();
 });
 
-const session = { connectionId: "c1", sessionId: "s1", label: "Cache" };
+const session = {
+  connectionId: "c1",
+  sessionId: "s1",
+  label: "Cache",
+  driver: "redis" as const,
+  color: "#22c55e",
+};
 const keys = () => screen.getByRole("list", { name: "Keys" });
 
 describe("KeyBrowser", () => {
   it("shows nothing without key-value sessions", () => {
     const { container } = render(<KeyBrowser sessions={[]} />);
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("marks the session with its database logo", () => {
+    render(<KeyBrowser sessions={[session]} />);
+
+    const keysOf = screen.getByRole("region", { name: "Keys of Cache" });
+    expect(within(keysOf).getByRole("img", { name: "Redis / Valkey" })).toBeInTheDocument();
   });
 
   it("scans, loads more, searches and opens a key", async () => {

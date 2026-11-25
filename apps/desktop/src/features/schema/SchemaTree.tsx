@@ -3,7 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ContextMenu, NO_TEXT_SUBSTITUTION } from "@roost/ui";
 
-import { type AppError, toAppError } from "../../ipc";
+import { type AppError, type DriverKind, toAppError } from "../../ipc";
+import { ConnectionMark } from "../connections/ConnectionMark";
 import { type ObjectAction, OBJECT_ACTIONS, runObjectAction } from "./actions";
 import { SESSION_KEY, useSchema } from "./schemaStore";
 import { type TreeRow, visibleRows } from "./tree";
@@ -12,7 +13,13 @@ const ROW_HEIGHT = 24;
 const INDENT = 12;
 const OVERSCAN = 20;
 
-export type TreeSessionInfo = { connectionId: string; sessionId: string; label: string };
+export type TreeSessionInfo = {
+  connectionId: string;
+  sessionId: string;
+  label: string;
+  driver: DriverKind;
+  color: string | null;
+};
 
 type ObjectRow = Extract<TreeRow, { kind: "object" }>;
 type Menu = { row: ObjectRow; connectionId: string; x: number; y: number };
@@ -54,8 +61,8 @@ export function SchemaTree({ sessions }: { sessions: TreeSessionInfo[] }) {
     estimateSize: () => ROW_HEIGHT,
     overscan: OVERSCAN,
   });
-  const connectionOf = (sessionId: string) =>
-    sessions.find((s) => s.sessionId === sessionId)?.connectionId ?? "";
+  const sessionOf = (sessionId: string) => sessions.find((s) => s.sessionId === sessionId);
+  const connectionOf = (sessionId: string) => sessionOf(sessionId)?.connectionId ?? "";
 
   const act = async (action: ObjectAction, row: ObjectRow) => {
     setMenu(null);
@@ -120,14 +127,22 @@ export function SchemaTree({ sessions }: { sessions: TreeSessionInfo[] }) {
           {virtualizer.getVirtualItems().map((item) => {
             const row = rows[item.index];
             if (!row) return null;
+            const session = sessionOf(row.sessionId);
             return (
               <div
                 key={row.key}
+                data-session-row
                 className="absolute left-0 right-0"
-                style={{ top: item.start, height: ROW_HEIGHT, paddingLeft: 8 + row.depth * INDENT }}
+                style={{
+                  top: item.start,
+                  height: ROW_HEIGHT,
+                  paddingLeft: 8 + row.depth * INDENT,
+                  ...colourEdge(session?.color ?? null),
+                }}
               >
                 <Row
                   row={row}
+                  session={session}
                   onToggle={(r) =>
                     void toggle(
                       r.sessionId,
@@ -161,6 +176,11 @@ export function SchemaTree({ sessions }: { sessions: TreeSessionInfo[] }) {
   );
 }
 
+/** A thin edge in the connection's colour, so a deep row still shows whose it is. */
+function colourEdge(color: string | null) {
+  return color ? { boxShadow: `inset 2px 0 0 ${color}` } : {};
+}
+
 /** The store's node key: row keys are `<sessionId>/<node key>`. */
 function nodeKey(row: TreeRow): string {
   return row.key.slice(row.sessionId.length + 1);
@@ -168,12 +188,13 @@ function nodeKey(row: TreeRow): string {
 
 type RowProps = {
   row: TreeRow;
+  session: TreeSessionInfo | undefined;
   onToggle: (row: TreeRow) => void;
   onAction: (action: ObjectAction, row: ObjectRow) => void;
   onMenu: (row: ObjectRow, x: number, y: number) => void;
 };
 
-function Row({ row, onToggle, onAction, onMenu }: RowProps) {
+function Row({ row, session, onToggle, onAction, onMenu }: RowProps) {
   const level = row.depth + 1;
   switch (row.kind) {
     case "session":
@@ -191,6 +212,9 @@ function Row({ row, onToggle, onAction, onMenu }: RowProps) {
             <span aria-hidden="true" className="w-3 text-zinc-500">
               {row.expanded ? "▾" : "▸"}
             </span>
+            {row.kind === "session" && session && (
+              <ConnectionMark driver={session.driver} color={session.color} />
+            )}
             <span className={row.kind === "group" ? "text-xs text-zinc-400" : "truncate"}>
               {row.label}
             </span>
