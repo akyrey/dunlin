@@ -19,6 +19,7 @@ use crate::ipc::{
     StatementRange, TabArgs, TableSnippets,
 };
 use crate::ipc::{ExportDone, ExportProgress, ExportResultArgs, ExportTableArgs, ExportTextArgs};
+use crate::ipc::{PlanReport, QueryExplainAnalyzeArgs};
 use crate::ipc::{QueryExplainArgs, TransactionFinishArgs, TransactionModeArgs};
 use crate::ipc::{SavedQueryIdArgs, SavedQuerySaveArgs, SettingsSetArgs};
 use crate::ipc::{SchemaEditArgs, SchemaEditPreview, SchemaEditResult};
@@ -185,8 +186,20 @@ pub async fn ssh_config_hosts() -> Result<Vec<crate::ipc::SshConfigEntry>, AppEr
 pub async fn query_explain(
     state: State<'_, AppState>,
     args: QueryExplainArgs,
-) -> Result<dbc_core::plan::PlanNode, AppError> {
+) -> Result<PlanReport, AppError> {
     logged("query_explain", commands::query_explain(&state, args)).await
+}
+
+#[tauri::command]
+pub async fn query_explain_analyze(
+    state: State<'_, AppState>,
+    args: QueryExplainAnalyzeArgs,
+) -> Result<PlanReport, AppError> {
+    logged(
+        "query_explain_analyze",
+        commands::query_explain_analyze(&state, args),
+    )
+    .await
 }
 
 #[tauri::command]

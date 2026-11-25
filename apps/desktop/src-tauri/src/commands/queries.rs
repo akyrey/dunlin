@@ -1,16 +1,14 @@
 use std::time::Instant;
 
 use dbc_core::DEFAULT_DISPLAY_LIMIT;
-use dbc_core::DbError;
-use dbc_core::plan::PlanNode;
 use dbc_core::result::{ExecuteOptions, StatementOutcome};
 use dbc_core::schema::{NamespaceRef, TableRef};
 use dbc_core::sql::{self, StatementClass, byte_to_utf16};
 
 use crate::error::AppError;
 use crate::ipc::{
-    QueryExecuteArgs, QueryExplainArgs, QueryOutcome, QueryResult, SqlSplitArgs, StatementRange,
-    TabArgs, TransactionFinishArgs, TransactionModeArgs,
+    QueryExecuteArgs, QueryOutcome, QueryResult, SqlSplitArgs, StatementRange, TabArgs,
+    TransactionFinishArgs, TransactionModeArgs,
 };
 use crate::session::{Session, TransactionState};
 use crate::state::AppState;
@@ -143,32 +141,6 @@ pub(super) async fn tunnel_lost(state: &AppState, session_id: &str) -> AppError 
     // The session is unusable either way; a failure to close it changes nothing for the user.
     let _ = state.sessions.close(session_id).await;
     AppError::from(dbc_tunnel::TunnelError::Lost)
-}
-
-/// The plan for one statement, on the tab's connection, without running it (deferred
-/// feature 3). Works on read-only connections: no `ANALYZE`, so nothing executes.
-pub async fn query_explain(state: &AppState, args: QueryExplainArgs) -> Result<PlanNode, AppError> {
-    if args.sql.trim().is_empty() {
-        return Err(AppError::invalid("There is no statement to explain"));
-    }
-    let session = state.sessions.get(&args.session_id).await?;
-    if !session.capabilities.explain {
-        return Err(AppError::from(DbError::unsupported("explain")));
-    }
-    if session.dialect.split(&args.sql).len() > 1 {
-        return Err(AppError::invalid("Explain one statement at a time"));
-    }
-    let statement = args.sql.clone();
-    let planned = session
-        .on_tab(&args.tab_id, |connection| async move {
-            connection.explain(&statement).await
-        })
-        .await;
-    match planned {
-        Ok(plan) => Ok(plan),
-        Err(_) if session.tunnel_lost() => Err(tunnel_lost(state, &session.id).await),
-        Err(error) => Err(AppError::from_db(error, &args.sql)),
-    }
 }
 
 /// The tab's transaction mode and whether a transaction is open (deferred feature 2).
