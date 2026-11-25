@@ -82,7 +82,7 @@ pub async fn schema_refresh(state: &AppState, args: SessionIdArgs) -> Result<(),
 }
 
 /// A failure caused by a dropped SSH tunnel closes the session, as for queries (task 3.8).
-async fn finish<T>(
+pub(super) async fn finish<T>(
     state: &AppState,
     session: &Session,
     result: Result<T, DbError>,

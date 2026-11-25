@@ -21,6 +21,7 @@ use crate::ipc::{
 use crate::ipc::{ExportDone, ExportProgress, ExportResultArgs, ExportTableArgs, ExportTextArgs};
 use crate::ipc::{QueryExplainArgs, TransactionFinishArgs, TransactionModeArgs};
 use crate::ipc::{SavedQueryIdArgs, SavedQuerySaveArgs, SettingsSetArgs};
+use crate::ipc::{SchemaEditArgs, SchemaEditPreview, SchemaEditResult};
 use crate::logging::logged;
 use crate::session::TransactionState;
 use crate::state::AppState;
@@ -331,6 +332,30 @@ pub async fn changes_apply(
     args: ChangesArgs,
 ) -> Result<ApplyResult, AppError> {
     logged("changes_apply", commands::changes_apply(&state, args)).await
+}
+
+#[tauri::command]
+pub async fn schema_edit_preview(
+    state: State<'_, AppState>,
+    args: SchemaEditArgs,
+) -> Result<SchemaEditPreview, AppError> {
+    logged(
+        "schema_edit_preview",
+        commands::schema_edit_preview(&state, args),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn schema_edit_apply(
+    state: State<'_, AppState>,
+    args: SchemaEditArgs,
+) -> Result<SchemaEditResult, AppError> {
+    logged(
+        "schema_edit_apply",
+        commands::schema_edit_apply(&state, args),
+    )
+    .await
 }
 
 #[tauri::command]

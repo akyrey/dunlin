@@ -82,6 +82,8 @@ Errors from `session_open` and `connection_test` carry `detail.stage`: `ssh_conn
 | `cell_full_value` | `{ sessionId, viewId, table, key, column }` | `Value`, untruncated; `unsupported` without a row key | 6 |
 | `changes_preview` | `{ sessionId, viewId, table, operations }` | `string[]`: the statements Apply runs, with literals, in order | 7 |
 | `changes_apply` | `{ sessionId, viewId, table, operations }` | `ApplyResult` (statements, rowsAffected); on failure `detail.operation` is the index of the failing operation | 7 |
+| `schema_edit_preview` | `{ sessionId, edit, confirmed? }` | `SchemaEditPreview` (statements, warnings, destructive, transactional), nothing run | 9 |
+| `schema_edit_apply` | `{ sessionId, edit, confirmed? }` | `SchemaEditResult` (statements); `confirmation_required` for a destructive plan without `confirmed`; on failure `detail.statement` (index or `null`) and `detail.applied` | 9 |
 | `saved_query_list` | none | `SavedQuery[]` (every connection's and the global ones) | 8 |
 | `saved_query_save` | `{ query: { id?, connectionId?, name, sql } }` | `SavedQuery`; `connectionId` absent means every connection | 8 |
 | `saved_query_delete` | `{ id }` | none | 8 |

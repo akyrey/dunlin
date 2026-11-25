@@ -17,6 +17,7 @@ use dbc_core::result::{ExecuteOptions, StatementOutcome};
 use dbc_core::schema::{
     CompletionSchema, Namespace, NamespaceRef, ObjectSummary, TableInfo, TableRef,
 };
+use dbc_core::schema_edit::{SchemaEdit, SchemaPlan};
 use dbc_core::{DbError, DbErrorCode};
 use dbc_tunnel::Tunnel;
 use tokio::sync::{Mutex, RwLock};
@@ -251,6 +252,20 @@ impl Session {
         let connection = self.metadata().await?;
         let result = connection.default_namespace().await;
         self.check_metadata(&connection, result).await
+    }
+
+    /// The plan for a schema edit, read through the metadata connection (D-042).
+    pub async fn schema_edit_plan(&self, edit: &SchemaEdit) -> Result<SchemaPlan, DbError> {
+        let connection = self.metadata().await?;
+        let result = connection.plan_schema_edit(edit).await;
+        self.check_metadata(&connection, result).await
+    }
+
+    /// A connection of its own for applying one schema edit, which the caller closes: a SQLite
+    /// rebuild changes connection settings and can take long, so it neither uses nor blocks
+    /// the metadata connection.
+    pub async fn schema_edit_connection(&self) -> Result<Arc<dyn Connection>, DbError> {
+        self.driver.connect(&self.config).await
     }
 
     /// Forgets all cached metadata: on refresh, and after DDL ran in this session.

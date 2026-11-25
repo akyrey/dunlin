@@ -47,7 +47,7 @@ impl Driver for PostgresDriver {
                 read_only_session: true,
                 transactional_ddl: true,
                 explain: true,
-                schema_editing: false,
+                schema_editing: true,
                 tls: true,
                 tunnel: true,
                 key_value: false,
