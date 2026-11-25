@@ -98,7 +98,7 @@ Statement text is shown as the server normalised it; selecting one opens it in a
 - [x] 10.6 `query_explain_analyze` command: read-only and danger checks, refusal of writes in a manual transaction, cancellation. Command tests.
 - [x] 10.7 `dbc_core::plan::hints` with unit tests for every hint and threshold edge.
 - [x] 10.8 Filter parsing and the index suggestion, with tests for each accepted condition form and each rejection (two columns, `OR`, function on the column, already indexed, unknown table).
-- [ ] 10.9 Frontend: Explain analyze action, measured columns in the plan view, hint badges, "Create index…" staging an `AddIndex` in the detail tab.
+- [x] 10.9 Frontend: Explain analyze action, measured columns in the plan view, hint badges, "Create index…" staging an `AddIndex` in the detail tab.
 - [ ] 10.10 `table_stats` per driver and the Statistics sub-tab, with unused indexes marked.
 - [ ] 10.11 `query_stats` per driver and the Query statistics view, with the not-enabled messages.
 - [ ] 10.12 Conformance group "explain analyze": a read returns measured numbers where supported; a write is rolled back (row count unchanged); read-only refuses writes.

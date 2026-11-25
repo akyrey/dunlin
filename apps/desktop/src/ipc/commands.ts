@@ -41,7 +41,8 @@ import type {
   TableSnippets,
   Value,
   TransactionState,
-  PlanNode,
+  PlanReport,
+  QueryExplainAnalyzeArgs,
   SshConfigEntry,
   ImportReport,
   KeyContentIpc,
@@ -134,8 +135,13 @@ export const kvEdit = (
 export const sshConfigHosts = (): Promise<SshConfigEntry[]> => call("ssh_config_hosts");
 
 /** The plan for one statement on the tab's connection; the statement is not run. */
-export const queryExplain = (sessionId: string, tabId: string, sql: string): Promise<PlanNode> =>
+export const queryExplain = (sessionId: string, tabId: string, sql: string): Promise<PlanReport> =>
   call("query_explain", { sessionId, tabId, sql });
+
+/** Runs the statement to measure its plan (D-043); fails with `confirmation_required` for a
+ * dangerous one unless `confirmed`. */
+export const queryExplainAnalyze = (args: QueryExplainAnalyzeArgs): Promise<PlanReport> =>
+  call("query_explain_analyze", args);
 
 /** The tab's transaction mode and whether a transaction is open. */
 export const transactionStatus = (sessionId: string, tabId: string): Promise<TransactionState> =>
