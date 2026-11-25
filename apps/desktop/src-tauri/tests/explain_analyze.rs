@@ -141,3 +141,18 @@ async fn table_statistics_list_indexes() {
             .any(|i| i.name == "orders_customer_idx")
     );
 }
+
+#[tokio::test]
+async fn sqlite_has_no_query_statistics() {
+    let fixture = Fixture::new();
+    let session = fixture.session(false).await;
+    let error = commands::session_query_stats(
+        &fixture.state,
+        dunlin_lib::ipc::SessionIdArgs {
+            session_id: session.session_id.clone(),
+        },
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.code, "unsupported");
+}

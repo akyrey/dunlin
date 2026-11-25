@@ -44,6 +44,7 @@ import type {
   TransactionState,
   PlanReport,
   QueryExplainAnalyzeArgs,
+  QueryStats,
   SshConfigEntry,
   ImportReport,
   KeyContentIpc,
@@ -190,6 +191,9 @@ export const schemaTable = (sessionId: string, table: TableRef): Promise<TableIn
 
 export const schemaTableDdl = (sessionId: string, table: TableRef): Promise<string> =>
   call("schema_table_ddl", { sessionId, table });
+
+export const sessionQueryStats = (sessionId: string): Promise<QueryStats> =>
+  call("session_query_stats", { sessionId });
 
 export const schemaTableStats = (sessionId: string, table: TableRef): Promise<TableStats> =>
   call("schema_table_stats", { sessionId, table });

@@ -54,6 +54,7 @@ impl Driver for RedisDriver {
                 explain_analyze_writes: false,
                 schema_editing: false,
                 table_stats: false,
+                query_stats: false,
                 tls: true,
                 tunnel: true,
                 key_value: true,

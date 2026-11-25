@@ -56,6 +56,7 @@ impl Driver for MysqlDriver {
                 explain_analyze_writes: false,
                 schema_editing: true,
                 table_stats: true,
+                query_stats: true,
                 tls: true,
                 tunnel: true,
                 key_value: false,
