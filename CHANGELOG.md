@@ -2,6 +2,18 @@
 
 All notable changes to Dunlin. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). The version lives in the workspace `Cargo.toml` only.
 
+## [0.3.0] - 2026-11-25
+
+### Added
+
+- Edit a table's structure from its detail tab: add, rename, retype and drop columns, change nullability, defaults and comments, add and drop indexes, primary keys, unique keys, foreign keys and checks, and rename the table. Changes are staged and previewed as SQL before anything runs.
+  - PostgreSQL and SQLite apply them in one transaction; MySQL and MariaDB stop at the first failure and list the statements that stayed applied.
+  - SQLite changes that need a table rebuild keep every row, index, trigger, `AUTOINCREMENT` counter and table option, and never delete rows from child tables.
+- Explain analyze: run a statement and see actual rows, loops and time for each step of its plan. Changes are rolled back afterwards (PostgreSQL, SQLite); MySQL and MariaDB measure queries only.
+- Hints on query plans: the slowest step, row estimates off by 10x or more, large full scans, sorts and hashes that spilled to disk, and steps run many times. A full scan filtered on one column offers to stage an index on it.
+- A Statistics tab in the table details: sizes, estimated rows, maintenance, and how often each index is used, with unused ones marked.
+- Query statistics in the command palette: the heaviest statements from `pg_stat_statements` or `performance_schema`, or how to turn recording on.
+
 ## [0.2.2] - 2026-11-25
 
 ### Added
