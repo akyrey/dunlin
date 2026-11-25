@@ -51,9 +51,21 @@ pub struct Capabilities {
     pub read_only_session: bool,
     pub transactional_ddl: bool,
     pub explain: bool,
+    /// `Connection::explain_analyze` for statements that only read (D-043).
+    #[serde(default)]
+    pub explain_analyze: bool,
+    /// `Connection::explain_analyze` also for statements that write, which it rolls back.
+    #[serde(default)]
+    pub explain_analyze_writes: bool,
     /// `Connection::plan_schema_edit` (D-042).
     #[serde(default)]
     pub schema_editing: bool,
+    /// `Connection::table_stats` (Phase 10).
+    #[serde(default)]
+    pub table_stats: bool,
+    /// `Connection::query_stats` (Phase 10).
+    #[serde(default)]
+    pub query_stats: bool,
     pub tls: bool,
     /// False for file databases.
     pub tunnel: bool,
@@ -282,6 +294,27 @@ pub trait Connection: Send + Sync {
     /// The server's plan for one statement, without running it (no `ANALYZE`).
     async fn explain(&self, _statement: &str) -> Result<crate::plan::PlanNode, DbError> {
         Err(DbError::unsupported("explain"))
+    }
+
+    /// Runs the statement and returns its measured plan (D-043). With `rollback`, it runs in a
+    /// transaction that is always rolled back: the caller sets it for statements that write, and
+    /// only where `Capabilities::explain_analyze_writes` says the driver can.
+    async fn explain_analyze(
+        &self,
+        _statement: &str,
+        _rollback: bool,
+    ) -> Result<crate::plan::AnalyzedPlan, DbError> {
+        Err(DbError::unsupported("explain_analyze"))
+    }
+
+    /// Sizes, row estimate, index usage and maintenance of one table (Phase 10).
+    async fn table_stats(&self, _table: &TableRef) -> Result<crate::stats::TableStats, DbError> {
+        Err(DbError::unsupported("table_stats"))
+    }
+
+    /// The heaviest statements the server has recorded (Phase 10), most total time first.
+    async fn query_stats(&self) -> Result<crate::stats::QueryStats, DbError> {
+        Err(DbError::unsupported("query_stats"))
     }
 
     /// The statements that make a schema edit (D-042). Reads the database where it must (SQLite

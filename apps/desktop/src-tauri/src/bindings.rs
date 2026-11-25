@@ -27,6 +27,7 @@ use crate::ipc::{
 
 use crate::ipc::{ExportDone, ExportProgress, ExportResultArgs, ExportTableArgs, ExportTextArgs};
 
+use crate::ipc::{PlanReport, QueryExplainAnalyzeArgs};
 use crate::ipc::{SavedQueryIdArgs, SavedQuerySaveArgs, SettingsSetArgs};
 use crate::ipc::{SchemaEditArgs, SchemaEditPreview, SchemaEditResult};
 use dbc_store::{SavedQuery, Settings};
@@ -68,6 +69,10 @@ fn export_all(dir: &Path) {
     RowCount::export_all(&config).unwrap();
     ChangesArgs::export_all(&config).unwrap();
     SchemaEditArgs::export_all(&config).unwrap();
+    QueryExplainAnalyzeArgs::export_all(&config).unwrap();
+    PlanReport::export_all(&config).unwrap();
+    dbc_core::stats::TableStats::export_all(&config).unwrap();
+    dbc_core::stats::QueryStats::export_all(&config).unwrap();
     SchemaEditPreview::export_all(&config).unwrap();
     SchemaEditResult::export_all(&config).unwrap();
     ApplyResult::export_all(&config).unwrap();

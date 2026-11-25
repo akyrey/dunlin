@@ -20,7 +20,7 @@ const DETAIL_KEYS: &[&str] = &[
 ];
 
 /// `[{"Plan": {...}}]`, the one value `EXPLAIN (FORMAT JSON)` returns.
-pub(crate) fn from_json(text: &str) -> Result<PlanNode, DbError> {
+pub fn from_json(text: &str) -> Result<PlanNode, DbError> {
     let json: Json = serde_json::from_str(text)
         .map_err(|e| DbError::new(DbErrorCode::Internal, format!("Unreadable plan: {e}")))?;
     let plan = json
@@ -30,12 +30,23 @@ pub(crate) fn from_json(text: &str) -> Result<PlanNode, DbError> {
     Ok(node(plan, 0))
 }
 
+/// The measured plan and the server's `Execution Time` from `EXPLAIN (ANALYZE, FORMAT JSON)`.
+pub fn analyzed_from_json(text: &str) -> Result<dbc_core::plan::AnalyzedPlan, DbError> {
+    let total_ms = serde_json::from_str::<Json>(text)
+        .ok()
+        .and_then(|json| json.get(0)?.get("Execution Time")?.as_f64());
+    Ok(dbc_core::plan::AnalyzedPlan {
+        plan: from_json(text)?,
+        total_ms,
+    })
+}
+
 /// Deep enough for any plan PostgreSQL produces.
 const MAX_DEPTH: usize = 128;
 
 fn node(json: &Json, depth: usize) -> PlanNode {
     let text = |key: &str| json.get(key).and_then(Json::as_str).map(str::to_owned);
-    let details = DETAIL_KEYS
+    let details: Vec<String> = DETAIL_KEYS
         .iter()
         .filter_map(|key| {
             let value = json.get(*key)?;
@@ -62,14 +73,53 @@ fn node(json: &Json, depth: usize) -> PlanNode {
         (Some(plans), true) => plans.iter().map(|p| node(p, depth + 1)).collect(),
         _ => Vec::new(),
     };
+    let number = |key: &str| json.get(key).and_then(Json::as_f64);
+    let operation = text("Node Type").unwrap_or_else(|| "?".to_owned());
+    let full_scan = operation == "Seq Scan";
+    let loops = number("Actual Loops");
+    let actual_rows = number("Actual Rows");
+    let removed = number("Rows Removed by Filter").unwrap_or(0.0);
     PlanNode {
-        operation: text("Node Type").unwrap_or_else(|| "?".to_owned()),
+        table: text("Relation Name"),
+        filter: text("Filter"),
+        rows_read: if full_scan {
+            actual_rows.map(|rows| rows + removed)
+        } else {
+            None
+        },
+        actual_time_ms: number("Actual Total Time").map(|ms| ms * loops.unwrap_or(1.0)),
+        spilled: text("Sort Space Type").as_deref() == Some("Disk")
+            || number("Hash Batches").is_some_and(|batches| batches > 1.0),
+        actual_rows,
+        loops,
+        full_scan,
+        operation,
         relation,
-        details,
-        estimated_rows: json.get("Plan Rows").and_then(Json::as_f64),
-        cost: json.get("Total Cost").and_then(Json::as_f64),
+        details: [details, buffers(json)].concat(),
+        estimated_rows: number("Plan Rows"),
+        cost: number("Total Cost"),
         children,
     }
+}
+
+/// `Buffers: shared hit=118 read=2`, when the plan was measured with `BUFFERS`.
+fn buffers(json: &Json) -> Vec<String> {
+    let count = |key: &str| json.get(key).and_then(Json::as_u64).unwrap_or(0);
+    if json.get("Shared Hit Blocks").is_none() {
+        return Vec::new();
+    }
+    let mut line = format!("Buffers: shared hit={}", count("Shared Hit Blocks"));
+    for (key, label) in [
+        ("Shared Read Blocks", "read"),
+        ("Temp Read Blocks", "temp read"),
+        ("Temp Written Blocks", "temp written"),
+    ] {
+        let blocks = count(key);
+        if blocks > 0 {
+            line.push_str(&format!(" {label}={blocks}"));
+        }
+    }
+    vec![line]
 }
 
 #[cfg(test)]

@@ -426,6 +426,14 @@ impl Connection for PostgresConnection {
         crate::introspect::describe_table(&*self.client()?, table).await
     }
 
+    async fn table_stats(&self, table: &TableRef) -> Result<dbc_core::stats::TableStats, DbError> {
+        crate::stats::table_stats(&*self.client()?, table).await
+    }
+
+    async fn query_stats(&self) -> Result<dbc_core::stats::QueryStats, DbError> {
+        crate::stats::query_stats(&*self.client()?).await
+    }
+
     async fn default_namespace(&self) -> Result<Option<NamespaceRef>, DbError> {
         let client = self.client()?;
         let row = client
@@ -462,6 +470,33 @@ impl Connection for PostgresConnection {
 
     fn cancel_handle(&self) -> Arc<dyn CancelHandle> {
         Arc::clone(&self.cancel) as Arc<dyn CancelHandle>
+    }
+
+    /// `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`; with `rollback`, inside a transaction that is
+    /// rolled back whatever happens.
+    async fn explain_analyze(
+        &self,
+        statement: &str,
+        rollback: bool,
+    ) -> Result<dbc_core::plan::AnalyzedPlan, DbError> {
+        let sql = format!(
+            "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {}",
+            dbc_core::plan::statement_body(statement)
+        );
+        let options = ExecuteOptions::default();
+        if rollback {
+            self.execute("BEGIN", &options).await?;
+        }
+        let outcome = self.execute(&sql, &options).await;
+        if rollback {
+            let undone = self.execute("ROLLBACK", &options).await;
+            // The statement's own error is the one to report; a failed rollback otherwise.
+            if outcome.is_ok() {
+                undone?;
+            }
+        }
+        let text = dbc_core::plan::column_text(&outcome?, 0).concat();
+        crate::plan::analyzed_from_json(&text)
     }
 
     async fn plan_schema_edit(

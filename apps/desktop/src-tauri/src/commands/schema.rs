@@ -49,6 +49,32 @@ pub async fn schema_table_ddl(state: &AppState, args: SchemaTableArgs) -> Result
     finish(state, &session, result).await
 }
 
+/// Sizes, row estimate, index use and maintenance of a table (Phase 10).
+pub async fn schema_table_stats(
+    state: &AppState,
+    args: SchemaTableArgs,
+) -> Result<dbc_core::stats::TableStats, AppError> {
+    let session = state.sessions.get(&args.session_id).await?;
+    if !session.capabilities.table_stats {
+        return Err(AppError::from(DbError::unsupported("table statistics")));
+    }
+    let result = session.schema_table_stats(&args.table).await;
+    finish(state, &session, result).await
+}
+
+/// The heaviest statements the server has recorded (Phase 10).
+pub async fn session_query_stats(
+    state: &AppState,
+    args: SessionIdArgs,
+) -> Result<dbc_core::stats::QueryStats, AppError> {
+    let session = state.sessions.get(&args.session_id).await?;
+    if !session.capabilities.query_stats {
+        return Err(AppError::from(DbError::unsupported("query statistics")));
+    }
+    let result = session.query_stats().await;
+    finish(state, &session, result).await
+}
+
 /// The qualified name and a `SELECT` listing every column, for the tree's context actions.
 pub async fn schema_snippets(
     state: &AppState,

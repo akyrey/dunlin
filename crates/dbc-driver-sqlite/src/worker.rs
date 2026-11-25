@@ -219,6 +219,34 @@ fn stream_statement(
     Ok(sent)
 }
 
+/// Runs `sql` to the end, reading and dropping every row, and returns how long it took; with
+/// `rollback`, inside a transaction that is rolled back whatever happens (D-043).
+fn time_statement(
+    connection: &rusqlite::Connection,
+    sql: &str,
+    rollback: bool,
+) -> Result<f64, DbError> {
+    if rollback {
+        connection.execute_batch("BEGIN").map_err(map_error)?;
+    }
+    let started = std::time::Instant::now();
+    let ran = (|| {
+        let mut statement = connection.prepare(sql)?;
+        let mut rows = statement.raw_query();
+        while rows.next()?.is_some() {}
+        Ok::<_, rusqlite::Error>(())
+    })();
+    let elapsed = started.elapsed().as_secs_f64() * 1000.0;
+    if rollback {
+        let undone = connection.execute_batch("ROLLBACK").map_err(map_error);
+        if ran.is_ok() {
+            undone?;
+        }
+    }
+    ran.map_err(map_error)?;
+    Ok(elapsed)
+}
+
 fn run_statement(
     connection: &rusqlite::Connection,
     sql: &str,
@@ -363,6 +391,12 @@ impl Connection for SqliteConnection {
             .await
     }
 
+    async fn table_stats(&self, table: &TableRef) -> Result<dbc_core::stats::TableStats, DbError> {
+        let table = table.clone();
+        self.call(move |c| crate::stats::table_stats(c, &table))
+            .await
+    }
+
     async fn describe_table(&self, table: &TableRef) -> Result<TableInfo, DbError> {
         let table = table.clone();
         self.call(move |c| introspect::describe_table(c, &table))
@@ -403,6 +437,24 @@ impl Connection for SqliteConnection {
     }
 
     /// `EXPLAIN QUERY PLAN`: rows of `(id, parent, notused, detail)`.
+    /// The query plan, plus the statement's total time measured here: SQLite has no per-step
+    /// timing.
+    async fn explain_analyze(
+        &self,
+        statement: &str,
+        rollback: bool,
+    ) -> Result<plan::AnalyzedPlan, DbError> {
+        let plan = self.explain(statement).await?;
+        let sql = plan::statement_body(statement).to_owned();
+        let total_ms = self
+            .call(move |c| time_statement(c, &sql, rollback))
+            .await?;
+        Ok(plan::AnalyzedPlan {
+            plan,
+            total_ms: Some(total_ms),
+        })
+    }
+
     async fn explain(&self, statement: &str) -> Result<PlanNode, DbError> {
         let sql = format!("EXPLAIN QUERY PLAN {}", plan::statement_body(statement));
         let outcome = self

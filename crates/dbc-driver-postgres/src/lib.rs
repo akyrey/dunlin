@@ -10,9 +10,13 @@ mod params;
 mod plan;
 mod raw;
 mod schema_edit;
+mod stats;
 mod tls;
 
 pub use schema_edit::plan_schema_edit;
+
+/// `EXPLAIN (FORMAT JSON)` output, measured or not, as a plan tree.
+pub use plan::{analyzed_from_json as plan_analyzed_from_json, from_json as plan_from_json};
 
 use std::sync::Arc;
 
@@ -47,7 +51,11 @@ impl Driver for PostgresDriver {
                 read_only_session: true,
                 transactional_ddl: true,
                 explain: true,
+                explain_analyze: true,
+                explain_analyze_writes: true,
                 schema_editing: true,
+                table_stats: true,
+                query_stats: true,
                 tls: true,
                 tunnel: true,
                 key_value: false,

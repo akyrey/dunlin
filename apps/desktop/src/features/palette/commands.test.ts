@@ -8,6 +8,7 @@ const handlers = (): PaletteHandlers => ({
   checkForUpdates: vi.fn(),
   newTab: vi.fn(),
   refreshSchema: vi.fn(),
+  queryStats: vi.fn(),
   disconnect: vi.fn(),
   openConnection: vi.fn(),
   openTable: vi.fn(),
@@ -17,6 +18,29 @@ const handlers = (): PaletteHandlers => ({
 const main = { catalog: null, schema: "main" };
 
 describe("paletteCommands", () => {
+  it("offers query statistics only where the server records them", () => {
+    const profile = sqliteProfile();
+    const base = sessionFor(profile);
+    const withStats = { ...base, capabilities: { ...base.capabilities, queryStats: true } };
+    const on = handlers();
+    const labels = (session: typeof base) =>
+      paletteCommands(
+        {
+          profiles: [profile],
+          sessions: { [profile.id]: session },
+          activeConnectionId: profile.id,
+          tables: [],
+          savedQueries: [],
+        },
+        on,
+      );
+    expect(labels(base).some((c) => c.label === "Query statistics")).toBe(false);
+    labels(withStats)
+      .find((c) => c.label === "Query statistics")
+      ?.run();
+    expect(on.queryStats).toHaveBeenCalledWith(base.sessionId);
+  });
+
   it("offers only app actions and connections without an open session", () => {
     const profile = sqliteProfile();
     const commands = paletteCommands(

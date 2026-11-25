@@ -38,10 +38,13 @@ import type {
   TablePage,
   TablePageArgs,
   TableRef,
+  TableStats,
   TableSnippets,
   Value,
   TransactionState,
-  PlanNode,
+  PlanReport,
+  QueryExplainAnalyzeArgs,
+  QueryStats,
   SshConfigEntry,
   ImportReport,
   KeyContentIpc,
@@ -134,8 +137,13 @@ export const kvEdit = (
 export const sshConfigHosts = (): Promise<SshConfigEntry[]> => call("ssh_config_hosts");
 
 /** The plan for one statement on the tab's connection; the statement is not run. */
-export const queryExplain = (sessionId: string, tabId: string, sql: string): Promise<PlanNode> =>
+export const queryExplain = (sessionId: string, tabId: string, sql: string): Promise<PlanReport> =>
   call("query_explain", { sessionId, tabId, sql });
+
+/** Runs the statement to measure its plan (D-043); fails with `confirmation_required` for a
+ * dangerous one unless `confirmed`. */
+export const queryExplainAnalyze = (args: QueryExplainAnalyzeArgs): Promise<PlanReport> =>
+  call("query_explain_analyze", args);
 
 /** The tab's transaction mode and whether a transaction is open. */
 export const transactionStatus = (sessionId: string, tabId: string): Promise<TransactionState> =>
@@ -183,6 +191,12 @@ export const schemaTable = (sessionId: string, table: TableRef): Promise<TableIn
 
 export const schemaTableDdl = (sessionId: string, table: TableRef): Promise<string> =>
   call("schema_table_ddl", { sessionId, table });
+
+export const sessionQueryStats = (sessionId: string): Promise<QueryStats> =>
+  call("session_query_stats", { sessionId });
+
+export const schemaTableStats = (sessionId: string, table: TableRef): Promise<TableStats> =>
+  call("schema_table_stats", { sessionId, table });
 
 export const schemaSnippets = (sessionId: string, table: TableRef): Promise<TableSnippets> =>
   call("schema_snippets", { sessionId, table });
