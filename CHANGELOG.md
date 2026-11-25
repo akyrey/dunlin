@@ -2,6 +2,12 @@
 
 All notable changes to Dunlin. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). The version lives in the workspace `Cargo.toml` only.
 
+## [0.2.2] - 2026-11-25
+
+### Added
+
+- The schema tree and key browser show each connection's colour and database logo; schema tree rows carry a thin edge in their connection's colour.
+
 ## [0.2.1] - 2026-11-20
 
 ### Added
