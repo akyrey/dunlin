@@ -9,7 +9,10 @@ mod introspect;
 mod params;
 mod plan;
 mod raw;
+mod schema_edit;
 mod tls;
+
+pub use schema_edit::plan_schema_edit;
 
 use std::sync::Arc;
 

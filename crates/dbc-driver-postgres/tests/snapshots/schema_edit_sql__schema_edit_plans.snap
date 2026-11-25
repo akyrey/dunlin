@@ -1,0 +1,68 @@
+---
+source: crates/dbc-driver-postgres/tests/schema_edit_sql.rs
+expression: "rendered.join(\"\\n\\n\")"
+---
+-- add column
+ALTER TABLE "public"."orders" ADD COLUMN "shipped" smallint NOT NULL DEFAULT 0;
+COMMENT ON COLUMN "public"."orders"."shipped" IS 'Units shipped, it''s counted';
+
+-- add nullable column with an awkward name
+ALTER TABLE "public"."orders" ADD COLUMN "new ""col""" integer;
+
+-- rename column
+ALTER TABLE "public"."orders" RENAME COLUMN "total" TO "amount";
+
+-- change type with conversion
+-- warning: Changing the type of total rewrites the table and locks it while it runs
+ALTER TABLE "public"."orders" ALTER COLUMN "total" TYPE numeric(10,2) USING total::numeric;
+
+-- change type and default
+-- warning: Changing the type of note rewrites the table and locks it while it runs
+ALTER TABLE "public"."orders" ALTER COLUMN "note" DROP DEFAULT, ALTER COLUMN "note" TYPE varchar(200), ALTER COLUMN "note" SET DEFAULT 'unknown';
+
+-- set not null and comment
+ALTER TABLE "public"."orders" ALTER COLUMN "customer_id" SET NOT NULL;
+COMMENT ON COLUMN "public"."orders"."customer_id" IS 'Who ordered';
+
+-- drop default
+ALTER TABLE "public"."orders" ALTER COLUMN "note" DROP DEFAULT;
+
+-- drop column after its key (destructive)
+ALTER TABLE "public"."orders" DROP CONSTRAINT "orders_note_key";
+ALTER TABLE "public"."orders" DROP COLUMN "note";
+
+-- replace primary key (destructive)
+ALTER TABLE "public"."orders" DROP CONSTRAINT "orders_pkey";
+ALTER TABLE "public"."orders" ADD CONSTRAINT "orders_pkey" PRIMARY KEY ("id", "customer_id");
+
+-- add unique
+ALTER TABLE "public"."orders" ADD CONSTRAINT "orders_customer_total_key" UNIQUE ("customer_id", "total");
+
+-- add and drop foreign keys (destructive)
+ALTER TABLE "public"."orders" DROP CONSTRAINT "orders_customer_fk";
+ALTER TABLE "public"."orders" ADD CONSTRAINT "orders_customer_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers" ("id") ON UPDATE CASCADE ON DELETE SET NULL;
+ALTER TABLE "public"."orders" ADD FOREIGN KEY ("odd ""name""") REFERENCES "public"."odd ""table""" ("id") ON DELETE RESTRICT;
+
+-- add and drop checks (destructive)
+ALTER TABLE "public"."orders" DROP CONSTRAINT "orders_total_check";
+ALTER TABLE "public"."orders" ADD CONSTRAINT "orders_total_positive" CHECK (total > 0 AND note <> 'a;b');
+
+-- add and drop indexes (destructive)
+DROP INDEX "public"."orders_total_idx";
+CREATE UNIQUE INDEX "orders_customer_total_idx" ON "public"."orders" USING btree ("customer_id", "total");
+CREATE INDEX "orders_note_lower_idx" ON "public"."orders" ((lower(note)));
+
+-- rename table and set comment
+ALTER TABLE "public"."orders" RENAME TO "purchases";
+COMMENT ON TABLE "public"."purchases" IS 'Every purchase';
+
+-- clear comment
+COMMENT ON TABLE "public"."orders" IS NULL;
+
+-- several changes at once (destructive)
+DROP INDEX "public"."orders_total_idx";
+ALTER TABLE "public"."orders" ADD COLUMN "shipped_at" timestamp;
+ALTER TABLE "public"."orders" RENAME COLUMN "total" TO "amount";
+ALTER TABLE "public"."orders" ALTER COLUMN "amount" SET NOT NULL;
+ALTER TABLE "public"."orders" ADD CONSTRAINT "orders_amount_fk" FOREIGN KEY ("amount") REFERENCES "public"."amounts" ("value");
+CREATE INDEX "orders_amount_idx" ON "public"."orders" ("amount");

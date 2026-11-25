@@ -60,7 +60,7 @@ The new definition is the original `CREATE TABLE` text edited piece by piece, no
 - [ ] 9.1 Fixtures: a table with every kind of column, key, index and constraint per database (reuse the Phase 4 fixtures), and SQLite tables with `AUTOINCREMENT`, `WITHOUT ROWID`, `STRICT`, collations, generated columns, triggers and a child table with `ON DELETE CASCADE`.
 - [x] 9.2 `dbc_core::schema_edit`: `SchemaEdit`, `SchemaChange`, `SchemaPlan`; validation (unknown column, duplicate name, empty key, dropping a column a kept key uses, user SQL with a `;`), pure, with unit tests.
 - [x] 9.3 `dbc_core::schema_edit::apply`: transactional plans in one transaction; non-transactional plans stop at the first failure and report which statements ran; `before`/`after` statements around the transaction, `after` always runs. Tests against the fake connection.
-- [ ] 9.4 PostgreSQL `plan_schema_edit`, with `insta` snapshots for every change kind, awkward identifiers and combinations.
+- [x] 9.4 PostgreSQL `plan_schema_edit`, with `insta` snapshots for every change kind, awkward identifiers and combinations.
 - [ ] 9.5 MySQL/MariaDB `plan_schema_edit`, snapshots per flavour.
 - [ ] 9.6 SQLite: split a `CREATE TABLE` into pieces and rename identifiers by token; property test that splitting and joining an unchanged definition gives the original text.
 - [ ] 9.7 SQLite `plan_schema_edit`: native statements where they suffice, the rebuild otherwise; foreign keys, triggers and indexes survive (in-process tests, no Docker).

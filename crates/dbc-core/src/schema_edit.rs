@@ -8,6 +8,7 @@
 
 mod apply;
 mod expected;
+pub mod render;
 
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +19,7 @@ use crate::sql::SplitterRules;
 use crate::sql::lexer::{TokenKind, tokenize};
 
 pub use apply::{SchemaApplyFailure, SchemaApplyReport, apply, check_current};
-pub use expected::expected_table;
+pub use expected::{expected_table, table_states};
 
 /// Changes to one table, in the order they apply.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

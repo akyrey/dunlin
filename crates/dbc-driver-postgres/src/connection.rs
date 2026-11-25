@@ -464,6 +464,13 @@ impl Connection for PostgresConnection {
         Arc::clone(&self.cancel) as Arc<dyn CancelHandle>
     }
 
+    async fn plan_schema_edit(
+        &self,
+        edit: &dbc_core::schema_edit::SchemaEdit,
+    ) -> Result<dbc_core::schema_edit::SchemaPlan, DbError> {
+        crate::schema_edit::plan_schema_edit(edit)
+    }
+
     async fn close(&self) -> Result<(), DbError> {
         // Dropping the last client handle ends the connection task, which closes the socket.
         let client = self.client.lock().map_err(|_| poisoned())?.take();

@@ -13,22 +13,36 @@ use crate::schema::{Column, ForeignKey, Index, ObjectKind, TableInfo};
 /// Drops match the object by value, so the frontend sends drops of keys, indexes and
 /// constraints before the column changes that would alter them.
 pub fn expected_table(dialect: &dyn Dialect, edit: &SchemaEdit) -> Result<TableInfo, DbError> {
+    let mut states = table_states(dialect, edit)?;
+    states.pop().ok_or_else(|| refused("Nothing to apply"))
+}
+
+/// The table before each change, then after the last one: `changes.len() + 1` descriptions,
+/// validated as [`expected_table`] does. Planners read a change's starting point from it.
+pub fn table_states(dialect: &dyn Dialect, edit: &SchemaEdit) -> Result<Vec<TableInfo>, DbError> {
     if edit.original.kind != ObjectKind::Table {
         return Err(refused("Only tables can be edited, not views"));
     }
     if edit.changes.is_empty() {
         return Err(refused("Nothing to apply"));
     }
-    let mut info = edit.original.clone();
+    let mut states = vec![edit.original.clone()];
     for change in &edit.changes {
         check_change_sql(change, dialect)?;
-        info = apply_change(info, change)?;
+        let before = states
+            .last()
+            .cloned()
+            .unwrap_or_else(|| edit.original.clone());
+        states.push(apply_change(before, change)?);
     }
-    if info.columns.is_empty() {
+    let last = states
+        .last_mut()
+        .ok_or_else(|| refused("Nothing to apply"))?;
+    if last.columns.is_empty() {
         return Err(refused("A table needs at least one column"));
     }
-    info.row_key = info.choose_row_key();
-    Ok(info)
+    last.row_key = last.choose_row_key();
+    Ok(states)
 }
 
 fn apply_change(mut info: TableInfo, change: &SchemaChange) -> Result<TableInfo, DbError> {
@@ -245,6 +259,17 @@ fn check_index(info: &TableInfo, index: &Index) -> Result<(), DbError> {
     check_name("index", &index.name)?;
     if index.columns.is_empty() {
         return Err(refused("An index needs at least one column or expression"));
+    }
+    if let Some(method) = &index.method {
+        let plain = !method.is_empty()
+            && method
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_');
+        if !plain {
+            return Err(refused(format!(
+                "The index method must be a plain name, such as btree: {method}"
+            )));
+        }
     }
     if info.indexes.iter().any(|i| i.name == index.name) {
         return Err(refused(format!(
