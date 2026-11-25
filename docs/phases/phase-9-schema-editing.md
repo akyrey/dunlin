@@ -79,7 +79,7 @@ Notes from implementation:
 - [x] 9.7 SQLite `plan_schema_edit`: native statements where they suffice, the rebuild otherwise; foreign keys, triggers and indexes survive (in-process tests, no Docker).
 - [ ] 9.8 Conformance group "schema edit": every change kind is applied, then the table is described again and equals the expected `TableInfo`; a failing change rolls back everything (PostgreSQL, SQLite) or stops and reports the applied statements (MySQL); a stale `TableInfo` is refused.
 - [x] 9.9 `Capabilities::schema_editing`; `schema_edit_preview` and `schema_edit_apply` commands with the backend checks under Rules; cache invalidation.
-- [ ] 9.10 Frontend: pending schema changes as a pure reducer over immutable state (add, change, revert, drop an added item removes it), with unit tests for every transition.
+- [x] 9.10 Frontend: pending schema changes as a pure reducer over immutable state (add, change, revert, drop an added item removes it), with unit tests for every transition.
 - [ ] 9.11 Frontend: Edit mode on the detail tab. Columns: inline name, type (free text with the driver's common types suggested), nullable, default, comment; add and drop. Indexes: add (columns, unique, method, predicate) and drop. Constraints: primary key, unique, foreign key (referenced table picker from the tree), check; add and drop. Changed rows are marked, with per-item revert.
 - [ ] 9.12 Changes bar, preview dialog (SQL, warnings, connection colour), confirmation for drops, apply, error with the failing statement marked, and the "applied so far" list for MySQL.
 - [ ] 9.13 Guards: prompt on tab close, session close and refresh while schema changes are pending.
