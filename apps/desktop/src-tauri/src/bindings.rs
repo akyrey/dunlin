@@ -71,6 +71,7 @@ fn export_all(dir: &Path) {
     SchemaEditArgs::export_all(&config).unwrap();
     QueryExplainAnalyzeArgs::export_all(&config).unwrap();
     PlanReport::export_all(&config).unwrap();
+    dbc_core::stats::TableStats::export_all(&config).unwrap();
     SchemaEditPreview::export_all(&config).unwrap();
     SchemaEditResult::export_all(&config).unwrap();
     ApplyResult::export_all(&config).unwrap();

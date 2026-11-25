@@ -60,6 +60,9 @@ pub struct Capabilities {
     /// `Connection::plan_schema_edit` (D-042).
     #[serde(default)]
     pub schema_editing: bool,
+    /// `Connection::table_stats` (Phase 10).
+    #[serde(default)]
+    pub table_stats: bool,
     pub tls: bool,
     /// False for file databases.
     pub tunnel: bool,
@@ -299,6 +302,11 @@ pub trait Connection: Send + Sync {
         _rollback: bool,
     ) -> Result<crate::plan::AnalyzedPlan, DbError> {
         Err(DbError::unsupported("explain_analyze"))
+    }
+
+    /// Sizes, row estimate, index usage and maintenance of one table (Phase 10).
+    async fn table_stats(&self, _table: &TableRef) -> Result<crate::stats::TableStats, DbError> {
+        Err(DbError::unsupported("table_stats"))
     }
 
     /// The statements that make a schema edit (D-042). Reads the database where it must (SQLite

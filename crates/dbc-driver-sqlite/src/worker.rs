@@ -391,6 +391,12 @@ impl Connection for SqliteConnection {
             .await
     }
 
+    async fn table_stats(&self, table: &TableRef) -> Result<dbc_core::stats::TableStats, DbError> {
+        let table = table.clone();
+        self.call(move |c| crate::stats::table_stats(c, &table))
+            .await
+    }
+
     async fn describe_table(&self, table: &TableRef) -> Result<TableInfo, DbError> {
         let table = table.clone();
         self.call(move |c| introspect::describe_table(c, &table))

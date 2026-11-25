@@ -48,11 +48,15 @@ fn schema_of(namespace: &NamespaceRef) -> &str {
 }
 
 /// Rows of `sql` with string parameters, through a prepared statement.
-async fn rows(conn: &mut Conn, sql: &str, params: Vec<String>) -> Result<Vec<Row>, DbError> {
+pub(crate) async fn rows(
+    conn: &mut Conn,
+    sql: &str,
+    params: Vec<String>,
+) -> Result<Vec<Row>, DbError> {
     conn.exec(sql, params).await.map_err(|e| map_error(&e))
 }
 
-fn text(row: &Row, index: usize) -> Option<String> {
+pub(crate) fn text(row: &Row, index: usize) -> Option<String> {
     match row.as_ref(index) {
         Some(mysql_async::Value::Bytes(bytes)) => Some(String::from_utf8_lossy(bytes).into_owned()),
         Some(mysql_async::Value::Int(i)) => Some(i.to_string()),
@@ -162,7 +166,7 @@ async fn table_kind(
     }
 }
 
-fn params(table: &TableRef) -> Vec<String> {
+pub(crate) fn params(table: &TableRef) -> Vec<String> {
     vec![schema_of(&table.namespace).to_owned(), table.name.clone()]
 }
 

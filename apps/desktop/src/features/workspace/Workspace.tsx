@@ -129,6 +129,7 @@ export function Workspace({ session, profile }: Props) {
             }}
             viewKey={active.key}
             editable={!session.readOnly && session.capabilities.schemaEditing}
+            statistics={session.capabilities.tableStats}
             connection={{
               name: profile?.name ?? "this connection",
               color: profile?.color ?? null,
