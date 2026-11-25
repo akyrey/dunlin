@@ -102,7 +102,14 @@ Statement text is shown as the server normalised it; selecting one opens it in a
 - [x] 10.10 `table_stats` per driver and the Statistics sub-tab, with unused indexes marked.
 - [x] 10.11 `query_stats` per driver and the Query statistics view, with the not-enabled messages.
 - [x] 10.12 Conformance group "explain analyze": a read returns measured numbers where supported; a write is rolled back (row count unchanged); read-only refuses writes.
-- [ ] 10.13 E2E: explain analyze a read, see measured numbers and a hint; create the suggested index through the preview.
+- [x] 10.13 E2E: explain analyze a read, see measured numbers and a hint; create the suggested index through the preview.
+
+## Notes from implementation
+
+- Hints work on plain Explain too, from estimates: the slowest step by cost, and full scans by estimated rows.
+- SQLite plans have no row counts or costs, so SQLite gets measured total time but no hints.
+- `PlanReport` (plan, measured, total time, hints) is what both Explain commands return.
+- The query statistics view is a dialog opened from the command palette rather than a workspace tab.
 
 ## Acceptance criteria
 

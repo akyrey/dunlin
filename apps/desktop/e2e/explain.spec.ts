@@ -8,7 +8,7 @@ test("explain shows the plan as a tree without running the statement", async ({ 
   await editor.click();
   await editor.pressSequentially("SELECT * FROM people p JOIN orders o ON o.person = p.id");
 
-  await page.getByRole("button", { name: "Explain" }).click();
+  await page.getByRole("button", { name: "Explain", exact: true }).click();
 
   const plan = page.getByRole("tree", { name: "Query plan" });
   await expect(plan).toBeVisible();

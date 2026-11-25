@@ -27,6 +27,11 @@ impl Harness for SqliteHarness {
         Arc::new(SqliteDriver)
     }
 
+    /// `dbstat` is not compiled into the bundled library.
+    fn reports_table_sizes(&self) -> bool {
+        false
+    }
+
     /// `EXPLAIN QUERY PLAN` has no row counts.
     fn plans_count_rows(&self) -> bool {
         false
