@@ -223,3 +223,10 @@ async fn stream_group() {
         .await
         .unwrap();
 }
+
+#[tokio::test]
+async fn schema_edit_group() {
+    conformance::schema_edit_group(&SqliteHarness::default())
+        .await
+        .unwrap();
+}

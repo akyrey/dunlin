@@ -12,7 +12,7 @@ Ten phases. Each ends with something runnable and has a brief in `docs/phases/` 
 - [ ] [Phase 6: Data viewing](phases/phase-6-data-viewing.md) — table grid, sort, filter, JSON view, cell viewer
 - [ ] [Phase 7: Data editing](phases/phase-7-data-editing.md) — staged edits, SQL preview, safeguards
 - [ ] [Phase 8: Polish](phases/phase-8-polish.md) — export, saved queries, shortcuts, packaging
-- [ ] [Phase 9: Schema editing](phases/phase-9-schema-editing.md) — columns, indexes, keys and constraints from the table detail tab
+- [x] [Phase 9: Schema editing](phases/phase-9-schema-editing.md) — columns, indexes, keys and constraints from the table detail tab
 - [ ] [Phase 10: Query performance](phases/phase-10-query-performance.md) — measured plans, plan hints, table and server statistics (draft)
 
 ## Order and dependencies
