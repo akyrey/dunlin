@@ -129,6 +129,10 @@ pub trait Harness: Send + Sync {
     fn write_support(&self) -> Option<WriteSupport> {
         None
     }
+    /// `table_stats` reports sizes (not SQLite, whose `dbstat` is optional).
+    fn reports_table_sizes(&self) -> bool {
+        true
+    }
     /// Plans report row counts, so a large full scan is flagged (not SQLite).
     fn plans_count_rows(&self) -> bool {
         true
