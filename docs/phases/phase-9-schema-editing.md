@@ -83,7 +83,7 @@ Notes from implementation:
 - [x] 9.11 Frontend: Edit mode on the detail tab. Columns: inline name, type (free text with the driver's common types suggested), nullable, default, comment; add and drop. Indexes: add (columns, unique, method, predicate) and drop. Constraints: primary key, unique, foreign key (referenced table picker from the tree), check; add and drop. Changed rows are marked, with per-item revert.
 - [x] 9.12 Changes bar, preview dialog (SQL, warnings, connection colour), confirmation for drops, apply, error with the failing statement marked, and the "applied so far" list for MySQL.
 - [x] 9.13 Guards: prompt on tab close, session close and refresh while schema changes are pending.
-- [ ] 9.14 E2E tests: add a column and apply; drop an index with confirmation; a failed apply keeps the pending changes.
+- [x] 9.14 E2E tests: add a column and apply; drop an index with confirmation; a failed apply keeps the pending changes.
 
 ## Notes from frontend implementation
 
