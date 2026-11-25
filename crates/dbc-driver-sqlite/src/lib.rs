@@ -5,7 +5,10 @@ mod ddl;
 mod decode;
 mod errors;
 mod introspect;
+mod schema_edit;
 mod worker;
+
+pub use schema_edit::{TableSource, plan_schema_edit};
 
 use std::sync::Arc;
 

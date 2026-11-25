@@ -385,6 +385,18 @@ impl Connection for SqliteConnection {
             .await
     }
 
+    /// Reads the stored `CREATE` texts and settings on the worker, then plans (D-042).
+    async fn plan_schema_edit(
+        &self,
+        edit: &dbc_core::schema_edit::SchemaEdit,
+    ) -> Result<dbc_core::schema_edit::SchemaPlan, DbError> {
+        let table = edit.original.table.clone();
+        let source = self
+            .call(move |c| crate::schema_edit::read_source(c, &table))
+            .await?;
+        crate::schema_edit::plan_schema_edit(edit, &source)
+    }
+
     async fn table_ddl(&self, table: &TableRef) -> Result<String, DbError> {
         let table = table.clone();
         self.call(move |c| introspect::table_ddl(c, &table)).await
