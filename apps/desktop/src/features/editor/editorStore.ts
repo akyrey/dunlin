@@ -7,7 +7,8 @@ import {
   queryCancel,
   queryExecute,
   queryExplain,
-  type PlanNode,
+  queryExplainAnalyze,
+  type PlanReport,
   sqlSplit,
   tabClose,
   toAppError,
@@ -36,7 +37,16 @@ export const MAX_ROW_LIMIT = 100_000;
 
 export type Shown = number | "messages" | "plan";
 
-export type Explained = { sql: string; plan: PlanNode | null; error: AppError | null };
+export type Explained = {
+  sql: string;
+  report: PlanReport | null;
+  error: AppError | null;
+  /** Explain analyze: the statement ran. */
+  analyzed: boolean;
+};
+
+/** An explain analyze waiting for the user to accept running a dangerous statement. */
+export type AnalyzeConfirmation = { sql: string; reason: string };
 
 export type EditorTab = {
   tabId: string;
@@ -57,6 +67,7 @@ export type EditorTab = {
   shown: Shown;
   /** The last `EXPLAIN` (deferred feature 3). */
   explained: Explained | null;
+  analyzeConfirmation: AnalyzeConfirmation | null;
   /** The saved query this tab was opened from or saved as; saving writes back to it. */
   savedQueryId: string | null;
   /** `sql_split` of `text`, cached per document (task 5.5). */
@@ -84,8 +95,12 @@ type EditorState = {
   linkSaved: (tabId: string, savedQueryId: string, title: string) => void;
   setRowLimit: (tabId: string, rowLimit: number) => void;
   show: (tabId: string, shown: Shown) => void;
-  /** Shows the plan of the selection, or of the statement under the cursor, without running it. */
-  explain: (tabId: string, selection: Selection) => Promise<void>;
+  /** Shows the plan of the selection, or of the statement under the cursor. Without `analyze`
+   * nothing runs; with it the statement runs and the plan is measured (D-043). */
+  explain: (tabId: string, selection: Selection, analyze?: boolean) => Promise<void>;
+  /** Runs the explain analyze waiting in `analyzeConfirmation`, confirmed. */
+  confirmAnalyze: (tabId: string) => Promise<void>;
+  dismissAnalyze: (tabId: string) => void;
   /** Splits the tab's text unless the cached split is for the same text. */
   updateSplit: (tabId: string) => Promise<StatementRange[]>;
   run: (tabId: string, selection: Selection, mode: RunMode) => Promise<void>;
@@ -239,6 +254,34 @@ export const useEditor = create<EditorState>()((set, get) => {
   };
 
   /** Runs `statements` in order, stopping at the first error or a cancel. */
+  /** Explains one statement into the tab; a dangerous explain analyze waits for confirmation. */
+  const explainStatement = async (
+    tabId: string,
+    sql: string,
+    analyze: boolean,
+    confirmed: boolean,
+  ) => {
+    const tab = get().tabs[tabId];
+    if (!tab) return;
+    update(tabId, { notice: null, running: true, startedAt: Date.now() });
+    try {
+      const report = analyze
+        ? await queryExplainAnalyze({ sessionId: tab.sessionId, tabId, sql, confirmed })
+        : await queryExplain(tab.sessionId, tabId, sql);
+      update(tabId, { explained: { sql, report, error: null, analyzed: analyze } });
+    } catch (caught) {
+      const error = toAppError(caught);
+      if (error.code === "confirmation_required") {
+        update(tabId, { analyzeConfirmation: { sql, reason: error.message } });
+        return;
+      }
+      update(tabId, { explained: { sql, report: null, error, analyzed: analyze } });
+    } finally {
+      update(tabId, { running: false, startedAt: null });
+    }
+    update(tabId, { shown: "plan" });
+  };
+
   const execute = async (tabId: string, statements: StatementRun[], confirmed: boolean) => {
     if (!confirmed && statements.some((s) => s.danger !== null)) {
       update(tabId, { confirmation: { statements } });
@@ -315,6 +358,7 @@ export const useEditor = create<EditorState>()((set, get) => {
         savedQueryId: init.savedQueryId ?? null,
         transaction: { manual: false, open: false },
         explained: null,
+        analyzeConfirmation: null,
       };
       set({ tabs: { ...get().tabs, [tabId]: tab } });
       useWorkspace.getState().openEditor(sessionId, tabId);
@@ -379,7 +423,7 @@ export const useEditor = create<EditorState>()((set, get) => {
       }
     },
 
-    explain: async (tabId, selection) => {
+    explain: async (tabId, selection, analyze = false) => {
       const tab = get().tabs[tabId];
       if (!tab || tab.running) return;
       let statements: StatementRun[];
@@ -403,15 +447,18 @@ export const useEditor = create<EditorState>()((set, get) => {
         });
         return;
       }
-      update(tabId, { notice: null, running: true, startedAt: Date.now() });
-      try {
-        const planned = await queryExplain(tab.sessionId, tabId, statement.sql);
-        update(tabId, { explained: { sql: statement.sql, plan: planned, error: null } });
-      } catch (caught) {
-        update(tabId, { explained: { sql: statement.sql, plan: null, error: toAppError(caught) } });
-      } finally {
-        update(tabId, { running: false, startedAt: null, shown: "plan" });
-      }
+      await explainStatement(tabId, statement.sql, analyze, false);
+    },
+
+    confirmAnalyze: async (tabId) => {
+      const pending = get().tabs[tabId]?.analyzeConfirmation;
+      if (!pending) return;
+      update(tabId, { analyzeConfirmation: null });
+      await explainStatement(tabId, pending.sql, true, true);
+    },
+
+    dismissAnalyze: (tabId) => {
+      update(tabId, { analyzeConfirmation: null });
     },
 
     setManual: async (tabId, manual) => {

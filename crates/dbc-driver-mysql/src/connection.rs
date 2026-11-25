@@ -380,6 +380,16 @@ impl Connection for MysqlConnection {
         introspect::describe_table(conn, flavour, table).await
     }
 
+    async fn table_stats(&self, table: &TableRef) -> Result<dbc_core::stats::TableStats, DbError> {
+        let mut guard = self.conn.lock().await;
+        crate::stats::table_stats(guard.as_mut().ok_or_else(closed)?, table).await
+    }
+
+    async fn query_stats(&self) -> Result<dbc_core::stats::QueryStats, DbError> {
+        let mut guard = self.conn.lock().await;
+        crate::stats::query_stats(guard.as_mut().ok_or_else(closed)?).await
+    }
+
     async fn default_namespace(&self) -> Result<Option<NamespaceRef>, DbError> {
         let mut guard = self.conn.lock().await;
         let conn = guard.as_mut().ok_or_else(closed)?;
@@ -427,6 +437,45 @@ impl Connection for MysqlConnection {
                 "EXPLAIN returned no plan",
             )),
         }
+    }
+
+    /// MySQL `EXPLAIN ANALYZE` (TREE text, 8.0.18+) or MariaDB `ANALYZE FORMAT=JSON`. Reads
+    /// only: MySQL commits DDL and cannot promise to undo a write (D-043).
+    async fn explain_analyze(
+        &self,
+        statement: &str,
+        rollback: bool,
+    ) -> Result<dbc_core::plan::AnalyzedPlan, DbError> {
+        if rollback {
+            return Err(DbError::unsupported(
+                "explain analyze of a statement that writes",
+            ));
+        }
+        let body = dbc_core::plan::statement_body(statement);
+        let flavour = {
+            let mut guard = self.conn.lock().await;
+            self.flavour(guard.as_mut().ok_or_else(closed)?).await?
+        };
+        let options = ExecuteOptions::default();
+        let plan = match flavour {
+            Flavour::Mysql => {
+                let outcome = self
+                    .execute(&format!("EXPLAIN ANALYZE {body}"), &options)
+                    .await?;
+                dbc_core::plan::from_indented(&dbc_core::plan::column_text(&outcome, 0).join("\n"))
+            }
+            Flavour::Mariadb => {
+                let sql = format!("ANALYZE FORMAT=JSON {body}");
+                let outcome = self.execute(&sql, &options).await?;
+                crate::mariadb_plan::from_mariadb_json(
+                    &dbc_core::plan::column_text(&outcome, 0).concat(),
+                )?
+            }
+        };
+        Ok(dbc_core::plan::AnalyzedPlan {
+            total_ms: plan.actual_time_ms,
+            plan,
+        })
     }
 
     async fn query_params(

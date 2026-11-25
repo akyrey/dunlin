@@ -29,6 +29,7 @@ import type {
   QueryResult,
   SecretKind,
   StatementRange,
+  PlanNode,
   SchemaChange,
   SchemaEdit,
   TableInfo,
@@ -504,6 +505,42 @@ function applyMockSchemaEdit(info: TableInfo, change: SchemaChange): TableInfo {
   }
 }
 
+const MAIN_TABLE = (name: string): TableRef => ({ namespace: MAIN, name });
+
+/** The plan every explain answers; measured, it carries actual numbers. */
+function mockPlan(measured: boolean): PlanNode {
+  const step = (
+    operation: string,
+    relation: string | null,
+    details: string[],
+    rows: number,
+    cost: number,
+    ms: number,
+  ): PlanNode => ({
+    operation,
+    relation,
+    details,
+    estimatedRows: rows,
+    cost,
+    children: [],
+    actualRows: measured ? rows : null,
+    loops: measured ? 1 : null,
+    actualTimeMs: measured ? ms : null,
+    rowsRead: null,
+    fullScan: operation === "Seq Scan",
+    table: relation?.split(" ")[0] ?? null,
+    filter: null,
+    spilled: false,
+  });
+  return {
+    ...step("Hash Join", null, ["Hash Cond: (o.person = p.id)"], 120, 45.5, 12),
+    children: [
+      step("Seq Scan", "people p", [], 3, 1.03, 10),
+      step("Index Scan", "orders o", ["Index Name: orders_person"], 40, 30, 1),
+    ],
+  };
+}
+
 export function createMockBackend() {
   let settings: Settings = { ...DEFAULT_SETTINGS };
   const profiles = new Map<string, ConnectionProfile>();
@@ -862,28 +899,38 @@ export function createMockBackend() {
     query_explain: (a) => {
       const sql = a.sql as string;
       if (/FRM/.test(sql)) return reject("syntax", 'near "FRM": syntax error');
+      return { plan: mockPlan(false), measured: false, totalMs: null, hints: [] };
+    },
+    query_explain_analyze: (a) => {
+      const sql = a.sql as string;
+      if (/^\s*DELETE\b/i.test(sql) && !/\bWHERE\b/i.test(sql) && a.confirmed !== true) {
+        return reject("confirmation_required", "DELETE without WHERE affects every row");
+      }
       return {
-        operation: "Hash Join",
-        relation: null,
-        details: ["Hash Cond: (o.person = p.id)"],
-        estimatedRows: 120,
-        cost: 45.5,
-        children: [
+        plan: mockPlan(true),
+        measured: true,
+        totalMs: 12.5,
+        hints: [
           {
-            operation: "Seq Scan",
-            relation: "people p",
-            details: [],
-            estimatedRows: 3,
-            cost: 1.03,
-            children: [],
+            path: [0],
+            kind: "full_scan",
+            message: "Reads every row of people (about 20000).",
+            index: {
+              table: MAIN_TABLE("people"),
+              index: {
+                name: "people_balance_idx",
+                columns: ["balance"],
+                unique: false,
+                method: null,
+                predicate: null,
+              },
+            },
           },
           {
-            operation: "Index Scan",
-            relation: "orders o",
-            details: ["Index Name: orders_person"],
-            estimatedRows: 40,
-            cost: 30,
-            children: [],
+            path: [0],
+            kind: "hottest",
+            message: "The most time is spent here: 80% of the total.",
+            index: null,
           },
         ],
       };
@@ -1049,6 +1096,21 @@ export function createMockBackend() {
       }
       return edited.get(table.name) ?? mockTable(table);
     },
+    schema_table_stats: () => ({
+      totalBytes: 81920,
+      tableBytes: 49152,
+      indexBytes: 32768,
+      estimatedRows: 3,
+      indexes: [
+        { name: "people_pkey", bytes: 16384, scans: 42 },
+        { name: "people_name_idx", bytes: 16384, scans: 0 },
+      ],
+      deadRows: 0,
+      lastVacuum: null,
+      lastAnalyze: "2026-11-20 10:00:00+00",
+      updatedAt: null,
+      countedSince: "2026-11-01 00:00:00+00",
+    }),
     schema_edit_preview: (a) => {
       const edit = a.edit as SchemaEdit;
       return {

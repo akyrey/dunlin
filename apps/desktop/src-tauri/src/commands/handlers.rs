@@ -19,6 +19,7 @@ use crate::ipc::{
     StatementRange, TabArgs, TableSnippets,
 };
 use crate::ipc::{ExportDone, ExportProgress, ExportResultArgs, ExportTableArgs, ExportTextArgs};
+use crate::ipc::{PlanReport, QueryExplainAnalyzeArgs};
 use crate::ipc::{QueryExplainArgs, TransactionFinishArgs, TransactionModeArgs};
 use crate::ipc::{SavedQueryIdArgs, SavedQuerySaveArgs, SettingsSetArgs};
 use crate::ipc::{SchemaEditArgs, SchemaEditPreview, SchemaEditResult};
@@ -185,8 +186,20 @@ pub async fn ssh_config_hosts() -> Result<Vec<crate::ipc::SshConfigEntry>, AppEr
 pub async fn query_explain(
     state: State<'_, AppState>,
     args: QueryExplainArgs,
-) -> Result<dbc_core::plan::PlanNode, AppError> {
+) -> Result<PlanReport, AppError> {
     logged("query_explain", commands::query_explain(&state, args)).await
+}
+
+#[tauri::command]
+pub async fn query_explain_analyze(
+    state: State<'_, AppState>,
+    args: QueryExplainAnalyzeArgs,
+) -> Result<PlanReport, AppError> {
+    logged(
+        "query_explain_analyze",
+        commands::query_explain_analyze(&state, args),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -332,6 +345,30 @@ pub async fn changes_apply(
     args: ChangesArgs,
 ) -> Result<ApplyResult, AppError> {
     logged("changes_apply", commands::changes_apply(&state, args)).await
+}
+
+#[tauri::command]
+pub async fn schema_table_stats(
+    state: State<'_, AppState>,
+    args: SchemaTableArgs,
+) -> Result<dbc_core::stats::TableStats, AppError> {
+    logged(
+        "schema_table_stats",
+        commands::schema_table_stats(&state, args),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn session_query_stats(
+    state: State<'_, AppState>,
+    args: SessionIdArgs,
+) -> Result<dbc_core::stats::QueryStats, AppError> {
+    logged(
+        "session_query_stats",
+        commands::session_query_stats(&state, args),
+    )
+    .await
 }
 
 #[tauri::command]

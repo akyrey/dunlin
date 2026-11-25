@@ -95,8 +95,13 @@ export function ResultPanel({ tab, editing, onShow, onJumpTo }: Props) {
       </div>
       <div role="tabpanel" className="min-h-0 flex-1">
         {shown === "plan" && explained ? (
-          explained.plan ? (
-            <PlanView plan={explained.plan} sql={explained.sql} />
+          explained.report ? (
+            <PlanView
+              report={explained.report}
+              sql={explained.sql}
+              analyzed={explained.analyzed}
+              sessionId={tab.sessionId}
+            />
           ) : explained.error ? (
             <ErrorView error={explained.error} offset={null} text={tab.text} onJumpTo={onJumpTo} />
           ) : null

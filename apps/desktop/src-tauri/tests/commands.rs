@@ -545,6 +545,8 @@ async fn explain_returns_a_plan_and_refuses_scripts() {
         .await
         .unwrap_err();
 
-    assert!(!plan.operation.is_empty());
+    assert!(!plan.plan.operation.is_empty());
+    assert!(!plan.measured);
+    assert_eq!(plan.total_ms, None);
     assert_eq!(script.code, "invalid_argument");
 }

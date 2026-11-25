@@ -9,23 +9,26 @@ import {
   type TableRef,
   schemaTable,
   schemaTableDdl,
+  schemaTableStats,
   toAppError,
 } from "../../ipc";
 import { LazyReadOnlyCode as ReadOnlyCode } from "../editor/lazy";
 import { EditableColumns } from "./EditableColumns";
 import { EditableObjects } from "./EditableObjects";
 import { SchemaEditBar } from "./SchemaEditBar";
+import { TableStatsView } from "./TableStatsView";
 import { useSchemaEdits } from "./schemaEditStore";
 import type { SchemaAction, SchemaObject, SchemaPending } from "./schemaPending";
 import { useSchemaEditing } from "./useSchemaEditing";
 
-type SubTab = "columns" | "indexes" | "constraints" | "ddl";
+type SubTab = "columns" | "indexes" | "constraints" | "ddl" | "stats";
 
 const SUB_TABS: { id: SubTab; label: string }[] = [
   { id: "columns", label: "Columns" },
   { id: "indexes", label: "Indexes" },
   { id: "constraints", label: "Constraints" },
   { id: "ddl", label: "DDL" },
+  { id: "stats", label: "Statistics" },
 ];
 
 type Loaded<T> =
@@ -63,6 +66,8 @@ type Props = {
   /** The session may change the schema (not read-only, and the driver can). */
   editable?: boolean;
   connection?: { name: string; color: string | null };
+  /** The driver reports table statistics. */
+  statistics?: boolean;
 };
 
 /** A table's columns, indexes, constraints and DDL (task 4.9), editable when the session
@@ -86,6 +91,7 @@ function Details({
   sessionId,
   table,
   onOpenTable,
+  statistics,
   info,
   version,
   edit,
@@ -128,7 +134,7 @@ function Details({
         aria-label="Table details"
         className="flex gap-1 border-b border-zinc-800 px-3"
       >
-        {SUB_TABS.map(({ id, label }) => (
+        {SUB_TABS.filter(({ id }) => id !== "stats" || statistics).map(({ id, label }) => (
           <button
             key={id}
             type="button"
@@ -150,6 +156,8 @@ function Details({
       >
         {tab === "ddl" ? (
           <Ddl key={version} sessionId={sessionId} table={table} />
+        ) : tab === "stats" ? (
+          <Stats key={version} sessionId={sessionId} table={table} />
         ) : (
           <LoadState load={info}>
             {(data) => {
@@ -273,6 +281,12 @@ function EditableDetails(
       }
     />
   );
+}
+
+/** Loaded only when its sub-tab is opened, and again when it is reopened. */
+function Stats({ sessionId, table }: { sessionId: string; table: TableRef }) {
+  const stats = useLoaded(() => schemaTableStats(sessionId, table));
+  return <LoadState load={stats}>{(data) => <TableStatsView stats={data} />}</LoadState>;
 }
 
 /** Loaded only when its sub-tab is opened. */

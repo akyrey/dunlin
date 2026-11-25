@@ -9,6 +9,8 @@ import { loadTabs } from "../editor/persistence";
 import { TableData } from "../data/TableData";
 import { useEdits } from "../edit/editStore";
 import { useSchemaEdits } from "../schema/schemaEditStore";
+import { QueryStatsDialog } from "../stats/QueryStatsDialog";
+import { useQueryStats } from "../stats/queryStatsStore";
 import { TableDetails } from "../schema/TableDetails";
 import { useSessions } from "../sessions/sessionsStore";
 import { matchShortcut } from "../shortcuts/registry";
@@ -44,6 +46,7 @@ export function Workspace({ session, profile }: Props) {
   const [discarding, setDiscarding] = useState<string | null>(null);
   useInitialTabs(session);
   const unreachable = useSessions((s) => s.unreachable[sessionId] === true);
+  const queryStatsOpen = useQueryStats((s) => s.openFor === sessionId);
 
   const active = workspace.views.find((v) => v.key === workspace.active) ?? null;
 
@@ -129,6 +132,7 @@ export function Workspace({ session, profile }: Props) {
             }}
             viewKey={active.key}
             editable={!session.readOnly && session.capabilities.schemaEditing}
+            statistics={session.capabilities.tableStats}
             connection={{
               name: profile?.name ?? "this connection",
               color: profile?.color ?? null,
@@ -174,6 +178,14 @@ export function Workspace({ session, profile }: Props) {
         )}
         {!active && <p className="p-6 text-sm text-zinc-500">Open a new tab with ⌘T.</p>}
       </div>
+      {queryStatsOpen && (
+        <QueryStatsDialog
+          sessionId={sessionId}
+          onClose={() => {
+            useQueryStats.getState().close();
+          }}
+        />
+      )}
       {discarding && (
         <ConfirmDialog
           title="Discard unapplied changes?"
