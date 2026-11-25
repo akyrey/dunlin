@@ -6,6 +6,7 @@ import { openSavedQuery } from "../saved/openSaved";
 import { queriesFor, useSavedQueries } from "../saved/savedQueriesStore";
 import { useSchema } from "../schema/schemaStore";
 import { disconnect } from "../sessions/disconnect";
+import { useQueryStats } from "../stats/queryStatsStore";
 import { useSessions } from "../sessions/sessionsStore";
 import { useWorkspace } from "../workspace/workspaceStore";
 import { CommandPalette } from "@roost/palette";
@@ -53,6 +54,9 @@ export function AppCommands(props: Props) {
             useEditor.getState().openTab(sessionId);
           },
           refreshSchema: (sessionId) => void useSchema.getState().refresh(sessionId),
+          queryStats: (sessionId) => {
+            useQueryStats.getState().open(sessionId);
+          },
           disconnect: (connectionId) => {
             void disconnect(connectionId).then((problem) => {
               if (problem) onError(problem);

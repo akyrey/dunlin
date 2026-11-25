@@ -31,7 +31,11 @@ schemaEditing: boolean,
 /**
  * `Connection::table_stats` (Phase 10).
  */
-tableStats: boolean, tls: boolean, 
+tableStats: boolean, 
+/**
+ * `Connection::query_stats` (Phase 10).
+ */
+queryStats: boolean, tls: boolean, 
 /**
  * False for file databases.
  */

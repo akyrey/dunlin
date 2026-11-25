@@ -360,6 +360,18 @@ pub async fn schema_table_stats(
 }
 
 #[tauri::command]
+pub async fn session_query_stats(
+    state: State<'_, AppState>,
+    args: SessionIdArgs,
+) -> Result<dbc_core::stats::QueryStats, AppError> {
+    logged(
+        "session_query_stats",
+        commands::session_query_stats(&state, args),
+    )
+    .await
+}
+
+#[tauri::command]
 pub async fn schema_edit_preview(
     state: State<'_, AppState>,
     args: SchemaEditArgs,

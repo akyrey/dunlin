@@ -98,6 +98,7 @@ pub fn run() -> Result<(), tauri::Error> {
             handlers::changes_preview,
             handlers::changes_apply,
             handlers::schema_table_stats,
+            handlers::session_query_stats,
             handlers::schema_edit_preview,
             handlers::schema_edit_apply,
             handlers::export_text,

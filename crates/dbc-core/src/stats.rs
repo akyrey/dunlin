@@ -43,6 +43,38 @@ pub struct IndexStats {
     pub scans: Option<u64>,
 }
 
+/// How many statements the query statistics view lists.
+pub const QUERY_STATS_LIMIT: usize = 50;
+
+/// One normalised statement the server has been recording.
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(rename_all = "camelCase")]
+pub struct QueryStat {
+    /// As the server normalised it (literals replaced by `$1` or `?`).
+    pub statement: String,
+    #[cfg_attr(feature = "ts", ts(type = "number"))]
+    pub calls: u64,
+    pub total_ms: f64,
+    pub mean_ms: f64,
+    #[cfg_attr(feature = "ts", ts(type = "number | null"))]
+    pub rows: Option<u64>,
+}
+
+/// The heaviest statements, or why the server is not recording them.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum QueryStats {
+    Available {
+        statements: Vec<QueryStat>,
+    },
+    /// `reason` says how to turn recording on.
+    Unavailable {
+        reason: String,
+    },
+}
+
 /// Turns a server's signed count into a size or count; negative means unknown
 /// (PostgreSQL's `reltuples` is -1 before the first analyze).
 pub fn count(value: Option<i64>) -> Option<u64> {
