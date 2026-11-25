@@ -27,7 +27,13 @@ Repeated timing ("run N times", min / median / max): `EXPLAIN ANALYZE` covers th
 | Writes | run inside `BEGIN` … `ROLLBACK` | not offered | not offered | run inside `BEGIN` … `ROLLBACK`, total time only |
 | Per node | actual rows, loops, total time, shared hits/reads, sort/hash spill | actual rows, loops, time to first and last row | `r_rows`, `r_loops`, `r_total_time_ms` | none |
 
-**Verify:** the MySQL TREE text and the MariaDB JSON fields above, on the versions CI runs, before writing the parsers.
+Checked on PostgreSQL 18, MySQL 8.4 and MariaDB 11.4 (10.1); the captured outputs are the parser fixtures:
+
+- PostgreSQL and MySQL report rows and time **per loop**; `PlanNode::actual_time_ms` is per loop × loops. PostgreSQL's `Execution Time` is the total.
+- MySQL writes small times in exponent form (`313e-6`) and marks steps that never ran `(never executed)`. Its filter is a `Filter:` step above the scan.
+- MariaDB reports each table's own time (`r_table_time_ms` + `r_other_time_ms`, over all loops) and rows read (`r_rows`) with the share kept (`r_filtered`, percent); nested loops have no time of their own and take their tables' sum.
+- MySQL and MariaDB add conditions the optimizer derived from joins to the filter (`o.cid is not null`). The index suggestion ignores `IS NOT NULL` conditions for that reason.
+- Each driver marks full scans and names the scanned table and its filter in `PlanNode` (`full_scan`, `table`, `filter`, `rows_read`, `spilled`), so hints never guess from operation names. Plain Explain fills them too, so hints work on estimated plans.
 
 Rules:
 
@@ -57,7 +63,7 @@ A `full_scan` hint carries a suggested index when, and only when:
 - its filter is a conjunction of conditions on **one** column of that table: `col = …`, `col IN (…)`, `col < / <= / > / >= …`, `col BETWEEN … AND …`, `col IS NULL` (no functions or casts on the column, no `OR`);
 - no existing index of that table starts with that column.
 
-The suggestion is `Index { name: "<table>_<column>_idx", columns: [column], unique: false }`. Filters come from each server's plan text (`Filter:` on PostgreSQL, the `Filter:` / `attached_condition` text on MySQL and MariaDB, `SCAN t` with a `WHERE` term on SQLite), parsed with the shared lexer. Anything else gets the hint without a suggestion. "Create index…" stages an `AddIndex` in the table's detail tab (Phase 9); nothing runs until the user applies it there.
+The suggestion is `Index { name: "<table>_<column>_idx", columns: [column], unique: false }`. Filters come from each server's plan (`Filter` on PostgreSQL, the `Filter:` step on MySQL, `attached_condition` on MariaDB), parsed with the shared lexer. SQLite plans carry no filter text, so SQLite gets hints but no suggestion. MySQL and MariaDB name a table by its alias when the query gives one; the backend checks the suggested table exists, so an aliased table gets no suggestion. Anything else gets the hint without a suggestion. "Create index…" stages an `AddIndex` in the table's detail tab (Phase 9); nothing runs until the user applies it there.
 
 ## Table statistics
 
@@ -84,11 +90,11 @@ Statement text is shown as the server normalised it; selecting one opens it in a
 
 ## Tasks
 
-- [ ] 10.1 Spike: capture `EXPLAIN ANALYZE` output for the fixture queries on each server CI runs; record the real field names and fix this brief where it is wrong.
-- [ ] 10.2 `PlanNode` gains `actual_rows`, `loops`, `actual_time_ms` (total, inclusive), `details` keeps buffers and spill notes; `Capabilities::explain_analyze`. Generated types updated.
-- [ ] 10.3 PostgreSQL: `explain_analyze` with rollback for writes; parser tests from captured JSON.
-- [ ] 10.4 MySQL (TREE text) and MariaDB (`ANALYZE FORMAT=JSON`) parsers, reads only; tests per flavour.
-- [ ] 10.5 SQLite: plan plus total time, writes rolled back.
+- [x] 10.1 Spike: capture `EXPLAIN ANALYZE` output for the fixture queries on each server CI runs; record the real field names and fix this brief where it is wrong.
+- [x] 10.2 `PlanNode` gains `actual_rows`, `loops`, `actual_time_ms` (total, inclusive), `details` keeps buffers and spill notes; `Capabilities::explain_analyze`. Generated types updated.
+- [x] 10.3 PostgreSQL: `explain_analyze` with rollback for writes; parser tests from captured JSON.
+- [x] 10.4 MySQL (TREE text) and MariaDB (`ANALYZE FORMAT=JSON`) parsers, reads only; tests per flavour.
+- [x] 10.5 SQLite: plan plus total time, writes rolled back.
 - [ ] 10.6 `query_explain_analyze` command: read-only and danger checks, refusal of writes in a manual transaction, cancellation. Command tests.
 - [ ] 10.7 `dbc_core::plan::hints` with unit tests for every hint and threshold edge.
 - [ ] 10.8 Filter parsing and the index suggestion, with tests for each accepted condition form and each rejection (two columns, `OR`, function on the column, already indexed, unknown table).
