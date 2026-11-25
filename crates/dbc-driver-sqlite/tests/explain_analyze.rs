@@ -78,3 +78,23 @@ async fn a_failing_statement_still_rolls_back() {
         .await
         .unwrap();
 }
+
+#[tokio::test]
+async fn table_stats_list_the_indexes() {
+    let databases = TempDatabases::default();
+    let connection = SqliteDriver
+        .connect(&config(databases.fixture(), false))
+        .await
+        .unwrap();
+    let table = dbc_core::schema::TableRef {
+        namespace: dbc_core::schema::NamespaceRef {
+            catalog: None,
+            schema: Some("main".into()),
+        },
+        name: "orders".into(),
+    };
+    let stats = connection.table_stats(&table).await.unwrap();
+    let names: Vec<&str> = stats.indexes.iter().map(|i| i.name.as_str()).collect();
+    assert!(names.contains(&"orders_customer_idx"), "{names:?}");
+    assert!(stats.indexes.iter().all(|i| i.scans.is_none()));
+}

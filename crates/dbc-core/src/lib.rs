@@ -17,6 +17,7 @@ pub mod result;
 pub mod schema;
 pub mod schema_edit;
 pub mod sql;
+pub mod stats;
 pub mod value;
 
 pub use error::{DbError, DbErrorCode};

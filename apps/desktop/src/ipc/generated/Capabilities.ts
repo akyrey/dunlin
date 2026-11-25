@@ -27,7 +27,11 @@ explainAnalyzeWrites: boolean,
 /**
  * `Connection::plan_schema_edit` (D-042).
  */
-schemaEditing: boolean, tls: boolean, 
+schemaEditing: boolean, 
+/**
+ * `Connection::table_stats` (Phase 10).
+ */
+tableStats: boolean, tls: boolean, 
 /**
  * False for file databases.
  */

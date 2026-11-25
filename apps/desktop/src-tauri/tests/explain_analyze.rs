@@ -114,3 +114,30 @@ async fn only_queries_and_data_changes_are_measured() {
         assert_eq!(error.code, "invalid_argument", "{sql}");
     }
 }
+
+#[tokio::test]
+async fn table_statistics_list_indexes() {
+    let fixture = Fixture::new();
+    let session = fixture.session(true).await;
+    let stats = commands::schema_table_stats(
+        &fixture.state,
+        dunlin_lib::ipc::SchemaTableArgs {
+            session_id: session.session_id.clone(),
+            table: dbc_core::schema::TableRef {
+                namespace: dbc_core::schema::NamespaceRef {
+                    catalog: None,
+                    schema: Some("main".into()),
+                },
+                name: "orders".into(),
+            },
+        },
+    )
+    .await
+    .unwrap();
+    assert!(
+        stats
+            .indexes
+            .iter()
+            .any(|i| i.name == "orders_customer_idx")
+    );
+}
