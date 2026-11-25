@@ -6,6 +6,7 @@ use dbc_core::driver::{Capabilities, DriverKind};
 use dbc_core::export::{CsvOptions, ExportFormat};
 use dbc_core::result::ColumnMeta;
 use dbc_core::schema::{NamespaceRef, TableRef};
+use dbc_core::schema_edit::SchemaEdit;
 use dbc_core::sql::StatementClass;
 use dbc_store::{ConnectionDraft, ConnectionProfile, SavedQueryDraft, SecretKind, Settings};
 use serde::{Deserialize, Serialize};
@@ -264,6 +265,36 @@ pub struct ChangesArgs {
     pub view_id: String,
     pub table: TableRef,
     pub operations: Vec<OperationArg>,
+}
+
+/// A schema edit (D-042). `confirmed` acknowledges a destructive plan.
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaEditArgs {
+    pub session_id: String,
+    pub edit: SchemaEdit,
+    #[serde(default)]
+    #[ts(optional)]
+    pub confirmed: Option<bool>,
+}
+
+/// What Apply would run, in order, with what to tell the user first.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaEditPreview {
+    pub statements: Vec<String>,
+    pub warnings: Vec<String>,
+    /// Drops something or rebuilds the table: Apply needs `confirmed`.
+    pub destructive: bool,
+    /// All or nothing; otherwise statements before a failure stay applied (MySQL).
+    pub transactional: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaEditResult {
+    #[ts(type = "number")]
+    pub statements: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]

@@ -10,6 +10,9 @@ import type {
   ExportTextArgs,
   ApplyResult,
   ChangesArgs,
+  SchemaEditArgs,
+  SchemaEditPreview,
+  SchemaEditResult,
   ConnectionDraft,
   ConnectionProfile,
   ConnectionSecrets,
@@ -206,6 +209,13 @@ export const changesPreview = (args: ChangesArgs): Promise<string[]> =>
 
 export const changesApply = (args: ChangesArgs): Promise<ApplyResult> =>
   call("changes_apply", args);
+
+export const schemaEditPreview = (args: SchemaEditArgs): Promise<SchemaEditPreview> =>
+  call("schema_edit_preview", args);
+
+/** Fails with `confirmation_required` for a destructive plan unless `confirmed`. */
+export const schemaEditApply = (args: SchemaEditArgs): Promise<SchemaEditResult> =>
+  call("schema_edit_apply", args);
 
 export const exportText = (args: ExportTextArgs): Promise<string> => call("export_text", args);
 

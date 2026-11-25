@@ -11,6 +11,7 @@ mod kv;
 mod queries;
 mod saved_queries;
 mod schema;
+mod schema_edit;
 mod sessions;
 mod settings;
 mod ssh;
@@ -35,6 +36,7 @@ pub use schema::{
     schema_completion, schema_namespaces, schema_objects, schema_refresh, schema_snippets,
     schema_table, schema_table_ddl,
 };
+pub use schema_edit::{schema_edit_apply, schema_edit_preview};
 pub use sessions::{session_close, session_open, tab_close};
 pub use settings::{settings_get, settings_set};
 pub use ssh::{ssh_config_hosts, ssh_known_host_remove, ssh_known_hosts_list, ssh_trust_host};
