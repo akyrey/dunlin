@@ -36,8 +36,12 @@ Creating and dropping tables (the editor does that already; "New table" can reus
 |---|---|---|---|
 | Transaction | One transaction, all or nothing | No DDL transactions: statements run in order and stop at the first failure | One transaction, all or nothing |
 | Shape | One `ALTER TABLE` with all column and constraint actions, then `CREATE`/`DROP INDEX`, `COMMENT ON`, and rename last | One `ALTER TABLE` with every clause (atomic on MySQL 8 and on MariaDB's copy algorithm); separate statements only where one `ALTER` cannot hold them, which the preview warns about | Native `ALTER TABLE` (`ADD COLUMN`, `RENAME COLUMN`, `DROP COLUMN`, `RENAME TO`) and `CREATE`/`DROP INDEX` when that is enough; otherwise the table rebuild |
-| Alter column | `TYPE ... [USING ...]`, `SET/DROP NOT NULL`, `SET/DROP DEFAULT`, `RENAME COLUMN` | `CHANGE COLUMN old new <full definition>` (MySQL needs the whole definition every time) | Rebuild |
+| Alter column | `TYPE ... [USING ...]`, `SET/DROP NOT NULL`, `SET/DROP DEFAULT`, `RENAME COLUMN` | `CHANGE COLUMN old new <full definition>`, the definition being the column's text from `SHOW CREATE TABLE` with only the changed clauses replaced (see below) | Rebuild |
 | Comments | `COMMENT ON TABLE/COLUMN` | Column `COMMENT` in the definition; table `COMMENT =` | Not supported (no comments in SQLite); the UI hides the field |
+
+### MySQL column definitions
+
+`CHANGE COLUMN` restates the whole column, and `TableInfo` does not hold all of it: `AUTO_INCREMENT`, `ON UPDATE CURRENT_TIMESTAMP`, character set, collation, `INVISIBLE` and `SRID` are not in the model, and MySQL reports a string default unquoted (`none`) where MariaDB quotes it (`'none'`). A definition rebuilt from `TableInfo` would drop those attributes or write a wrong default. So the planner reads `SHOW CREATE TABLE`, splits the column's line into clauses, and replaces only the clauses the user changed (type, nullability, default, comment); the others are kept as the server wrote them. A changed type drops the old character set and collation, since they may not apply to the new type. Comments are written with `Dialect::render_literal`, which means the same in every `sql_mode` (D-023).
 
 ### SQLite table rebuild
 
@@ -61,7 +65,8 @@ The new definition is the original `CREATE TABLE` text edited piece by piece, no
 - [x] 9.2 `dbc_core::schema_edit`: `SchemaEdit`, `SchemaChange`, `SchemaPlan`; validation (unknown column, duplicate name, empty key, dropping a column a kept key uses, user SQL with a `;`), pure, with unit tests.
 - [x] 9.3 `dbc_core::schema_edit::apply`: transactional plans in one transaction; non-transactional plans stop at the first failure and report which statements ran; `before`/`after` statements around the transaction, `after` always runs. Tests against the fake connection.
 - [x] 9.4 PostgreSQL `plan_schema_edit`, with `insta` snapshots for every change kind, awkward identifiers and combinations.
-- [ ] 9.5 MySQL/MariaDB `plan_schema_edit`, snapshots per flavour.
+- [ ] 9.5a `dbc_core::sql`: split a `CREATE TABLE` body into column definitions, table constraints and table options, and a column definition into its clauses, keeping every piece's text as written. Shared by the MySQL and SQLite planners.
+- [ ] 9.5 MySQL/MariaDB `plan_schema_edit` from `SHOW CREATE TABLE`, snapshots per flavour (pure planner over the `CREATE` text).
 - [ ] 9.6 SQLite: split a `CREATE TABLE` into pieces and rename identifiers by token; property test that splitting and joining an unchanged definition gives the original text.
 - [ ] 9.7 SQLite `plan_schema_edit`: native statements where they suffice, the rebuild otherwise; foreign keys, triggers and indexes survive (in-process tests, no Docker).
 - [ ] 9.8 Conformance group "schema edit": every change kind is applied, then the table is described again and equals the expected `TableInfo`; a failing change rolls back everything (PostgreSQL, SQLite) or stops and reports the applied statements (MySQL); a stale `TableInfo` is refused.
