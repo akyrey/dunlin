@@ -1298,6 +1298,7 @@ dependencies = [
  "rstest",
  "rustls",
  "secrecy",
+ "serde_json",
  "tempfile",
  "testcontainers-modules",
  "tokio",

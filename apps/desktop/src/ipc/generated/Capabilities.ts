@@ -17,6 +17,14 @@ multipleDatabases: boolean, cancel: boolean,
  */
 readOnlySession: boolean, transactionalDdl: boolean, explain: boolean, 
 /**
+ * `Connection::explain_analyze` for statements that only read (D-043).
+ */
+explainAnalyze: boolean, 
+/**
+ * `Connection::explain_analyze` also for statements that write, which it rolls back.
+ */
+explainAnalyzeWrites: boolean, 
+/**
  * `Connection::plan_schema_edit` (D-042).
  */
 schemaEditing: boolean, tls: boolean, 
