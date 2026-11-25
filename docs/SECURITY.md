@@ -48,6 +48,7 @@ Out of scope: a compromised local user account or OS, and the SQL the user delib
 - Identifiers always pass through `Dialect::quote_identifier`, which escapes the quote character. Table and column names come from introspection, but are still treated as untrusted.
 - `Dialect::render_literal` output is for display and file export only and is never executed by the app.
 - The grid filter is a raw `WHERE` expression typed by the user. It is their own SQL on their own connection, equivalent to typing it in the editor; it is passed through `sql::classify`-style checks to reject a `;` that would start a second statement.
+- Schema edits (D-042) cannot bind parameters: DDL has none. Identifiers are quoted, comments are rendered with `string_literal`, and type names, defaults, check and index expressions are the user's own SQL, checked like the grid filter. The preview shows exactly the text that runs, and any plan that drops something needs confirmation.
 
 ## Production safeguards
 

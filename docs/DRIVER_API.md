@@ -88,6 +88,7 @@ pub struct Capabilities {
     pub read_only_session: bool,     // server-enforced read-only
     pub transactional_ddl: bool,
     pub explain: bool,  // Connection::explain(statement) -> PlanNode, see dbc_core::plan
+    pub schema_editing: bool,        // Connection::plan_schema_edit, see "Schema edits"
     pub tls: bool,
     pub tunnel: bool,                // false for file databases
 }
@@ -269,6 +270,57 @@ pub struct ApplyFailure { pub operation: Option<usize>, pub error: DbError }   /
 4. commits, or rolls back on any error or count mismatch and returns which operation failed.
 
 `key` always holds the **original** values of the row key, so editing a key column works.
+
+## Schema edits
+
+Phase 9, D-042. The user stages changes against the `TableInfo` they opened; the driver turns them into a plan; `dbc_core::schema_edit::apply` runs it.
+
+```rust
+pub struct SchemaEdit {
+    pub original: TableInfo,           // the description the changes were made against
+    pub changes: Vec<SchemaChange>,    // applied in order
+}
+
+pub struct ColumnDefinition {
+    pub name: String,
+    pub type_name: String,             // as the user typed it
+    pub nullable: bool,
+    pub default: Option<String>,       // SQL expression, as typed
+    pub comment: Option<String>,
+}
+
+pub enum SchemaChange {
+    AddColumn(ColumnDefinition),
+    AlterColumn { name: String, definition: ColumnDefinition, using: Option<String> }, // rename = new name
+    DropColumn { name: String },
+    AddPrimaryKey(Key),        DropPrimaryKey,
+    AddUnique(Key),            DropUnique(Key),          // the original, as introspected
+    AddForeignKey(ForeignKey), DropForeignKey(ForeignKey),
+    AddCheck(Check),           DropCheck(Check),
+    AddIndex(Index),           DropIndex(Index),
+    RenameTable { name: String },
+    SetComment { comment: Option<String> },
+}
+
+pub struct SchemaPlan {
+    pub before: Vec<String>,       // outside the transaction (SQLite: PRAGMA foreign_keys = OFF)
+    pub statements: Vec<String>,   // the changes, in order
+    pub after: Vec<String>,        // always run after the statements, even on failure
+    pub transactional: bool,       // statements run in one transaction (false on MySQL)
+    pub destructive: bool,         // drops a column, key, index or constraint, or rebuilds
+    pub warnings: Vec<String>,     // shown in the preview
+}
+
+pub struct SchemaApplyFailure {
+    pub statement: Option<usize>,  // index into statements; None for before/begin/commit
+    pub applied: usize,            // statements that stayed applied (0 when rolled back)
+    pub error: DbError,
+}
+```
+
+`Connection::plan_schema_edit(&SchemaEdit) -> Result<SchemaPlan, DbError>` is per driver (defaults to `Unsupported`): it reads but never changes the database (SQLite reads its stored `CREATE` text and the `foreign_keys` setting). `dbc_core::schema_edit::validate` runs first and is shared: unknown or duplicate columns, empty keys, a dropped column still used by a kept key or index, and user SQL that is more than one expression. A drop names the original object: PostgreSQL and MySQL drop it by name, SQLite matches it by value.
+
+`dbc_core::schema_edit::apply` runs `before`, then the statements (in one transaction when `transactional`, else one by one, stopping at the first failure), then `after`, whatever happened. Plans contain no bound parameters: identifiers are quoted, comments are `string_literal`s, and everything else is the user's own SQL text (SECURITY.md#generated-sql).
 
 ## Statement utilities
 
