@@ -430,6 +430,10 @@ impl Connection for PostgresConnection {
         crate::stats::table_stats(&*self.client()?, table).await
     }
 
+    async fn query_stats(&self) -> Result<dbc_core::stats::QueryStats, DbError> {
+        crate::stats::query_stats(&*self.client()?).await
+    }
+
     async fn default_namespace(&self) -> Result<Option<NamespaceRef>, DbError> {
         let client = self.client()?;
         let row = client
