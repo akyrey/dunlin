@@ -2,6 +2,20 @@
 
 All notable changes to Dunlin. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). The version lives in the workspace `Cargo.toml` only.
 
+## [0.4.0] - 2026-11-26
+
+### Added
+
+- Expand the cell viewer to most of the result area; it stays expanded while you move between cells.
+
+### Changed
+
+- JSON values open pretty-printed for editing and are stored minified. Numbers keep every digit, and strings and key order stay as written.
+
+### Security
+
+- Updated `cookie` and `url` to patched versions (RUSTSEC-2026-0594, RUSTSEC-2026-0592).
+
 ## [0.3.0] - 2026-11-25
 
 ### Added
