@@ -58,6 +58,7 @@ export function ResultView({
 }: Props) {
   const [mode, setMode] = useState<ViewMode>("grid");
   const [viewer, setViewer] = useState(false);
+  const [viewerExpanded, setViewerExpanded] = useState(false);
   const [focus, setFocus] = useState<CellPos | null>(null);
   const [selection, setSelection] = useState<Range | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -216,6 +217,8 @@ export function ResultView({
               }
               column={focusedColumn}
               value={focusedValue}
+              expanded={viewerExpanded}
+              onExpandedChange={setViewerExpanded}
               loadFull={loadFull?.(focus) ?? null}
               noFullReason={noFullReason}
               onClose={() => {

@@ -2,6 +2,7 @@
 import type { EditorKind, Parsed as KitParsed } from "@roost/grid";
 
 import type { Value } from "../../ipc";
+import { formatJson, minifyJson } from "../../lib/jsonFormat";
 import { rawText } from "../../lib/value";
 import { prettyXml } from "../../lib/xml";
 import type { GridColumn } from "../grid/DataGrid";
@@ -85,9 +86,12 @@ export function formatHint(column: GridColumn, original: Value): string {
   }
 }
 
-/** The editor's starting text: the whole value, or nothing for `NULL`. */
+/** The editor's starting text: the whole value, or nothing for `NULL`. JSON opens
+ * pretty-printed, unless it does not parse (or was cut short), when it opens as stored. */
 export function editText(value: Value): string {
-  return value.t === "null" ? "" : rawText(value);
+  if (value.t === "null") return "";
+  if (value.t === "json" && value.truncated !== true) return formatJson(value.v) ?? value.v;
+  return rawText(value);
 }
 
 export type Parsed = KitParsed<Value>;
@@ -130,12 +134,10 @@ function longValue(text: string, column: GridColumn, original: Value): Parsed {
   const json = original.t === "json" || (original.t === "null" && column.category === "json");
   const xml = original.t === "xml" || (original.t === "null" && column.category === "xml");
   if (json) {
-    try {
-      JSON.parse(text);
-    } catch {
-      return { error: "Not valid JSON" };
-    }
-    return { value: { t: "json", v: text } };
+    // Stored minified: the editor's indentation is for reading, not for keeping.
+    const minified = minifyJson(text);
+    if (minified === null) return { error: "Not valid JSON" };
+    return { value: { t: "json", v: minified } };
   }
   if (xml) {
     if (prettyXml(text) === null) return { error: "Not well-formed XML" };

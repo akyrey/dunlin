@@ -116,6 +116,45 @@ describe("CellViewer", () => {
     expect(screen.getByText("The value is NULL.")).toBeInTheDocument();
   });
 
+  it("asks to expand and to collapse the panel", async () => {
+    const onExpandedChange = vi.fn();
+    const props = {
+      column: json,
+      value: { t: "json", v: "{}" } as Value,
+      loadFull: null,
+      noFullReason: "",
+      onClose: vi.fn(),
+      onExpandedChange,
+    };
+    const { rerender } = render(<CellViewer {...props} expanded={false} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Expand cell viewer" }));
+    expect(onExpandedChange).toHaveBeenLastCalledWith(true);
+
+    rerender(<CellViewer {...props} expanded />);
+    await userEvent.click(screen.getByRole("button", { name: "Collapse cell viewer" }));
+    expect(onExpandedChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("edits a JSON value loaded in full pretty-printed", async () => {
+    const loadFull = vi.fn<() => Promise<Value>>().mockResolvedValue({ t: "json", v: '{"a":1}' });
+    render(
+      <CellViewer
+        column={json}
+        value={{ t: "json", v: '{"a"', truncated: true }}
+        loadFull={loadFull}
+        noFullReason=""
+        onClose={vi.fn()}
+        edit={{ initialText: '{"a"', parse: vi.fn(), onSave: vi.fn(), start: false }}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Load the whole value" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    const lines = [...screen.getByLabelText("Edit body").querySelectorAll(".cm-line")];
+    expect(lines.map((line) => line.textContent)).toEqual(["{", '  "a": 1', "}"]);
+  });
+
   describe("editing", () => {
     function edit(column: GridColumn, raw: string, onSave = vi.fn()) {
       const viewerEdit: ViewerEdit = {

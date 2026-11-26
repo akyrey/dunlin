@@ -6,7 +6,7 @@ import { decodeBase64, hexDump, imageType } from "../../lib/binary";
 import { prettyJson } from "../../lib/json";
 import { formatSize, rawText } from "../../lib/value";
 import { prettyXml } from "../../lib/xml";
-import type { Parsed } from "../edit/editors";
+import { type Parsed, editText } from "../edit/editors";
 import { CodeEditor } from "../editor/CodeEditor";
 import { type CodeLanguage, ReadOnlyCode } from "../editor/ReadOnlyCode";
 import type { GridColumn } from "./DataGrid";
@@ -21,6 +21,10 @@ type Props = {
   onClose: () => void;
   /** Editing in the panel (JSON, XML, long text); absent for read-only cells. */
   edit?: ViewerEdit;
+  /** Wide enough to read a large value; the parent owns it so it survives moving between cells. */
+  expanded?: boolean;
+  /** Absent: the panel cannot be expanded. */
+  onExpandedChange?: (expanded: boolean) => void;
 };
 
 export type ViewerEdit = {
@@ -31,6 +35,10 @@ export type ViewerEdit = {
   start: boolean;
 };
 
+const COLLAPSED_WIDTH = "w-96";
+/** Most of the result area, leaving a strip of the grid to keep its place. */
+const EXPANDED_WIDTH = "w-[75%]";
+
 function isTruncated(value: Value): boolean {
   return (
     (value.t === "text" || value.t === "json" || value.t === "xml" || value.t === "bytes") &&
@@ -40,7 +48,16 @@ function isTruncated(value: Value): boolean {
 
 /** The selected cell in full: JSON and XML pretty-printed, text with wrapping, binary as a hex
  * dump or an image (task 6.10). Nothing is ever rendered as HTML. */
-export function CellViewer({ column, value, loadFull, noFullReason, onClose, edit }: Props) {
+export function CellViewer({
+  column,
+  value,
+  loadFull,
+  noFullReason,
+  onClose,
+  edit,
+  expanded = false,
+  onExpandedChange,
+}: Props) {
   // A value cut short is never edited: saving it would cut the stored value too.
   const [draft, setDraft] = useState<string | null>(
     edit?.start && !isTruncated(value) ? edit.initialText : null,
@@ -69,7 +86,9 @@ export function CellViewer({ column, value, loadFull, noFullReason, onClose, edi
   return (
     <aside
       aria-label="Cell viewer"
-      className="flex h-full w-96 shrink-0 flex-col border-l border-zinc-800 bg-zinc-900"
+      className={`flex h-full shrink-0 flex-col border-l border-zinc-800 bg-zinc-900 ${
+        expanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH
+      }`}
     >
       <header className="flex items-center gap-2 border-b border-zinc-800 px-2 py-1.5 text-xs">
         <span className="min-w-0 flex-1 truncate">
@@ -100,10 +119,23 @@ export function CellViewer({ column, value, loadFull, noFullReason, onClose, edi
             disabled={truncated}
             title={truncated ? "Load the whole value before editing it" : undefined}
             onClick={() => {
-              setDraft(full?.for === value ? rawText(full.value) : edit.initialText);
+              setDraft(full?.for === value ? editText(full.value) : edit.initialText);
             }}
           >
             Edit
+          </Button>
+        )}
+        {onExpandedChange && (
+          <Button
+            variant="ghost"
+            className="px-1 text-xs"
+            aria-label={expanded ? "Collapse cell viewer" : "Expand cell viewer"}
+            title={expanded ? "Collapse" : "Expand"}
+            onClick={() => {
+              onExpandedChange(!expanded);
+            }}
+          >
+            {expanded ? "⇥" : "⇤"}
           </Button>
         )}
         <Button

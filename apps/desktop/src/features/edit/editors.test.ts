@@ -79,8 +79,8 @@ describe("cell editors", () => {
   });
 
   it("validates JSON and XML, keeps long text, and refuses binary", () => {
-    expect(parseInput('{"a": 1}', col("json"), nul)).toEqual({
-      value: { t: "json", v: '{"a": 1}' },
+    expect(parseInput('{\n  "a": 1,\n  "b": " x "\n}', col("json"), nul)).toEqual({
+      value: { t: "json", v: '{"a":1,"b":" x "}' },
     });
     expect(parseInput("{oops", col("json"), nul)).toEqual({ error: "Not valid JSON" });
     expect(parseInput("<a/>", col("xml"), nul)).toEqual({ value: { t: "xml", v: "<a/>" } });
@@ -107,6 +107,11 @@ describe("cell editors", () => {
     expect(toggled({ t: "bool", v: true })).toEqual({ t: "bool", v: false });
     expect(editText(nul)).toBe("");
     expect(editText({ t: "int", v: "3" })).toBe("3");
+  });
+
+  it("opens JSON pretty-printed, and keeps JSON that does not parse as it is", () => {
+    expect(editText({ t: "json", v: '{"a":[1]}' })).toBe('{\n  "a": [\n    1\n  ]\n}');
+    expect(editText({ t: "json", v: "{oops" })).toBe("{oops");
   });
 });
 
