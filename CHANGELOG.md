@@ -2,6 +2,12 @@
 
 All notable changes to Dunlin. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). The version lives in the workspace `Cargo.toml` only.
 
+## [0.5.0] - 2026-11-26
+
+### Added
+
+- Format the SQL in a query tab with the Format button or ⇧⌘F: the selection, or the whole script when nothing is selected. Only whitespace changes; scripts with `DELIMITER` and SQL that does not parse are left alone.
+
 ## [0.4.0] - 2026-11-26
 
 ### Added
