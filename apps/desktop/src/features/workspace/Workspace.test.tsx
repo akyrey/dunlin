@@ -129,6 +129,27 @@ describe("workspace tabs", () => {
     expect(screen.getByLabelText("Row limit")).toHaveValue("100");
   });
 
+  it("formats the editor's SQL, and undo brings the original back", async () => {
+    render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: "New connection" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.selectOptions(within(dialog).getByLabelText("Database type"), "sqlite");
+    await userEvent.type(within(dialog).getByLabelText("Name"), "People");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Browse…" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    const id = (await vi.waitFor(() => useConnections.getState().profiles[0]))?.id ?? "";
+    saveTabs(id, [{ title: "Messy", text: "select a, b from people", rowLimit: 100 }]);
+    await userEvent.click(screen.getByRole("button", { name: /^People/ }));
+    await screen.findByRole("tablist", { name: "Open tabs" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Format" }));
+
+    const tabText = () => Object.values(useEditor.getState().tabs)[0]?.text;
+    expect(tabText()).toBe("select\n  a,\n  b\nfrom\n  people");
+    fireEvent.keyDown(screen.getByLabelText("SQL editor"), { key: "z", code: "KeyZ", ...mod });
+    expect(tabText()).toBe("select a, b from people");
+  });
+
   it("asks before closing a data tab with unapplied edits", async () => {
     render(<App />);
     const strip = await open();

@@ -14,6 +14,7 @@ import { type RefObject, useEffect, useImperativeHandle, useRef } from "react";
 import type { DriverKind } from "../../ipc";
 import { type Span, statementAt } from "../../lib/text";
 import { dialectFor } from "./dialects";
+import { formatSql } from "./formatSql";
 import { redisLanguage } from "./redisLanguage";
 import type { RunMode, Selection } from "./run";
 import { bindingOf } from "../shortcuts/registry";
@@ -23,6 +24,8 @@ export type EditorHandle = {
   selection: () => Selection;
   focusAt: (offset: number) => void;
   focus: () => void;
+  /** Formats the selection, or the whole text; a failure goes to `onFormatError`. */
+  format: () => void;
 };
 
 export type Completion = { schema: SQLNamespace; defaultSchema: string | undefined };
@@ -41,6 +44,7 @@ type Props = {
   onExplain?: (selection: Selection) => void;
   onCancel: () => void;
   onSave: () => void;
+  onFormatError: (message: string) => void;
   handleRef: RefObject<EditorHandle | null>;
 };
 
@@ -82,6 +86,34 @@ function selectionOf(view: EditorView): Selection {
   return { from: main.from, to: main.to, head: main.head };
 }
 
+/** Replaces the selection, or the whole text, with its formatted SQL as one undoable change.
+ * Returns the error when the SQL cannot be formatted. */
+function formatIn(view: EditorView, driver: DriverKind): string | null {
+  const main = view.state.selection.main;
+  const whole = main.empty;
+  const from = whole ? 0 : main.from;
+  const to = whole ? view.state.doc.length : main.to;
+  const original = view.state.sliceDoc(from, to);
+  const result = formatSql(original, driver);
+  if (!result.ok) return result.error;
+  if (result.text === original) return null;
+  const end = from + result.text.length;
+  view.dispatch({
+    changes: { from, to, insert: result.text },
+    selection: whole
+      ? EditorSelection.cursor(Math.min(main.head, end))
+      : EditorSelection.range(from, end),
+    userEvent: "input.format",
+    scrollIntoView: true,
+  });
+  return null;
+}
+
+function formatAndReport(view: EditorView, props: Pick<Props, "driver" | "onFormatError">) {
+  const error = formatIn(view, props.driver);
+  if (error) props.onFormatError(error);
+}
+
 function language(driver: DriverKind, completion: Completion | undefined) {
   const dialect = dialectFor(driver);
   if (!dialect) return redisLanguage();
@@ -118,6 +150,12 @@ export function SqlEditor(props: Props) {
       current.focus();
     },
     focus: () => view.current?.focus(),
+    format: () => {
+      const current = view.current;
+      if (!current) return;
+      formatAndReport(current, callbacks.current);
+      current.focus();
+    },
   }));
 
   useEffect(() => {
@@ -134,6 +172,13 @@ export function SqlEditor(props: Props) {
           key: bindingOf("explain"),
           run: (target) => {
             callbacks.current.onExplain?.(selectionOf(target));
+            return true;
+          },
+        },
+        {
+          key: bindingOf("format-sql"),
+          run: (target) => {
+            formatAndReport(target, callbacks.current);
             return true;
           },
         },

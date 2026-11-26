@@ -17,6 +17,7 @@ export type ShortcutId =
   | "run-statement"
   | "run-script"
   | "explain"
+  | "format-sql"
   | "cancel"
   | "save-query"
   | "toggle-comment"
@@ -66,6 +67,12 @@ export const SHORTCUTS: readonly Shortcut[] = [
     group: "Editor",
     description: "Explain the statement at the cursor, without running it",
     keys: ["Mod-Shift-e"],
+  },
+  {
+    id: "format-sql",
+    group: "Editor",
+    description: "Format the selection, or the whole script",
+    keys: ["Mod-Shift-f"],
   },
   { id: "cancel", group: "Editor", description: "Cancel the running statement", keys: ["Escape"] },
   { id: "save-query", group: "Editor", description: "Save as a saved query", keys: ["Mod-s"] },

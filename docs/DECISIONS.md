@@ -278,3 +278,9 @@ Format: context, decision, consequences. Keep entries short.
 **Context.** A JSON value edited in the cell viewer opened as stored, usually one long line, and was saved exactly as typed, so the indentation added while editing ended up in the database.
 **Decision.** The editor opens a JSON value pretty-printed (two spaces) and "Set value" stores it minified. Both work on the text's tokens, not through `JSON.parse`/`JSON.stringify`, which only validates: numbers keep every digit, and strings, key order and duplicate keys stay as written. Values that do not parse, or were cut short, open as stored. Text columns that hold JSON are left alone, since their whitespace is the value. The cell viewer can be expanded to most of the result area; the setting holds while moving between cells.
 **Consequences.** Saving a JSON cell rewrites its whitespace even when nothing else changed. That matters only for PostgreSQL `json` (not `jsonb`) and SQLite, which keep the text as written; MySQL and `jsonb` normalise it anyway.
+
+## D-045 The editor formats SQL with `sql-formatter`, whitespace only (2026-11-26)
+
+**Context.** Pasted or hand-written queries are often one long line, and there was no way to lay them out.
+**Decision.** A "Format" button and ⇧⌘F format the selection, or the whole text when nothing is selected, with `sql-formatter` in the tab's dialect (PostgreSQL, MySQL, SQLite) and two-space indentation. Keyword and identifier case stay as written, so only whitespace changes. The edit is one undoable change. Scripts with a MySQL `DELIMITER` line are refused, since the formatter does not know about it and would break them; text that does not parse is left alone and the parse error is shown. Redis tabs have no Format button.
+**Consequences.** A new dependency (about 3 MB unpacked, only the three dialects are imported). Formatting moves comments onto their own lines where the formatter puts them.

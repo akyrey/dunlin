@@ -148,6 +148,15 @@ export function EditorPane({ tabId, session, profile }: Props) {
               Explain analyze
             </Button>
           )}
+          {!session.capabilities.keyValue && (
+            <Button
+              variant="ghost"
+              title={`Format the selection, or the whole script (${shortcutLabel("format-sql")})`}
+              onClick={() => editor.current?.format()}
+            >
+              Format
+            </Button>
+          )}
           {tab.running && session.capabilities.cancel && (
             <Button
               variant="danger"
@@ -229,6 +238,9 @@ export function EditorPane({ tabId, session, profile }: Props) {
             }
             onCancel={() => void actions.cancel(tabId)}
             onSave={() => void save()}
+            onFormatError={(message) => {
+              toast.error(`Can't format: ${message}`);
+            }}
           />
         </div>
         <section aria-label="Results" className="min-h-0 flex-[2]" tabIndex={-1} data-results>
